@@ -55,7 +55,6 @@ coverage.xml
 # Sphinx documentation
 docs/_build/
 
-
 #########
 # EMACS #
 #########
@@ -85,6 +84,19 @@ tramp
 
 # elpa packages
 /elpa/
+
+#######
+# VIM #
+#######
+# Initialized from github
+# https://raw2.github.com/github/gitignore/master/Global/vim.gitignore
+
+[._]*.s[a-w][a-z]
+[._]s[a-w][a-z]
+*.un~
+Session.vim
+.netrwhist
+*~
 
 #######
 # OSX #
