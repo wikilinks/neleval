@@ -2,6 +2,8 @@
 """
 Container for CoNLL03 NEL annotation
 """
+import gzip
+from collections import OrderedDict
 
 class Mention(object):
     """Named entity mention."""
@@ -9,11 +11,18 @@ class Mention(object):
         """
         start - begin token offset (slice semantics)
         end - end token offset (slice semantics)
-        link - e.g., Wikipedia title (None == NIL)
+        link - e.g., Wikipedia url (None == NIL)
         """
         self.start = start
         self.end = end
         self.link = link
+
+    @property
+    def title(self):
+        if self.link is None:
+            return None
+        else:
+            return self.link[self.link.rfind('/')+1:].replace('_', ' ')
 
     def __str__(self):
         return '<Mention [{}:{}] -> {}>'.format(self.start, self.end, self.link)
@@ -45,11 +54,80 @@ class Document(object):
         return id, split
 
     @classmethod
-    def from_string(cls, s):
-        raise NotImplementedError
-    
-class Data(object):
+    def from_lines(cls, lines):
+        """
+        Return document object.
+        s - CoNLL-formatted lines
+        """
+        doc = cls._init_document(lines)
+        if doc is not None:
+            for m in cls._iter_mentions(lines):
+                doc.mentions.append(m)
+        return doc
 
     @classmethod
-    def from_string(cls, s):
-        raise NotImplementedError
+    def _init_document(cls, lines):
+        for line in lines:
+            if line.startswith('-DOCSTART-'):
+                id = line.strip()[12:-1].split()[0]
+                return cls(id)
+
+    @classmethod
+    def _iter_mentions(cls, lines):
+        tok_id = -1
+        start = None
+        for line in lines:
+            if line.strip() == '' or line.startswith('-DOCSTART-'):
+                continue # blank line
+            tok_id += 1
+            tok, bi, name, link = cls._parse_line(line)
+            if bi is None:
+                continue # not an entity mention
+            if bi == 'B':
+                start = tok_id
+            if tok == name.split()[-1]:
+                yield Mention(start, tok_id, link)
+                start = None
+
+    @classmethod
+    def _parse_line(cls, line):
+        cols = line.rstrip('\n').split('\t')
+        tok, bi, name, link = None, None, None, None
+        if len(cols) >= 1:
+            tok = cols[0] # current token
+        if len(cols) >= 3:
+            bi = cols[1] # begin/inside tag
+            name = cols[2] # full mention text
+        if len(cols) >= 5:
+            link = cols[4] # Wikipedia url
+        return tok, bi, name, link
+    
+class Data(object):
+    def __init__(self, documents=None):
+        self.documents = documents or OrderedDict()
+
+    @classmethod
+    def from_file(cls, f):
+        """
+        Return data object.
+        f - CoNLL-formatted file
+        """
+        fh = gzip.open(f) if f.endswith('.gz') else open(f)
+        data = cls()
+        for d in cls._iter_documents(fh.readlines()):
+            data.documents[d.id] = d
+        return data
+
+    @classmethod
+    def _iter_documents(cls, lines):
+        doc = []
+        for i, line in enumerate(lines):
+            if line.startswith('-DOCSTART-'):
+                if len(doc) > 0:
+                    yield Document.from_lines(doc)
+                doc = []
+            if line.strip() != '':
+                doc.append(line)
+        yield Document.from_lines(doc)
+        
+        
