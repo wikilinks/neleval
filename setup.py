@@ -4,7 +4,9 @@ setup(name='conll03_nel_eval',
       description='Evaluation utilities for the CoNLL03 Named Entity Linking corpus',
       py_modules=['conll03_nel_eval'],
       url='https://github.com/benhachey/conll03_nel_eval',
-      scripts=[
-        'bin/cne_suite.py',
-      ],
+      entry_points = {
+        'console_scripts': [
+            'conll03_nel_eval = conll03_nel_eval.__main__:main',
+        ],
+      }
 )
