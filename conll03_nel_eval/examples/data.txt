@@ -1,0 +1,10 @@
+-DOCSTART- (doc1)
+The	B	--NME--
+Cat	I	--NME--
+sat
+on
+the
+mat
+in
+Paris	B	Paris
+.
