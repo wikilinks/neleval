@@ -34,7 +34,11 @@ class Mention(object):
         return cmp(self, other) == 0
 
     def weak_span_match(self, other):
-        raise NotImplementedError
+        for i in xrange(self.start, self.end):
+            for j in xrange(other.start, other.end):
+                if i == j:
+                    return True
+        return False
 
     def link_match(self, other):
         return self.link == other.link
@@ -53,6 +57,70 @@ class Document(object):
 
     def __str__(self):
         return '<Document id={}>'.format(self.id)
+
+    @property
+    def links(self):
+        links = []
+        for m in self.mentions:
+            if m.link is not None:
+                links.append(m)
+        return links
+
+    @property
+    def nils(self):
+        nils = []
+        for m in self.mentions:
+            if m.link is None:
+                nils.append(m)
+        return nils
+
+    @property
+    def entities(self):
+        entities = set()
+        for m in self.mentions:
+            if m.link is not None:
+                entities.add(m.link)
+        return entities
+
+    def strong_mention_match(self, other):
+        return self.mention_match(other, 'mentions', 'strong_span_match')
+
+    def weak_mention_match(self, other):
+        return self.mention_match(other, 'mentions', 'weak_span_match')
+
+    def strong_link_match(self, other):
+        return self.mention_match(other, 'links', 'strong_link_match')
+
+    def weak_link_match(self, other):
+        return self.mention_match(other, 'links', 'weak_link_match')
+
+    def strong_nil_match(self, other):
+        return self.mention_match(other, 'nils', 'strong_span_match')
+
+    def weak_nil_match(self, other):
+        return self.mention_match(other, 'nils', 'weak_span_match')
+
+    def mention_match(self, other, mtype, match):
+        tp, fp = 0, 0
+        for m in getattr(self, mtype):
+            matches = []
+            for o in getattr(other, mtype):
+                if getattr(m, match)(o):
+                    matches.append(o)
+            if len(matches) == 0:
+                fp += 1
+            else:
+                tp += 1
+        return tp, fp
+
+    def entity_match(self, other):
+        tp, fp = 0, 0
+        for e in self.entities:
+            if e in other.entities:
+                tp += 1
+            else:
+                fp += 1
+        return tp, fp
 
     def _parse_id(self, id):
         split = 'train'
