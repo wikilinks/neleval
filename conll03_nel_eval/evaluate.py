@@ -2,12 +2,18 @@
 """
 Evaluate linker performance.
 """
+import pprint
 from data import Data
 
 MATCH = 'strong_link_match'
 
 class Evaluate(object):
-    def __init__(self, system, gold, match):
+    def __init__(self, fname, gold, match):
+        """
+        fname - system output
+        gold - gold standard
+        match - mention match method to use
+        """
         self.match = match
 	pprint.pprint(self.evaluate(fname, gold))
 
@@ -20,7 +26,6 @@ class Evaluate(object):
     @classmethod
     def add_arguments(cls, sp):
         p = sp.add_parser('evaluate', help='Evaluate system output')
-        p.add_argument('-s', '--system')
         p.add_argument('-g', '--gold')
         p.add_argument('-m', '--match', default=MATCH)
         p.set_defaults(cls=cls)
@@ -131,7 +136,7 @@ class Evaluate(object):
 
     @property
     def _docs(self):
-        for id, sdoc in self.system.documents:
+        for id, sdoc in self.system.documents.iteritems():
             if sdoc is None:
                 continue
             gdoc = self.gold.documents[id]
