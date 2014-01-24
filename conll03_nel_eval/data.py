@@ -40,9 +40,13 @@ class Mention(object):
         return self.link == other.link
 
 class Document(object):
-    def __init__(self, id, mentions=None):
+    def __init__(self, id, mentions=None, lines=None):
         self.id, self.split = self._parse_id(id)
         self.mentions = mentions or []
+        self.lines = lines or [] # FIXME Temporary inclusion of lines until tokens.
+
+    def __str__(self):
+        return '<Document id={}>'.format(self.id)
 
     def _parse_id(self, id):
         split = 'train'
@@ -50,7 +54,6 @@ class Document(object):
             split = 'testa'
         elif 'testb' in id:
             split = 'testb'
-        id = id.replace(split, '')
         return id, split
 
     @classmethod
@@ -61,23 +64,23 @@ class Document(object):
         """
         doc = cls._init_document(lines)
         if doc is not None:
-            for m in cls._iter_mentions(lines):
-                doc.mentions.append(m)
+            doc.mentions = list(cls._iter_mentions(lines))
         return doc
 
+    START = '-DOCSTART-'
     @classmethod
     def _init_document(cls, lines):
         for line in lines:
-            if line.startswith('-DOCSTART-'):
-                id = line.strip()[12:-1].split()[0]
-                return cls(id)
+            if line.startswith(cls.START):
+                id = line.strip().replace(cls.START, '').strip().lstrip('(').rstrip(')')
+                return cls(id, lines=lines)
 
     @classmethod
     def _iter_mentions(cls, lines):
         tok_id = -1
         start = None
         for line in lines:
-            if line.strip() == '' or line.startswith('-DOCSTART-'):
+            if line.strip() == '' or line.startswith(cls.START):
                 continue # blank line
             tok_id += 1
             tok, bi, name, link = cls._parse_line(line)
@@ -101,7 +104,12 @@ class Document(object):
         if len(cols) >= 5:
             link = cols[4] # Wikipedia url
         return tok, bi, name, link
-    
+
+    def to_conll(self):
+        ''' Returns a CoNLL formatted string. '''
+        return ''.join(self.lines)
+
+
 class Data(object):
     def __init__(self, documents=None):
         self.documents = documents or OrderedDict()
@@ -129,5 +137,9 @@ class Data(object):
             if line.strip() != '':
                 doc.append(line)
         yield Document.from_lines(doc)
-        
-        
+
+    def __iter__(self):
+        return iter(self.documents.values())
+
+    def __len__(self):
+        return len(self.documents)

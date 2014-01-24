@@ -1,8 +1,14 @@
-from data import Mention, Document
+from data import Mention, Document, Data
+from utils import log
 
 class Filter(object):
     def __init__(self, fname, split=None):
-        print 'Filtering', fname, split
+        d = Data.from_file(fname)
+        log('Read {} documents from {}'.format(len(d), fname))
+        for doc in d:
+            if split and split != doc.split:
+                continue
+            print doc.to_conll()
 
     @classmethod
     def add_arguments(cls, sp):
