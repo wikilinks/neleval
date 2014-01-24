@@ -8,20 +8,20 @@ from data import Data
 MATCH = 'strong_link_match'
 
 class Evaluate(object):
-    def __init__(self, fname, gold, match):
+    def __init__(self, fname, gold, match=MATCH):
         """
         fname - system output
         gold - gold standard
-        match - mention match method to use
+        match - match method
         """
         self.match = match
-	pprint.pprint(self.evaluate(fname, gold))
+        self.evaluate(fname, gold)
+        pprint.pprint(self.accumulated.results)
 
     def evaluate(self, system, gold):
         self.system = Data.from_file(system)
         self.gold = Data.from_file(gold)
-        self.tp, self.fp, self.fn = self.load()
-        return self.results
+        self.matrixes, self.accumulated = self.load()
 
     @classmethod
     def add_arguments(cls, sp):
@@ -32,107 +32,13 @@ class Evaluate(object):
         return p
 
     def load(self):
-        """
-        Calculate tp, fp, fn per doc.
-        """
-        tp = {} # {doc_id: tp_count}
-        fp = {} # {doc_id: fp_count}
-        fn = {} # {doc_id: fn_count}
-        for id, (sdoc, gdoc) in self._docs:
-            sg_tp, sg_fp = self._load(sdoc, gdoc)
-            gs_tp, gs_fp = self._load(gdoc, sdoc)
-            assert sg_tp == gs_tp
-            tp[id] = sg_tp
-            fp[id] = sg_fp
-            fn[id] = gs_fp
-        return tp, fp, fn
-
-    def _load(self, sdoc, gdoc):
-        tp = 0
-        fp = 0
-        for smen in sdoc.mentions:
-            matches = []
-            for gmen in gdoc.mentions:
-                if getattr(smen, self.match)(gmen):
-                    matches.append(smen)
-            if len(matches) == 0:
-                fp += 1
-            else:
-                tp += 1
-        return tp, fp
-
-    @property
-    def results(self):
-        return {
-            'micro_precision': self.micro_precision,
-            'micro_recall': self.micro_recall,
-            'micro_fscore': self.micro_fscore,
-            'macro_precision': self.macro_precision,
-            'macro_recall': self.macro_recall,
-            'macro_fscore': self.macro_fscore,
-            'tp': self.tp,
-            'fp': self.fp,
-            'fn': self.fn,
-            }
-
-    @property
-    def micro_precision(self):
-        tp = 0.0
-        fp = 0.0
-        for id, _ in self._docs:
-            tp += self.tp[id]
-            fp += self.fp[id]
-        return self._precision(tp, fp)
-
-    @property
-    def macro_precision(self):
-        p = 0.0
-        n = 0
-        for id, _ in self._docs:
-            p += self._precision(self.tp[id], self.fp[id])
-            n += 1
-        return p / n
-
-    def _precision(self, tp, fp):
-        if (tp+fp) == 0:
-            return 1
-        else:
-            return tp / float(tp+fp)
-
-    @property
-    def micro_recall(self):
-        tp = 0.0
-        fn = 0.0
-        for id, _ in self._docs:
-            tp += self.tp[id]
-            fn += self.fn[id]
-        return self._recall(tp, fn)
-
-    @property
-    def macro_recall(self):
-        r = 0.0
-        n = 0
-        for id, _ in self._docs:
-            r += self._recall(self.tp[id], self.fn[id])
-            n += 1
-        return r / n
-
-    def _recall(self, tp, fn):
-        if (tp+fn) == 0:
-            return 1
-        else:
-            return tp / float(tp+fn)
-
-    @property
-    def micro_fscore(self):
-        return self._harmonic_mean(self.micro_precision, self.micro_recall)
-
-    @property
-    def macro_fscore(self):
-        return self._harmonic_mean(self.macro_precision, self.macro_recall)
-
-    def _harmonic_mean(self, p, r):
-        return 2*p*r / float(p+r)
+        matrixes = [] # doc-level matrixes
+        accumulator = Matrix(0, 0, 0) # accumulator matrix
+        for sdoc, gdoc in self._docs:
+            m = Matrix.from_doc(sdoc, gdoc, self.match)
+            matrixes.append(m)
+            accumulator = accumulator + m
+        return matrixes, accumulator
 
     @property
     def _docs(self):
@@ -142,4 +48,57 @@ class Evaluate(object):
             gdoc = self.gold.documents[id]
             if gdoc is None:
                 continue
-            yield id, (sdoc, gdoc)
+            yield sdoc, gdoc
+
+class Matrix(object):
+    def __init__(self, tp, fp, fn):
+        self.tp = tp
+        self.fp = fp
+        self.fn = fn
+
+    def __add__(self, other):
+        return Matrix(self.tp + other.tp,
+                      self.fp + other.fp,
+                      self.fn + other.fn)
+
+    @classmethod
+    def from_doc(cls, sdoc, gdoc, match=MATCH):
+        """
+        Initialise from doc.
+        sdoc - system Document object
+        gdoc - gold Document object
+        match - match method on doc
+        """
+        sg_tp, fp = getattr(sdoc, match)(gdoc)
+        gs_tp, fn = getattr(gdoc, match)(sdoc)
+        assert sg_tp == gs_tp
+        return cls(sg_tp, fp, fn)
+
+    @property
+    def results(self):
+        return {
+            'precision': self.precision,
+            'recall': self.recall,
+            'fscore': self.fscore,
+            'tp': self.tp,
+            'fp': self.fp,
+            'fn': self.fn,
+            }
+
+    @property
+    def precision(self):
+        return self.div(self.tp, self.tp+self.fp)
+
+    @property
+    def recall(self):
+        return self.div(self.tp, self.tp+self.fn)
+
+    def div(self, n, d):
+        return 1.0 if d == 0 else n / float(d)
+            
+
+    @property
+    def fscore(self):
+        p = self.precision
+        r = self.recall
+        return 2*p*r / float(p+r)
