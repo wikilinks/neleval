@@ -30,14 +30,20 @@ class Mention(object):
     def __cmp__(self, other):
         return cmp(self.start, other.start) or cmp(self.end, other.end)
 
-    def span_match(self, other):
+    def strong_span_match(self, other):
         return cmp(self, other) == 0
 
-    def fuzzy_span_match(self, other):
+    def weak_span_match(self, other):
         raise NotImplementedError
 
     def link_match(self, other):
         return self.link == other.link
+
+    def strong_link_match(self, other):
+        return self.strong_span_match(other) and self.link_match(other)
+
+    def weak_link_match(self, other):
+        return self.weak_span_match(other) and self.link_match(other)
 
 class Document(object):
     def __init__(self, id, mentions=None, lines=None):
@@ -89,7 +95,7 @@ class Document(object):
             if bi == 'B':
                 start = tok_id
             if tok == name.split()[-1]:
-                yield Mention(start, tok_id, link)
+                yield Mention(start, tok_id+1, link)
                 start = None
 
     @classmethod
