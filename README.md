@@ -14,3 +14,15 @@ git clone https://github.com/benhachey/conll03_nel_eval
 cd conll03_nel_eval
 cne SYSTEM evaluate -g GOLD
 ```
+
+Installing as a module
+======================
+
+Pip should be able to install directly from this repository:
+```Shell
+mkdir some_project
+cd some_project
+virtualenv ve
+source ve/bin/activate
+pip install git+git://github.com/benhachey/conll03_nel_eval.git#egg=CNE
+```
