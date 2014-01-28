@@ -18,7 +18,8 @@ def main(args=sys.argv[1:]):
 
     namespace = vars(p.parse_args(args))
     cls = namespace.pop('cls')
-    cls(**namespace)
+    obj = cls(**namespace)
+    print obj()
 
 if __name__ == '__main__':
     main()

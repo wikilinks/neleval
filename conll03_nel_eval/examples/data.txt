@@ -1,10 +1,10 @@
 -DOCSTART- (doc1)
-The	B	--NME--
-Cat	I	--NME--
+The	B	The Cat
+Cat	I	The Cat
 sat
 on
 the
 mat
 in
-Paris	B	Paris
+Paris	B	Paris	Paris
 .
