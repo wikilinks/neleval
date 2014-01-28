@@ -3,39 +3,42 @@
 Evaluate linker performance.
 """
 import pprint
-from data import Data
-
-MATCH = 'strong_link_match'
+from data import Data, MATCHES
 
 class Evaluate(object):
-    def __init__(self, fname, gold, match=MATCH):
+    def __init__(self, fname, gold):
         """
         fname - system output
         gold - gold standard
-        match - match method
         """
-        self.match = match
-        self.evaluate(fname, gold)
-        pprint.pprint(self.accumulated.results)
+        self.fname = fname
+        self.gold = gold
+
+    def __call__(self):
+        self.results = self.evaluate(self.fname, self.gold)
+        return self.results
 
     def evaluate(self, system, gold):
-        self.system = Data.from_file(system)
-        self.gold = Data.from_file(gold)
-        self.matrixes, self.accumulated = self.load()
+        self.system = Data.read(system)
+        self.gold = Data.read(gold)
+        results = {}
+        for m in MATCHES:
+            matrixes, accumulated = self.load(m)
+            results[m] = accumulated.results
+        return results
 
     @classmethod
     def add_arguments(cls, sp):
         p = sp.add_parser('evaluate', help='Evaluate system output')
         p.add_argument('-g', '--gold')
-        p.add_argument('-m', '--match', default=MATCH)
         p.set_defaults(cls=cls)
         return p
 
-    def load(self):
+    def load(self, match):
         matrixes = [] # doc-level matrixes
         accumulator = Matrix(0, 0, 0) # accumulator matrix
         for sdoc, gdoc in self._docs:
-            m = Matrix.from_doc(sdoc, gdoc, self.match)
+            m = Matrix.from_doc(sdoc, gdoc, match)
             matrixes.append(m)
             accumulator = accumulator + m
         return matrixes, accumulator
@@ -62,7 +65,7 @@ class Matrix(object):
                       self.fn + other.fn)
 
     @classmethod
-    def from_doc(cls, sdoc, gdoc, match=MATCH):
+    def from_doc(cls, sdoc, gdoc, match=MATCHES[0]):
         """
         Initialise from doc.
         sdoc - system Document object
@@ -95,7 +98,6 @@ class Matrix(object):
 
     def div(self, n, d):
         return 1.0 if d == 0 else n / float(d)
-            
 
     @property
     def fscore(self):

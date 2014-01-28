@@ -5,6 +5,15 @@ Container for CoNLL03 NEL annotation
 import gzip
 from collections import OrderedDict
 
+MATCHES = '''
+strong_mention_match
+weak_mention_match
+strong_link_match
+weak_link_match
+strong_nil_match
+weak_nil_match
+'''.strip().split()
+
 class Mention(object):
     """Named entity mention."""
     def __init__(self, start, end, link=None):
@@ -166,6 +175,7 @@ class Document(object):
                 yield Mention(start, tok_id+1, link)
                 start = None
 
+    NIL_LINK = '--NME--'
     @classmethod
     def _parse_line(cls, line):
         cols = line.rstrip('\n').split('\t')
@@ -177,6 +187,8 @@ class Document(object):
             name = cols[2] # full mention text
         if len(cols) >= 5:
             link = cols[4] # Wikipedia url
+        elif len(cols) == 4:
+            link = cols[3] # System output may not contain all items
         return tok, bi, name, link
 
     def to_conll(self):
@@ -189,14 +201,18 @@ class Data(object):
         self.documents = documents or OrderedDict()
 
     @classmethod
-    def from_file(cls, f):
+    def read(cls, f):
         """
         Return data object.
         f - CoNLL-formatted file
         """
-        fh = gzip.open(f) if f.endswith('.gz') else open(f)
+        if not hasattr(f, 'read'):
+            if f.endswith('.gz'):
+                f = gzip.open(f)
+            else:
+                f = open(f)
         data = cls()
-        for d in cls._iter_documents(fh.readlines()):
+        for d in cls._iter_documents(f):
             data.documents[d.id] = d
         return data
 

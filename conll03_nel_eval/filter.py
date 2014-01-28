@@ -3,12 +3,18 @@ from utils import log
 
 class Filter(object):
     def __init__(self, fname, split=None):
-        d = Data.from_file(fname)
-        log('Read {} documents from {}'.format(len(d), fname))
+        self.fname = fname
+        self.split = split
+
+    def __call__():
+        d = Data.read(self.fname)
+        log('Read {} documents from {}'.format(len(d), self.fname))
+        output = []
         for doc in d:
-            if split and split != doc.split:
+            if self.split and self.split != doc.split:
                 continue
-            print doc.to_conll()
+            output.append(doc.to_conll())
+        return '\n'.join(output)
 
     @classmethod
     def add_arguments(cls, sp):
