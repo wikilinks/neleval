@@ -3,6 +3,7 @@
 Evaluate linker performance.
 """
 from data import Data, MATCHES
+from utils import log
 
 class Evaluate(object):
     def __init__(self, fname, gold=None):

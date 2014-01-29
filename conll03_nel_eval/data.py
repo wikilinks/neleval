@@ -13,6 +13,8 @@ weak_link_match
 strong_nil_match
 weak_nil_match
 link_entity_match
+strong_all_match
+weak_all_match
 '''.strip().split()
 
 class Mention(object):
@@ -92,7 +94,6 @@ class Document(object):
                 entities.add(m.link)
         return entities
 
-    # FIXME I think this is a dud metric as it permits *any* link, as long as the spans are correct!
     def strong_mention_match(self, other):
         return self.mention_match(other, 'mentions', 'strong_span_match')
 
@@ -110,6 +111,17 @@ class Document(object):
 
     def weak_nil_match(self, other):
         return self.mention_match(other, 'nils', 'weak_span_match')
+
+    def strong_all_match(self, other):
+        return self._all_match(other, self.strong_link_match, self.strong_nil_match)
+
+    def weak_all_match(self, other):
+        return self._all_match(other, self.weak_link_match, self.weak_nil_match)
+
+    def _all_match(self, other, l_func, n_func):
+        l_tp, l_fp = l_func(other)
+        n_tp, n_fp = n_func(other)
+        return l_tp + n_tp, l_fp + n_fp
 
     def mention_match(self, other, mtype, match):
         tp, fp = 0, 0
