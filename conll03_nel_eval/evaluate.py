@@ -2,11 +2,10 @@
 """
 Evaluate linker performance.
 """
-import pprint
 from data import Data, MATCHES
 
 class Evaluate(object):
-    def __init__(self, fname, gold):
+    def __init__(self, fname, gold=None):
         """
         fname - system output
         gold - gold standard
@@ -39,6 +38,7 @@ class Evaluate(object):
         accumulator = Matrix(0, 0, 0) # accumulator matrix
         for sdoc, gdoc in self._docs:
             m = Matrix.from_doc(sdoc, gdoc, match)
+            #log(match, sdoc, gdoc, m)
             matrixes.append(m)
             accumulator = accumulator + m
         return matrixes, accumulator
@@ -58,6 +58,9 @@ class Matrix(object):
         self.tp = tp
         self.fp = fp
         self.fn = fn
+
+    def __str__(self):
+        return 'tp={},fp={},fn={}'.format(self.tp, self.fp, self.fn)
 
     def __add__(self, other):
         return Matrix(self.tp + other.tp,
@@ -103,4 +106,4 @@ class Matrix(object):
     def fscore(self):
         p = self.precision
         r = self.recall
-        return 2*p*r / float(p+r)
+        return self.div(2*p*r, p+r)

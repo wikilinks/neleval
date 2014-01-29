@@ -1,4 +1,4 @@
-from data import Mention, Document, Data
+from data import Data
 from utils import log
 
 class Filter(object):
@@ -6,7 +6,7 @@ class Filter(object):
         self.fname = fname
         self.split = split
 
-    def __call__():
+    def __call__(self):
         d = Data.read(self.fname)
         log('Read {} documents from {}'.format(len(d), self.fname))
         output = []

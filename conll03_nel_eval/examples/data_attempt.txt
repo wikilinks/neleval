@@ -1,0 +1,10 @@
+-DOCSTART- (doc1)
+The	B	The Cat	The_Dog
+Cat	I	The Cat	The_Dog
+sat
+on
+the
+mat
+in
+Paris	B	Paris	Paris
+.
