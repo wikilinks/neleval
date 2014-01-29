@@ -78,7 +78,7 @@ class Matrix(object):
         """
         sg_tp, fp = getattr(sdoc, match)(gdoc)
         gs_tp, fn = getattr(gdoc, match)(sdoc)
-        assert sg_tp == gs_tp
+        assert sg_tp == gs_tp, 'Got different system ({}) and gold ({}) true positives for doc {}'.format(sg_tp, gs_tp, sdoc.id)
         return cls(sg_tp, fp, fn)
 
     @property

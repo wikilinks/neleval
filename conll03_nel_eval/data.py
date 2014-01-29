@@ -25,6 +25,7 @@ class Mention(object):
         end - end token offset (slice semantics)
         link - e.g., Wikipedia url (None == NIL)
         """
+        assert isinstance(start, int) and isinstance(end, int)
         self.start = start
         self.end = end
         self.link = link
@@ -176,7 +177,7 @@ class Document(object):
     def _iter_mentions(cls, lines):
         tok_id = -1
         start = None
-        for line in lines:
+        for line_number, line in enumerate(lines):
             if line.strip() == '' or line.startswith(cls.START):
                 continue # blank line
             tok_id += 1
@@ -185,14 +186,19 @@ class Document(object):
                 continue # not an entity mention
             if bi == 'B':
                 start = tok_id
-            if tok == name.split()[-1]:
-                yield Mention(start, tok_id+1, link)
+            end = tok_id + 1
+            name_bits = name.split()
+            if end - start == len(name_bits):
+                assert name_bits[-1] == tok
+                if not isinstance(start, int):
+                    raise ValueError('Malformed input on line {}\t{}'.format(line_number+1, line.strip()))
+                yield Mention(start, end, link)
                 start = None
 
     NIL_LINK = '--NME--'
     @classmethod
     def _parse_line(cls, line):
-        cols = line.rstrip('\n').split('\t')
+        cols = line.rstrip().split('\t')
         tok, bi, name, link = None, None, None, None
         if len(cols) >= 1:
             tok = cols[0] # current token
