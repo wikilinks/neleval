@@ -1,4 +1,4 @@
 import sys
 
-def log(s):
+def log(*s):
     print >> sys.stderr, s

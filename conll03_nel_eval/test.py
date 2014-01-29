@@ -26,13 +26,19 @@ def _get_stats(gold_fname, sys_fname):
     return stats
 
 CORRECT = {
-  'link_entity_match': {'fn': 0,
-                        'fp': 0,
-                        'fscore': 1.0,
-                        'precision': 1.0,
-                        'recall': 1.0,
-                        'tp': 1},
-  'strong_link_match': {'fn': 0,
+ 'link_entity_match': {'fn': 0,
+                       'fp': 0,
+                       'fscore': 1.0,
+                       'precision': 1.0,
+                       'recall': 1.0,
+                       'tp': 1},
+ 'strong_all_match': {'fn': 0,
+                      'fp': 0,
+                      'fscore': 1.0,
+                      'precision': 1.0,
+                      'recall': 1.0,
+                      'tp': 2},
+ 'strong_link_match': {'fn': 0,
                        'fp': 0,
                        'fscore': 1.0,
                        'precision': 1.0,
@@ -50,6 +56,12 @@ CORRECT = {
                       'precision': 1.0,
                       'recall': 1.0,
                       'tp': 1},
+ 'weak_all_match': {'fn': 0,
+                    'fp': 0,
+                    'fscore': 1.0,
+                    'precision': 1.0,
+                    'recall': 1.0,
+                    'tp': 2},
  'weak_link_match': {'fn': 0,
                      'fp': 0,
                      'fscore': 1.0,
@@ -79,6 +91,12 @@ ATTEMPT = {
                        'precision': 0.5,
                        'recall': 1.0,
                        'tp': 1},
+ 'strong_all_match': {'fn': 1,
+                      'fp': 1,
+                      'fscore': 0.5,
+                      'precision': 0.5,
+                      'recall': 0.5,
+                      'tp': 1},
  'strong_link_match': {'fn': 0,
                        'fp': 1,
                        'fscore': 0.6666666666666666,
@@ -97,6 +115,12 @@ ATTEMPT = {
                       'precision': 1.0,
                       'recall': 0.0,
                       'tp': 0},
+ 'weak_all_match': {'fn': 1,
+                    'fp': 1,
+                    'fscore': 0.5,
+                    'precision': 0.5,
+                    'recall': 0.5,
+                    'tp': 1},
  'weak_link_match': {'fn': 0,
                      'fp': 1,
                      'fscore': 0.6666666666666666,
@@ -116,6 +140,7 @@ ATTEMPT = {
                     'recall': 0.0,
                     'tp': 0},
 }
+
 def test_attempt():
     assert ATTEMPT == _get_stats('data.txt', 'data_attempt.txt')
 
@@ -126,6 +151,12 @@ CORRECT_MORE = {
                        'precision': 1.0,
                        'recall': 1.0,
                        'tp': 3},
+ 'strong_all_match': {'fn': 0,
+                      'fp': 0,
+                      'fscore': 1.0,
+                      'precision': 1.0,
+                      'recall': 1.0,
+                      'tp': 4},
  'strong_link_match': {'fn': 0,
                        'fp': 0,
                        'fscore': 1.0,
@@ -144,6 +175,12 @@ CORRECT_MORE = {
                       'precision': 1.0,
                       'recall': 1.0,
                       'tp': 1},
+ 'weak_all_match': {'fn': 0,
+                    'fp': 0,
+                    'fscore': 1.0,
+                    'precision': 1.0,
+                    'recall': 1.0,
+                    'tp': 4},
  'weak_link_match': {'fn': 0,
                      'fp': 0,
                      'fscore': 1.0,
@@ -161,8 +198,7 @@ CORRECT_MORE = {
                     'fscore': 1.0,
                     'precision': 1.0,
                     'recall': 1.0,
-                    'tp': 1},
-}
+                    'tp': 1}}
 
 def test_more_correct():
     assert CORRECT_MORE == _get_stats('data_more.txt', 'data_more.txt')
@@ -174,6 +210,12 @@ CORRECT_ATTEMPT = {
                        'precision': 0.3333333333333333,
                        'recall': 0.3333333333333333,
                        'tp': 1},
+ 'strong_all_match': {'fn': 3,
+                      'fp': 3,
+                      'fscore': 0.25,
+                      'precision': 0.25,
+                      'recall': 0.25,
+                      'tp': 1},
  'strong_link_match': {'fn': 2,
                        'fp': 2,
                        'fscore': 0.3333333333333333,
@@ -192,6 +234,12 @@ CORRECT_ATTEMPT = {
                       'precision': 0.0,
                       'recall': 0.0,
                       'tp': 0},
+ 'weak_all_match': {'fn': 3,
+                    'fp': 3,
+                    'fscore': 0.25,
+                    'precision': 0.25,
+                    'recall': 0.25,
+                    'tp': 1},
  'weak_link_match': {'fn': 2,
                      'fp': 2,
                      'fscore': 0.3333333333333333,
@@ -209,9 +257,7 @@ CORRECT_ATTEMPT = {
                     'fscore': 1.0,
                     'precision': 0.0,
                     'recall': 0.0,
-                    'tp': 0},
-}
-
+                    'tp': 0}}
 
 def test_more_attempt():
     assert CORRECT_ATTEMPT == _get_stats('data_more.txt', 'data_more_attempt.txt')
