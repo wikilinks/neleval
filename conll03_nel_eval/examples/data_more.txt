@@ -1,0 +1,21 @@
+-DOCSTART- (doc1)
+The	B	The Cat
+Cat	I	The Cat
+sat
+on
+the
+mat
+in
+Paris	B	Paris	Paris
+.
+
+-DOCSTART- (doc2)
+The	B	The Cat	The_Cat
+Cat	I	The Cat	The_Cat
+sat
+on
+the
+mat
+in
+Sydney	B	Sydney	Sydney
+.
