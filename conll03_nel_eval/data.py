@@ -53,7 +53,7 @@ class Mention(object):
         return False
 
     def link_match(self, other):
-        return self.link == other.link
+        return self.title == other.title
 
     def strong_link_match(self, other):
         return self.strong_span_match(other) and self.link_match(other)
@@ -91,7 +91,7 @@ class Document(object):
         entities = set()
         for m in self.mentions:
             if m.link is not None:
-                entities.add(m.link)
+                entities.add(m.title)
         return entities
 
     def strong_mention_match(self, other):
@@ -201,7 +201,7 @@ class Document(object):
             name = cols[2] # full mention text
         if len(cols) >= 5:
             link = cols[4] # Wikipedia url
-        elif len(cols) == 4:
+        elif len(cols) == 4 and cols[3] != '--NME--':
             link = cols[3] # System output may not contain all items
         return tok, bi, name, link
 
