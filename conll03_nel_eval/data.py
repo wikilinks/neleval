@@ -176,24 +176,22 @@ class Document(object):
     @classmethod
     def _iter_mentions(cls, lines):
         tok_id = -1
-        start = None
-        for line_number, line in enumerate(lines):
+        start, link, prev = None, None, None
+        for line in lines:
             if line.strip() == '' or line.startswith(cls.START):
                 continue # blank line
-            tok_id += 1
             tok, bi, name, link = cls._parse_line(line)
+            if start is not None and bi != 'I':
+                yield Mention(start, tok_id+1, prev)
+                start, link = None, None
+            tok_id += 1
+            prev = link
             if bi is None:
                 continue # not an entity mention
             if bi == 'B':
                 start = tok_id
-            end = tok_id + 1
-            name_bits = name.split()
-            if end - start == len(name_bits):
-                assert name_bits[-1] == tok
-                if not isinstance(start, int):
-                    raise ValueError('Malformed input on line {}\t{}'.format(line_number+1, line.strip()))
-                yield Mention(start, end, link)
-                start = None
+        if start is not None:
+            yield Mention(start, tok_id+1, prev)
 
     NIL_LINK = '--NME--'
     @classmethod
