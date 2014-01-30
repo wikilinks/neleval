@@ -76,10 +76,9 @@ class Matrix(object):
         gdoc - gold Document object
         match - match method on doc
         """
-        sg_tp, fp = getattr(sdoc, match)(gdoc)
-        gs_tp, fn = getattr(gdoc, match)(sdoc)
-        assert sg_tp == gs_tp, 'Got different system ({}) and gold ({}) true positives for doc {}'.format(sg_tp, gs_tp, sdoc.id)
-        return cls(sg_tp, fp, fn)
+        _, fp = getattr(sdoc, match)(gdoc)
+        tp, fn = getattr(gdoc, match)(sdoc)
+        return cls(tp, fp, fn)
 
     @property
     def results(self):
