@@ -53,7 +53,7 @@ They ``ignore all mentions that do not have a candidate entity at all'', which w
 http://static.googleusercontent.com/media/research.google.com/en//pubs/archive/40749.pdf
 
 They report a number of figures for TagMe2:
-* `weak_annotation_match` of 58.3% F-score
+* `weak_link_match` of 58.3% F-score
 * `strong_annotation_match` of 56.7% F-score
 * `weak_mention_match` of 74.6% F-score
 * `entity_link_match` of 65.6% F-score
