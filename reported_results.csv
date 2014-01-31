@@ -1,5 +1,7 @@
-Dataset,System,Matcher,P,R,F
-CoNLL testb,TagMe2,weak_annotation_match,61.4,55.5,58.3
-CoNLL testb,TagMe2,strong_link_match,62.1,52.1,56.7
-CoNLL testb,TagMe2,weak_mention_match,72.1,77.3,74.6
-CoNLL testb,TagMe2,entity_link_match,68.8,62.7,65.6
+Dataset,System,Matcher,P,R,F,Gold mentions,Comments
+CoNLL testb,TagMe2,weak_annotation_match,61.4,55.5,58.3,n
+CoNLL testb,TagMe2,strong_link_match,62.1,52.1,56.7,n
+CoNLL testb,TagMe2,weak_mention_match,72.1,77.3,74.6,n
+CoNLL testb,TagMe2,entity_link_match,68.8,62.7,65.6,n
+CoNLL testb,AIDA,strong_link_match,81.91,?,?,y
+CoNLL testb,Pilz,entity_link_match,?,?,82.16,y,Sequential order taken into account
