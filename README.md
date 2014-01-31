@@ -33,7 +33,7 @@ pip install git+git://github.com/benhachey/conll03_nel_eval.git#egg=CNE
 
 http://aclweb.org/anthology//D/D11/D11-1072.pdf
 
-Their best system scores 81.82 in `strong_link_match` using gold mentions (they refer to this as micro-averaged precision @1).
+Their best system scores 81.82% precision in `strong_link_match` using gold mentions (they refer to this as micro-averaged precision @1).
 
 ## Collective Search for Concept Disambiguation (Pilz & Paass, 2012 - COLING)
 
@@ -45,7 +45,7 @@ They report an `entity_link_match` F-score of 82.16%, however their paper assume
 
 http://www.mpi-inf.mpg.de/~sseufert/papers/kore.pdf
 
-They report a `strong_link_match` using gold mentions of 82.31% (using the MW measure).
+They report a `strong_link_match` using gold mentions of 82.31% precision (using the MW measure).
 They ``ignore all mentions that do not have a candidate entity at all'', which we assume to mean excluding NILs, rather than excluding mentions for which search returns no candidates.
 
 ## A Framework for Benchmarking Entity-Annotation Systems (Cornolti, 2013 - WWW)
