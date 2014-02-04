@@ -27,10 +27,58 @@ source ve/bin/activate
 pip install git+git://github.com/benhachey/conll03_nel_eval.git#egg=CNE
 ```
 
+# Quick reference
+
+## Evaluate
+
+The evaluate script reads `SYSTEM` output in AIDA/CoNLL format and calculates a number of evaluation measures:
+
+```Shell
+cne SYSTEM evaluate -g GOLD
+```
+
+`link_entity_match` is a micro-averaged document-level set-of-titles measure. It is the same as entity match reported Cornolti et al. (2013). TODO Same as Ratinov???
+
+`weak_link_match` is a micro-averaged evaluation of links. The system mention extent must have at least one token in common with the aligned gold mention and the link must be to the same KB title. It is the same as weak annotation match reported in Cornolti et al. (2013).
+
+`strong_link_match` is the same as `weak_link_match` but is stricter, requiring the system and gold mentions to be exactly the same. It is the same as strong annotation match reported in Cornolti et al. (2013).
+
+`weak_mention_match` is a micro-averaged evaluation of entity mentions. The system mention extent must have at least one token in common with the aligned gold mention. It is the same as weak mention match reported in Cornolti et al. (2013).
+
+`strong_mention_match` is the same as `weak_mention_match` but is stricter, requiring the system and gold mentions to be exactly the same.
+
+`weak_nil_match` is a micro-averaged evaluation of unlinked entity mentions. The system mention extent must have at least one token in common with the aligned gold mention and must be unlinked. This is useful for systems that perform NER and NIL handling in addition to KB linking.
+
+`strong_nil_match` is the same as `weak_nil_match` but is stricter, requiring the system and gold mentions to be exactly the same.
+
+`weak_all_match` is a convenience metric that combines `weak_link_match` and `weak_nil_match` into a single micro-averaged score.
+
+`strong_all_match` is a convenience metric that combines `strong_link_match` and `strong_nil_match` into a single micro-averaged score.
+
+## Map
+
+Wikipedia (and other KBs) change over time, including page titles. A system using a more recent version of Wikipedia may lose points for using a newer title. Luckily, Wikipedia redirects can often be used to map between titles in different versions.
+
+The map script can be used to map link titles in SYSTEM and GOLD to a common version:
+
+```Shell
+cne SYSTEM map -m MAP > SYSTEM.mapped
+cne GOLD map -m MAP > GOLD.mapped
+cne SYSTEM.mapped evaluate -g GOLD.mapped
+```
+
+The `MAP` file should contain lines corresponding to titles from the newer version. The first column contains the newer title and any following tab-separated columns contain names that should map to the newer title (e.g., titles of redirect pages that point to the newer title).
+
+The fetch_map script can be used to generate a current redirect mapping using the Wikipedia API:
+
+```Shell
+cne GOLD fetch_map > MAP
+```
+
 # Systems for comparison
 
 ## Robust Disambiguation of Named Entities in Text (Hoffart et al., 2011 - EMNLP)
-
+  
 http://aclweb.org/anthology//D/D11/D11-1072.pdf
 
 Their best system scores 81.82% precision in `strong_link_match` using gold mentions (they refer to this as micro-averaged precision @1).
