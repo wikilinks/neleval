@@ -112,11 +112,13 @@ To evaluate your system output against the gold-standard, you will need to outpu
 * Each document is started with the `-DOCSTART- (some_doc_id)` line, where `some_doc_id` might be something like `1163testb SOCCER`
 * Each sentence is separated by a blank line
 * Each document is separated by a blank line
-* Each token is on its own line (we re-use the gold-standard tokenisation), with the columns
-** Token
-** Mention span: we use `IOB`
-** Mention text: this is a bit redundant, but a sanity check when reading the output (`text == ' '.join(mentiontokens`)
-** Entity identifier: where a mention is linked to the KB, this will be the id/title (e.g., a Wikipedia title). Where the mention is a `NIL`, this column should be blank
+* Each token is on its own line (we re-use the gold-standard tokenisation)
+
+The column ordering for token lines is:
+* Token
+* Mention span: we use `IOB`
+* Mention text: this is a bit redundant, but a sanity check when reading the output (`text == ' '.join(mentiontokens`)
+* Entity identifier: where a mention is linked to the KB, this will be the id/title (e.g., a Wikipedia title). Where the mention is a `NIL`, this column should be blank
 
 ```
 -DOCSTART- (some_doc_id)
