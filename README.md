@@ -105,3 +105,32 @@ They report a number of figures for TagMe2:
 * `strong_annotation_match` of 56.7% F-score
 * `weak_mention_match` of 74.6% F-score
 * `entity_link_match` of 65.6% F-score
+
+# System output format
+
+To evaluate your system output against the gold-standard, you will need to output in tab-separated format.
+* Each document is started with the `-DOCSTART- (some_doc_id)` line, where `some_doc_id` might be something like `1163testb SOCCER`
+* Each sentence is separated by a blank line
+* Each document is separated by a blank line
+* Each token is on its own line (we re-use the gold-standard tokenisation)
+
+The column ordering for token lines is:
+* Token
+* Mention span: we use `IOB`
+* Mention text: this is a bit redundant, but a sanity check when reading the output (`text == ' '.join(mentiontokens`)
+* Entity identifier: where a mention is linked to the KB, this will be the id/title (e.g., a Wikipedia title). Where the mention is a `NIL`, this column should be blank
+
+```
+-DOCSTART- (some_doc_id)
+Some
+headline
+about
+two
+Named	B	Named Entities	Named_Entity
+Entities	I	Named Entities	Named_Entity
+.
+
+By
+John	B	John Smith
+Smith	I	John Smith
+```
