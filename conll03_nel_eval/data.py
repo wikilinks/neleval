@@ -183,7 +183,7 @@ class Document(object):
             tok, bi, name, link = cls._parse_line(line)
             if start is not None and bi != 'I':
                 yield Mention(start, tok_id+1, prev)
-                start, link = None, None
+                start = None
             tok_id += 1
             prev = link
             if bi is None:
