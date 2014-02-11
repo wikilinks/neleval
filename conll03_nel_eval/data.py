@@ -209,8 +209,10 @@ class Document(object):
             link = cols[3] # System output may not contain all items
         return tok, bi, name, link
 
-    def to_conll(self):
+    def to_conll(self, mapping=None):
         ''' Returns a CoNLL formatted string. '''
+        if mapping:
+            pass #TODO Actually tweak here, requires proper modelling of Mentions.
         return ''.join(self.lines)
 
 
