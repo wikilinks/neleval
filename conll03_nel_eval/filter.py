@@ -1,21 +1,28 @@
-from data import Data
+import re
+from data import Reader, Writer
 from utils import log
+from cStringIO import StringIO
 
 class Filter(object):
-    def __init__(self, fname, split=None, mapping=None):
+    def __init__(self, fname, keep=None, mapping=None):
         self.fname = fname
-        self.split = split
+        self.keep = re.compile(keep) if keep else None
         self.mapping = self.read_mapping(mapping)
 
     def __call__(self):
-        d = Data.read(self.fname)
-        log('Read {} documents from {}'.format(len(d), self.fname))
-        output = []
-        for doc in d:
-            if self.split and self.split != doc.split:
+        docs = list(Reader(open(self.fname)))
+        log('Read {} documents from {}'.format(len(docs), self.fname))
+        out = StringIO()
+        w = Writer(out)
+        for doc in docs:
+            if self.keep and not self.keep.match(doc.doc_id):
                 continue
-            output.append(doc.to_conll(self.mapping))
-        return '\n'.join(output)
+            if self.mapping:
+                for s in doc.sentences:
+                    for m in s.iter_links():
+                        m.link = self.mapping[m.link]
+            w.write(doc)
+        return out.getvalue()
 
     def read_mapping(self, mapping):
         if not mapping:
@@ -27,13 +34,14 @@ class Filter(object):
                 title = bits[0]
                 for r in bits[1:]:
                     redirects[r] = title
+                redirects[title] = title
         return redirects
 
     @classmethod
     def add_arguments(cls, sp):
         p = sp.add_parser('filter', help='Filter dataset by tag')
         p.add_argument('fname', metavar='FILE')
-        p.add_argument('-s', '--split', help='Split to filter')
+        p.add_argument('-k', '--keep', help='Regular expression pattern to capture')
         p.add_argument('-m', '--mapping', help='Mapping for titles')
         p.set_defaults(cls=cls)
         return p
