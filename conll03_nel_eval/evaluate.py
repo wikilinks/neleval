@@ -2,7 +2,7 @@
 """
 Evaluate linker performance.
 """
-from data import Data, MATCHES
+from data import MATCHES, Reader
 from utils import log
 
 class Evaluate(object):
@@ -19,9 +19,10 @@ class Evaluate(object):
         return self.results
 
     def evaluate(self, system, gold):
-        self.system = Data.read(system)
-        self.gold = Data.read(gold)
+        self.system = list(Reader(open(system)))
+        self.gold = list(Reader(open(gold)))
         results = {}
+
         for m in MATCHES:
             matrixes, accumulated = self.load(m)
             results[m] = accumulated.results
@@ -38,22 +39,13 @@ class Evaluate(object):
     def load(self, match):
         matrixes = [] # doc-level matrixes
         accumulator = Matrix(0, 0, 0) # accumulator matrix
-        for sdoc, gdoc in self._docs:
+        for sdoc, gdoc in zip(self.system, self.gold):
+            assert sdoc.doc_id == gdoc.doc_id, 'Require system and gold to be in the same order "{}" != "{}"'.format(sdoc.doc_id, gdoc.doc_id)
             m = Matrix.from_doc(sdoc, gdoc, match)
             #log(match, sdoc, gdoc, m)
             matrixes.append(m)
             accumulator = accumulator + m
         return matrixes, accumulator
-
-    @property
-    def _docs(self):
-        for id, sdoc in self.system.documents.iteritems():
-            if sdoc is None:
-                continue
-            gdoc = self.gold.documents[id]
-            if gdoc is None:
-                continue
-            yield sdoc, gdoc
 
 class Matrix(object):
     def __init__(self, tp, fp, fn):
@@ -77,9 +69,8 @@ class Matrix(object):
         gdoc - gold Document object
         match - match method on doc
         """
-        _, fp = getattr(sdoc, match)(gdoc)
-        tp, fn = getattr(gdoc, match)(sdoc)
-        return cls(tp, fp, fn)
+        tp, fp, fn = getattr(gdoc, match)(sdoc)
+        return cls(len(tp), len(fp), len(fn))
 
     @property
     def results(self):
