@@ -27,33 +27,12 @@ source ve/bin/activate
 pip install git+git://github.com/benhachey/conll03_nel_eval.git#egg=CNE
 ```
 
-# Quick reference
+Details
+=======
 
-## Evaluate
+See [project wiki](https://github.com/benhachey/conll03_nel_eval/wiki/) for details.
 
-The evaluate script reads `SYSTEM` output in AIDA/CoNLL format and calculates a number of evaluation measures:
 
-```Shell
-cne evaluate -g GOLD SYSTEM
-```
-
-`link_entity_match` is a micro-averaged document-level set-of-titles measure. It is the same as entity match reported Cornolti et al. (2013). TODO Same as Ratinov???
-
-`weak_link_match` is a micro-averaged evaluation of links. The system mention extent must have at least one token in common with the aligned gold mention and the link must be to the same KB title. It is the same as weak annotation match reported in Cornolti et al. (2013).
-
-`strong_link_match` is the same as `weak_link_match` but is stricter, requiring the system and gold mentions to be exactly the same. It is the same as strong annotation match reported in Cornolti et al. (2013).
-
-`weak_mention_match` is a micro-averaged evaluation of entity mentions. The system mention extent must have at least one token in common with the aligned gold mention. It is the same as weak mention match reported in Cornolti et al. (2013).
-
-`strong_mention_match` is the same as `weak_mention_match` but is stricter, requiring the system and gold mentions to be exactly the same.
-
-`weak_nil_match` is a micro-averaged evaluation of unlinked entity mentions. The system mention extent must have at least one token in common with the aligned gold mention and must be unlinked. This is useful for systems that perform NER and NIL handling in addition to KB linking.
-
-`strong_nil_match` is the same as `weak_nil_match` but is stricter, requiring the system and gold mentions to be exactly the same.
-
-`weak_all_match` is a convenience metric that combines `weak_link_match` and `weak_nil_match` into a single micro-averaged score.
-
-`strong_all_match` is a convenience metric that combines `strong_link_match` and `strong_nil_match` into a single micro-averaged score.
 
 ## Filtering datasets
 
