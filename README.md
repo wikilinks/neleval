@@ -32,27 +32,3 @@ Details
 
 See [project wiki](https://github.com/benhachey/conll03_nel_eval/wiki/) for details.
 
-
-
-## Filtering datasets
-
-The distributed gold-standard includes three splits: train, testa and testb. To filter out some of these splits, run:
-```Shell
-cne filter -s testb gold.txt > gold.testb.txt
-```
-
-Wikipedia (and other KBs) change over time, including page titles. A system using a more recent version of Wikipedia may lose points for using a newer title. Luckily, Wikipedia redirects can often be used to map between titles in different versions.
-
-The map script can be used to map link titles in SYSTEM and GOLD to a common version:
-
-```Shell
-cne filter -m MAP SYSTEM > SYSTEM.mapped
-```
-
-The `MAP` file should contain lines corresponding to titles from the newer version. The first column contains the newer title and any following tab-separated columns contain names that should map to the newer title (e.g., titles of redirect pages that point to the newer title).
-
-The fetch_map script can be used to generate a current redirect mapping using the Wikipedia API:
-
-```Shell
-cne GOLD fetch_map > MAP
-```
