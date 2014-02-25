@@ -5,14 +5,22 @@ import random
 import operator
 import functools
 
-from joblib.parallel import Parallel, delayed
+from joblib.parallel import Parallel, delayed, cpu_count
 
 from data import Reader
 from evaluate import Evaluate, Matrix
 
 
+def sum(it, start=0):
+    # Redefined to use __iadd__
+    val = start  # XXX: copy?
+    for o in it:
+        val += o
+    return val
+
+
 def _result_diff(matrix1, matrix2):
-    result1 = matrix2.results
+    result1 = matrix1.results
     return {k: result1[k] - v
             for k, v in matrix2.results.iteritems()}
 
@@ -33,6 +41,18 @@ def _bootstrap_trial(per_doc1, per_doc2):
     pseudo1 = sum((per_doc1[i] for i in indices), Matrix())
     pseudo2 = sum((per_doc2[i] for i in indices), Matrix())
     return _result_diff(pseudo1, pseudo2)
+
+
+def count_better_trials(trial, per_doc1, per_doc2, base_diff, n_trials):
+    metrics, bases = zip(*base_diff.iteritems())
+    ops = [operator.le if base < 0 else operator.ge
+           for base in bases]
+    better = [0] * len(metrics)
+    for _ in xrange(n_trials):
+        result = trial(per_doc1, per_doc2)
+        for i, metric in enumerate(metrics):
+            better[i] += ops[i](result[metric], bases[i])
+    return dict(zip(metrics, better))
 
 
 class Significance(object):
@@ -71,22 +91,26 @@ class Significance(object):
 
     def significance(self, (per_doc1, overall1), (per_doc2, overall2)):
         base_diff = _result_diff(overall1, overall2)
-        randomized_diffs = delayed(functools.partial(self.METHODS[self.method],
-                                                     per_doc1, per_doc2))
-        results = Parallel(n_jobs=self.n_jobs)(randomized_diffs()
-                                               for i in range(self.trials))
-        res = {}
-        for metric, base in base_diff.iteritems():
-            if base < 0:
-                op = operator.le
-            else:
-                op = operator.ge
+        randomized_diffs = functools.partial(count_better_trials,
+                                             self.METHODS[self.method],
+                                             per_doc1, per_doc2,
+                                             base_diff)
+        n_jobs = self.n_jobs
+        if n_jobs == -1:
+            n_jobs = cpu_count()
+        shares = [self.trials // n_jobs] * n_jobs
+        for i in range(self.trials - sum(shares)):
+            shares[i] += 1
 
-            better = 0
-            for result in results:
-                better += op(result[metric], base)
-            res[metric] = (1 + better) / (self.trials + 1)
-        return res
+        results = Parallel(n_jobs=self.n_jobs)(delayed(randomized_diffs)(share)
+                                               for share in shares)
+        all_counts = []
+        for result in results:
+            metrics, counts = zip(*result.iteritems())
+            all_counts.append(counts)
+
+        return {metric: (sum(counts) + 1) / (self.trials + 1)
+                for metric, counts in zip(metrics, zip(*all_counts))}
 
     @classmethod
     def add_arguments(cls, sp):

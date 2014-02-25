@@ -105,6 +105,12 @@ class Matrix(object):
                       self.fp + other.fp,
                       self.fn + other.fn)
 
+    def __iadd__(self, other):
+        self.tp += other.tp
+        self.fp += other.fp
+        self.fn += other.fn
+        return self
+
     @classmethod
     def from_doc(cls, sdoc, gdoc, match=MATCHES[0]):
         """
