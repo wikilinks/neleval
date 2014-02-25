@@ -263,6 +263,8 @@ class Reader(Dialected):
         ''' Yields Documents. '''
         doc_id = None
         sentences = []
+        sentence = []
+        m = None
         # Assume we can read all data into memory.
         lines = ((i, l) for i, l in enumerate(l.strip().decode('utf8') for l in self.f))
         while True:
