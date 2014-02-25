@@ -19,7 +19,7 @@ class Analyze(object):
                 if g_m.link == s_m.link:
                     continue # Correct case.
                 elif g_m.link and s_m.link and g_m.link != s_m.link:
-                    label = 'wrong-kb'
+                    label = 'wrong-link'
                 elif g_m.link and s_m.link is None:
                     label = 'link-as-nil'
                 elif g_m.link is None and s_m.link:
