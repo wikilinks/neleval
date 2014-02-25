@@ -147,15 +147,6 @@ def weak_key(i):
 def weak_link_key(i):
     return [(j, i.link) for j in xrange(i.start, i.end)]
 
-def strong_match(i, items, key_func):
-    keys = key_func(i)
-    assert len(keys) == 1
-    res = items.get(keys[0])
-    if res is None:
-        return []
-    else:
-        return [keys[0]]
-
 def weak_match(i, items, key_func):
     matches = []
     for i in key_func(i):
@@ -207,12 +198,12 @@ class Document(object):
         return self._match(other, strong_link_key, 'iter_links')
 
     def weak_mention_match(self, other):
-        raise NotImplementedError()
+        raise NotImplementedError('See #26')
         # TODO Weak match: calculate TP and FN based on gold mentions
         return self._match(other, weak_key, weak_match, 'iter_mentions')
 
     def weak_link_match(self, other):
-        raise NotImplementedError()
+        raise NotImplementedError('See #26')
         return self._match(other, weak_link_key, weak_match, 'iter_links')
 
     def entity_match(self, other):
