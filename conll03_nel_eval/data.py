@@ -3,6 +3,7 @@
 Container for CoNLL03 NEL annotation
 """
 import re
+from .utils import log
 
 MATCHES = '''
 strong_mention_match
@@ -273,7 +274,11 @@ class Reader(Dialected):
                     sentence = []
                     m = None
                     while l:
-                        token, iob, name, link, score = self.dialect.extract_link(l)
+                        try:
+                            token, iob, name, link, score = self.dialect.extract_link(l)
+                        except AssertionError, e:
+                            log('Error reading line {}\t{}'.format(i, e))
+                            raise e
                         if iob is None or iob == 'O':
                             if m is not None:
                                 sentence.append(m)
