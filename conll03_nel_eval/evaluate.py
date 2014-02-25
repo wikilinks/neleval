@@ -55,15 +55,16 @@ class Evaluate(object):
         self.gold = gold
         self.fmt_func = fmt_func
 
-    def __call__(self):
-        self.results = self.evaluate(self.fname, self.gold)
+    def __call__(self, matches=None):
+        self.results = self.evaluate(self.fname, self.gold, matches)
         return self.results
 
-    def evaluate(self, system, gold):
+    def evaluate(self, system, gold, matches=None):
         self.system = list(sorted(Reader(open(system))))
         self.gold = list(sorted((Reader(open(gold)))))
         results = {}
-        for m in MATCHES:
+        matches = matches or MATCHES
+        for m in matches:
             matrixes, accumulated = self.load(m)
             results[m] = accumulated.results
         return self.fmt_func(results)
