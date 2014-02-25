@@ -24,7 +24,7 @@ class CoNLLDialect(object):
         m = self.DOC_ID.match(line)
         if m is not None:
             return m.group(1)
-    
+
     def format_doc_id(self, doc_id):
         return '-DOCSTART- ({})'.format(doc_id)
 
@@ -78,6 +78,9 @@ class Span(object):
         self.start = start
         self.end = end
 
+    def __cmp__(self, other):
+        return cmp(self.start, other.start) or cmp(self.end, other.end)
+
 class Token(Span):
     __slots__ = ['text', 'start', 'end']
     def __init__(self, start, end, text):
@@ -113,6 +116,10 @@ class Mention(Span):
             lines.append(TEMPLATE.format(t, iob, self.name, link, score))
         return u'\n'.join(lines)
 
+    @property
+    def text(self):
+        return u' '.join(self.texts)
+
 class Sentence(object):
     def __init__(self, spans):
         assert spans and all(isinstance(s, Span) for s in spans), 'Invalid Spans {}'.format(spans)
@@ -121,43 +128,24 @@ class Sentence(object):
     def __unicode__(self):
         return u'\n'.join(unicode(s) for s in self.spans)
 
-    def iter_entities(self):
-        return iter(set(l.link for l in self.iter_links()))
-
-    def iter_mentions(self):
-        return self._iter_mentions(link=True, nil=True)
-
-    def iter_links(self):
-        return self._iter_mentions(link=True, nil=False)
-
-    def iter_nils(self):
-        return self._iter_mentions(link=False, nil=True)
-
-    def _iter_mentions(self, link=True, nil=True):
-        assert not (not link and not nil), 'Must filter some mentions.'
-        for s in self.spans:
-            if isinstance(s, Mention):
-                if not link and not s.link:
-                    continue
-                if not nil and s.link is None:
-                    continue
-                yield s
+    def __iter__(self):
+        return iter(self.spans)
 
 # Helper functions: key() and match()
 def strong_key(i):
-    return [(i.start, i.end)]
+    return (i.start, i.end)
+
+def strong_link_key(i):
+    return (i.start, i.end, i.link)
+
+def entity_key(i):
+    return i
 
 def weak_key(i):
     return list(xrange(i.start, i.end))
 
-def strong_link_key(i):
-    return [(i.start, i.end, i.link)]
-
 def weak_link_key(i):
     return [(j, i.link) for j in xrange(i.start, i.end)]
-
-def entity_key(i):
-    return [i]
 
 def strong_match(i, items, key_func):
     keys = key_func(i)
@@ -187,40 +175,54 @@ class Document(object):
     def __cmp__(self, other):
         return cmp(self.doc_id, other.doc_id)
 
-    # Extracting matching mentions.
+    # Accessing Spans.
+    def _iter_mentions(self, link=True, nil=True):
+        assert not (not link and not nil), 'Must filter some mentions.'
+        for sentence in self.sentences:
+            for s in sentence:
+                if isinstance(s, Mention):
+                    if not link and not s.link:
+                        continue
+                    if not nil and s.link is None:
+                        continue
+                    yield s
+
+    def iter_mentions(self):
+        return self._iter_mentions(link=True, nil=True)
+
+    def iter_links(self):
+        return self._iter_mentions(link=True, nil=False)
+
+    def iter_nils(self):
+        return self._iter_mentions(link=False, nil=True)
+
+    def iter_entities(self):
+        return iter(set(l.link for l in self.iter_links()))
+
+    # Matching mentions.
     def strong_mention_match(self, other):
-        return self._match(other, strong_key, strong_match, 'iter_mentions')
+        return self._match(other, strong_key, 'iter_mentions')
 
     def strong_link_match(self, other):
-        return self._match(other, strong_link_key, strong_match, 'iter_links')
-    
-    def strong_nil_match(self, other):
-        return self._match(other, strong_link_key, strong_match, 'iter_nils')
-
-    def strong_all_match(self, other):
-        return self._match(other, strong_link_key, strong_match, 'iter_mentions')
+        return self._match(other, strong_link_key, 'iter_links')
 
     def weak_mention_match(self, other):
+        raise NotImplementedError()
+        # TODO Weak match: calculate TP and FN based on gold mentions
         return self._match(other, weak_key, weak_match, 'iter_mentions')
 
     def weak_link_match(self, other):
+        raise NotImplementedError()
         return self._match(other, weak_link_key, weak_match, 'iter_links')
-    
-    def weak_nil_match(self, other):
-        return self._match(other, weak_key, weak_match, 'iter_nils')
-    
-    def weak_all_match(self, other):
-        return self._match(other, weak_link_key, weak_match, 'iter_mentions')
 
     def entity_match(self, other):
-        return self._match(other, entity_key, strong_match, 'iter_entities')
+        return self._match(other, entity_key, 'iter_entities')
 
-    def _match(self, other, key_func, match_func, items_func_name):
-        """ Assesses the match between this and the other document. 
+    def _match(self, other, key_func, items_func_name):
+        """ Assesses the match between this and the other document.
         * other (Document)
-        * key_func (a function that takes an item, returns a list of valid keys)
-        * match_func (a function that take an item, items to match against and the key_func)
-        * items_func_name (the name of a function that is called on Sentences)
+        * key_func (a function that takes an item, returns a key)
+        * items_func (the name of a function that is called on Sentences)
 
         Returns three lists of items:
         * tp [(item, other_item), ...]
@@ -228,31 +230,23 @@ class Document(object):
         * fn [(item, None), ...]
         """
         assert isinstance(other, Document)
-        assert len(self.sentences) == len(other.sentences), 'Must compare documents with same number of sentences.'
-        tp, fp, fn = [], [], []
-        for s, o_s in zip(self.sentences, other.sentences):
-            # TODO Use document- instead of sentence-level indexes
-            # TODO Assumes systems are using gold standard sentence boundaries
-            # TODO Breaks document-level evaluation
-            # Build indices.
-            items = {}
-            for i in getattr(s, items_func_name)():
-                for k in key_func(i):
-                    items[k] = i
-            # Check against other.
-            # TODO Weak match: calculate TP and FN based on gold mentions
-            for o_i in getattr(o_s, items_func_name)():
-                matching_keys = match_func(o_i, items, key_func)
-                if matching_keys:
-                    # Assume that all keys match to the same mention (to handle strong and weak)
-                    matching = {items.pop(k) for k in matching_keys}
-                    assert len(matching) == 1
-                    tp.append((list(matching)[0], o_i))
-                else:
-                    fp.append((None, o_i))
-            # TODO Document ordering for FNs more convenient for analysis
-            fn.extend([(i, None) for i in set(items.values())])
-        return tp, fp, fn 
+        assert self.doc_id == other.doc_id, 'Must compare same document: {} vs {}'.format(self.doc_id, other.doc_id)
+        tp, fp = [], []
+
+        # Index document items.
+        index = {key_func(i): i for i in getattr(self, items_func_name)()}
+
+        for o_i in getattr(other, items_func_name)():
+            k = key_func(o_i)
+            i = index.pop(k, None)
+            # Matching - true positive.
+            if i is not None:
+                tp.append((i, o_i))
+            # Unmatched in other - false positive.
+            else:
+                fp.append((None, o_i))
+        fn = [(i, None) for i in sorted(index.values())]
+        return tp, fp, fn
 
 ## Readers and writers.
 class Dialected(object):
@@ -280,9 +274,9 @@ class Reader(Dialected):
                         yield self.build_doc(doc_id, sentences)
                     doc_id = temp_doc_id
                     sentences = []
+                    j = 0 # The token index in the document.
                 # Grab the sentence tokens.
                 else:
-                    j = 0 # The token index in the sentence.
                     sentence = []
                     m = None
                     while l:
@@ -319,7 +313,7 @@ class Reader(Dialected):
                     sentences.append(Sentence(sentence))
                 yield self.build_doc(doc_id, sentences)
                 break
-    
+
     def build_doc(self, doc_id, sentences):
         return Document(doc_id, sentences)
 
