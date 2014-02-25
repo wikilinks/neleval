@@ -6,12 +6,8 @@ import re
 
 MATCHES = '''
 strong_mention_match
-weak_mention_match
 strong_link_match
-weak_link_match
-link_entity_match
-strong_all_match
-weak_all_match
+entity_match
 '''.strip().split()
 
 TEMPLATE = u'{}\t{}\t{}\t{}\t{}'
@@ -19,7 +15,7 @@ ENC = 'utf8'
 
 # Different styles of format.
 class CoNLLDialect(object):
-    DOC_ID = re.compile('^-DOCSTART- \((?P<doc_id>.*)\)$')
+    DOC_ID = re.compile('^-DOCSTART- \(?(?P<doc_id>[^\)]*)\)?$')
     NIL = '--NME--'
     def __init__(self):
         pass
@@ -41,13 +37,14 @@ class CoNLLDialect(object):
         score = None
         if line_bits:
             assert len(line_bits) >= 2
-            # [iob, name, wikipedia_id, wikipedia_url, numeric_id, freebase_id]
+            # [iob, name, yago_id, wikipedia_url, wikipedia_id, freebase_id]
             if len(line_bits) == 6 or len(line_bits) == 5:
                 iob = line_bits[0]
                 name = line_bits[1]
                 link = line_bits[3].split('/')[-1]
             # [iob, name, entity_id, score]
             elif len(line_bits) == 4:
+                # TODO handle multiple entities with scores
                 iob = line_bits[0]
                 name = line_bits[1]
                 link = line_bits[2]
@@ -180,13 +177,15 @@ def weak_match(i, items, key_func):
     return matches
 
 class Document(object):
-    def __init__(self, doc_id, sentences, dialect):
+    def __init__(self, doc_id, sentences):
         self.doc_id = doc_id
         self.sentences = sentences
-        self.dialect = dialect
 
     def __str__(self):
         return '<Doc {} sentences>'.format(len(self.sentences))
+
+    def __cmp__(self, other):
+        return cmp(self.doc_id, other.doc_id)
 
     # Extracting matching mentions.
     def strong_mention_match(self, other):
@@ -213,7 +212,7 @@ class Document(object):
     def weak_all_match(self, other):
         return self._match(other, weak_link_key, weak_match, 'iter_mentions')
 
-    def link_entity_match(self, other):
+    def entity_match(self, other):
         return self._match(other, entity_key, strong_match, 'iter_entities')
 
     def _match(self, other, key_func, match_func, items_func_name):
@@ -232,12 +231,16 @@ class Document(object):
         assert len(self.sentences) == len(other.sentences), 'Must compare documents with same number of sentences.'
         tp, fp, fn = [], [], []
         for s, o_s in zip(self.sentences, other.sentences):
+            # TODO Use document- instead of sentence-level indexes
+            # TODO Assumes systems are using gold standard sentence boundaries
+            # TODO Breaks document-level evaluation
             # Build indices.
             items = {}
             for i in getattr(s, items_func_name)():
                 for k in key_func(i):
                     items[k] = i
             # Check against other.
+            # TODO Weak match: calculate TP and FN based on gold mentions
             for o_i in getattr(o_s, items_func_name)():
                 matching_keys = match_func(o_i, items, key_func)
                 if matching_keys:
@@ -247,6 +250,7 @@ class Document(object):
                     tp.append((list(matching)[0], o_i))
                 else:
                     fp.append((None, o_i))
+            # TODO Document ordering for FNs more convenient for analysis
             fn.extend([(i, None) for i in set(items.values())])
         return tp, fp, fn 
 
@@ -317,7 +321,7 @@ class Reader(Dialected):
                 break
     
     def build_doc(self, doc_id, sentences):
-        return Document(doc_id, sentences, dialect=self.dialect)
+        return Document(doc_id, sentences)
 
 class Writer(Dialected):
     def write(self, doc):
