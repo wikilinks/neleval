@@ -18,10 +18,9 @@ class Filter(object):
             if self.keep and not self.keep.match(doc.doc_id):
                 continue
             if self.mapping:
-                for s in doc.sentences:
-                    for m in s.iter_links():
-                        l = m.link.replace(' ', '_')
-                        m.link = self.mapping.get(l, l)
+                for m in doc.iter_links():
+                    l = m.link.replace(' ', '_')
+                    m.link = self.mapping.get(l, l)
             w.write(doc)
         return out.getvalue()
 
