@@ -240,6 +240,44 @@ class Document(object):
         fn = [(i, None) for i in sorted(index.values())]
         return tp, fp, fn
 
+    def clear_mentions(self):
+        """ Removes mentions, replacing with original tokens. """
+        for sentence in self.sentences:
+            new_spans = []
+            for span in sentence:
+                if isinstance(span, Token):
+                    new_spans.append(span)
+                else:
+                    for i, j in enumerate(xrange(span.start, span.end)):
+                        new_spans.append(Token(j, j+1, span.texts[i]))
+            sentence.spans = new_spans
+
+    def set_mentions(self, mentions):
+        """ Sets new mentions on the document.
+        * mentions - list of (start, end, link, score)
+
+        These mentions should not cross sentence boundaries!
+        """
+        mentions.sort() # Ensure sorted.
+        for sentence in self.sentences:
+            new_spans = []
+            i = 0
+            while i < len(sentence.spans):
+                s = sentence.spans[i]
+                if mentions and s.start == mentions[0][0]:
+                    start, end, link, score = mentions.pop(0)
+                    length = end - start
+                    tokens = sentence.spans[i:i+length]
+                    new_spans.append(Mention(start, end, 
+                                        ' '.join(t.text for t in tokens), 
+                                        [t.text for t in tokens],
+                                        link, score))
+                    i += length
+                else:
+                    new_spans.append(s)
+                    i += 1
+            sentence.spans = new_spans
+
 ## Readers and writers.
 class Dialected(object):
     def __init__(self, f, dialect_name=DEFAULT_DIALECT):

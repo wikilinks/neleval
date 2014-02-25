@@ -4,11 +4,15 @@ import sys
 from filter import Filter
 from evaluate import Evaluate
 from analyze import Analyze
+from release import Release
+from merge import Merge
 
 APPS = [
     Filter,
     Evaluate,
     Analyze,
+    Release,
+    Merge,
 ]
 
 def main(args=sys.argv[1:]):
