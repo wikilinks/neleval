@@ -42,55 +42,57 @@ FMTS = {
     'no_format': no_format,
 }
 
+
 class Evaluate(object):
-    def __init__(self, fname, gold=None, fmt=DEFAULT_FMT):
+    def __init__(self, system, gold=None, fmt=DEFAULT_FMT):
         """
-        fname - system output
+        system - system output
         gold - gold standard
         fmt - format
         """
+        self.system = sorted(Reader(open(system)))
+        self.gold = sorted(Reader(open(system)))
         fmt_func = FMTS.get(fmt)
         assert fmt_func is not None
-        self.fname = fname
-        self.gold = gold
         self.fmt_func = fmt_func
 
     def __call__(self, matches=None):
-        self.results = self.evaluate(self.fname, self.gold, matches)
-        return self.results
-
-    def evaluate(self, system, gold, matches=None):
-        self.system = list(sorted(Reader(open(system))))
-        self.gold = list(sorted((Reader(open(gold)))))
-        results = {}
-        matches = matches or MATCHES
-        for m in matches:
-            matrixes, accumulated = self.load(m)
-            results[m] = accumulated.results
-        return self.fmt_func(results)
+        self.results = self.evaluate(self.system, self.gold, matches)
+        return self.fmt_func(self.results)
 
     @classmethod
     def add_arguments(cls, sp):
         p = sp.add_parser('evaluate', help='Evaluate system output')
-        p.add_argument('fname', metavar='FILE')
+        p.add_argument('system', metavar='FILE')
         p.add_argument('-g', '--gold')
         p.add_argument('-f', '--fmt', default=DEFAULT_FMT)
         p.set_defaults(cls=cls)
         return p
 
-    def load(self, match):
-        matrixes = [] # doc-level matrixes
-        accumulator = Matrix(0, 0, 0) # accumulator matrix
-        for sdoc, gdoc in zip(self.system, self.gold):
+    @classmethod
+    def evaluate(cls, system, gold, matches=None):
+        results = {}
+        for match, per_doc, overall in cls.count_all(system, gold, matches):
+            results[match] = overall.results
+        return results
+
+    @classmethod
+    def count_all(cls, system, gold, matches=None):
+        for m in matches or MATCHES:
+            yield (m,) + cls.count(m, system, gold)
+
+    @classmethod
+    def count(cls, match, system, gold):
+        per_doc = []
+        for sdoc, gdoc in zip(system, gold):
             assert sdoc.doc_id == gdoc.doc_id, 'Require system and gold to be in the same order "{}" != "{}"'.format(sdoc.doc_id, gdoc.doc_id)
-            m = Matrix.from_doc(sdoc, gdoc, match)
-            #log(match, sdoc, gdoc, m)
-            matrixes.append(m)
-            accumulator = accumulator + m
-        return matrixes, accumulator
+            per_doc.append(Matrix.from_doc(sdoc, gdoc, match))
+        overall = sum(per_doc, Matrix())
+        return per_doc, overall
+
 
 class Matrix(object):
-    def __init__(self, tp, fp, fn):
+    def __init__(self, tp=0, fp=0, fn=0):
         self.tp = tp
         self.fp = fp
         self.fn = fn
