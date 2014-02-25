@@ -2,7 +2,7 @@
 import os
 from pprint import pprint
 
-from data import Reader
+from data import Reader, Mention
 from evaluate import Evaluate
 
 DIR = os.path.join(os.path.dirname(__file__))
@@ -31,6 +31,8 @@ def test_sentences():
                 else:
                     assert span.start == 0
                 last = span.end
+                if isinstance(span, Mention) and span.link is not None:
+                    assert isinstance(span.score, float)
 
 def _get_stats(gold_fname, sys_fname):
     gold_path = os.path.join(EXAMPLES, gold_fname)

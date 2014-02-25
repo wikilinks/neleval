@@ -6,16 +6,16 @@ on
 the
 mat
 in
-Paris	B	Paris	Paris
-France B  France France
+Paris	B	Paris	Paris	0.8
+France	B	France	France	0.8
 .
 
 Another
 item
 is
 in
-San B San Francisco
-Francisco I San Francisco
+San	B	San Francisco
+Francisco	I	San Francisco
 .
 
 -DOCSTART- (docb)
@@ -26,7 +26,7 @@ on
 the
 mat
 in
-Paris	B	Paris	Paris
+Paris	B	Paris	Paris	0.8
 .
 Some
 non
