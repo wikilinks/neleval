@@ -20,7 +20,8 @@ class Filter(object):
             if self.mapping:
                 for s in doc.sentences:
                     for m in s.iter_links():
-                        m.link = self.mapping[m.link]
+                        l = m.link.replace(' ', '_')
+                        m.link = self.mapping.get(l, l)
             w.write(doc)
         return out.getvalue()
 
