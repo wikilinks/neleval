@@ -3,10 +3,12 @@ import argparse
 import sys
 from filter import Filter
 from evaluate import Evaluate
+from analyze import Analyze
 
 APPS = [
     Filter,
     Evaluate,
+    Analyze,
 ]
 
 def main(args=sys.argv[1:]):
