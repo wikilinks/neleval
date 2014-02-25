@@ -2,17 +2,58 @@
 """
 Evaluate linker performance.
 """
+import json
 from data import MATCHES, Reader
 from utils import log
 
+METRICS = [
+    'tp',
+    'fp',
+    'fn',
+    'precision',
+    'recall',
+    'fscore',
+]
+
+def tab_format(data, num_fmt='{:.3f}', delimiter='\t'):
+    lines = [delimiter.join([i[:6] for i in METRICS] + ['match'])]
+    for match in MATCHES:
+        row = []
+        for metric in METRICS:
+            v = data.get(match, {}).get(metric, 0)
+            if isinstance(v, float):
+                row.append(num_fmt.format(v))
+            else:
+                row.append(str(v))
+        row.append(match)
+        lines.append(delimiter.join(row))
+    return '\n'.join(lines)
+
+def json_format(data):
+    return json.dumps(data)
+
+def no_format(data):
+    return data
+
+DEFAULT_FMT = 'tab'
+FMTS = {
+    'tab': tab_format,
+    'json': json_format,
+    'no_format': no_format,
+}
+
 class Evaluate(object):
-    def __init__(self, fname, gold=None):
+    def __init__(self, fname, gold=None, fmt=DEFAULT_FMT):
         """
         fname - system output
         gold - gold standard
+        fmt - format
         """
+        fmt_func = FMTS.get(fmt)
+        assert fmt_func is not None
         self.fname = fname
         self.gold = gold
+        self.fmt_func = fmt_func
 
     def __call__(self):
         self.results = self.evaluate(self.fname, self.gold)
@@ -22,17 +63,17 @@ class Evaluate(object):
         self.system = list(sorted(Reader(open(system))))
         self.gold = list(sorted((Reader(open(gold)))))
         results = {}
-
         for m in MATCHES:
             matrixes, accumulated = self.load(m)
             results[m] = accumulated.results
-        return results
+        return self.fmt_func(results)
 
     @classmethod
     def add_arguments(cls, sp):
         p = sp.add_parser('evaluate', help='Evaluate system output')
         p.add_argument('fname', metavar='FILE')
         p.add_argument('-g', '--gold')
+        p.add_argument('-f', '--fmt', default=DEFAULT_FMT)
         p.set_defaults(cls=cls)
         return p
 
