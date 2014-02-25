@@ -19,8 +19,8 @@ class Evaluate(object):
         return self.results
 
     def evaluate(self, system, gold):
-        self.system = list(Reader(open(system)))
-        self.gold = list(Reader(open(gold)))
+        self.system = list(sorted(Reader(open(system))))
+        self.gold = list(sorted((Reader(open(gold)))))
         results = {}
 
         for m in MATCHES:
