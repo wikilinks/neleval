@@ -15,14 +15,27 @@ def test_data():
     d = list(Reader(open(DATA)))
     assert len(d) == 1
     doc = list(d)[0]
-    assert len(list(doc.sentences[0].iter_mentions())) == 2
-    assert len(list(doc.sentences[0].iter_links())) == 1
-    assert len(list(doc.sentences[0].iter_nils())) == 1
+    assert len(list(doc.iter_mentions())) == 2
+    assert len(list(doc.iter_links())) == 1
+    assert len(list(doc.iter_nils())) == 1
+
+def test_sentences():
+    """ Checks that we can read contiguous sentences with the indices making sense. """
+    docs = list(Reader(open(DATA_FULL)))
+    for d in docs:
+        last = None
+        for s in d.sentences:
+            for span in s:
+                if last:
+                    assert span.start == last
+                else:
+                    assert span.start == 0
+                last = span.end
 
 def _get_stats(gold_fname, sys_fname):
     gold_path = os.path.join(EXAMPLES, gold_fname)
     sys_path = os.path.join(EXAMPLES, sys_fname)
-    stats = Evaluate(sys_path, gold=gold_path)()
+    stats = Evaluate(sys_path, gold=gold_path, fmt='no_format')()
     pprint(stats)
     return stats
 
@@ -33,18 +46,12 @@ def check_correct(expected, actual):
     return True
 
 CORRECT = {
- 'link_entity_match': {'fn': 0,
+ 'entity_match': {'fn': 0,
                        'fp': 0,
                        'fscore': 1.0,
                        'precision': 1.0,
                        'recall': 1.0,
                        'tp': 1},
- 'strong_all_match': {'fn': 0,
-                      'fp': 0,
-                      'fscore': 1.0,
-                      'precision': 1.0,
-                      'recall': 1.0,
-                      'tp': 2},
  'strong_link_match': {'fn': 0,
                        'fp': 0,
                        'fscore': 1.0,
@@ -57,42 +64,18 @@ CORRECT = {
                           'precision': 1.0,
                           'recall': 1.0,
                           'tp': 2},
- 'weak_all_match': {'fn': 0,
-                    'fp': 0,
-                    'fscore': 1.0,
-                    'precision': 1.0,
-                    'recall': 1.0,
-                    'tp': 2},
- 'weak_link_match': {'fn': 0,
-                     'fp': 0,
-                     'fscore': 1.0,
-                     'precision': 1.0,
-                     'recall': 1.0,
-                     'tp': 1},
- 'weak_mention_match': {'fn': 0,
-                        'fp': 0,
-                        'fscore': 1.0,
-                        'precision': 1.0,
-                        'recall': 1.0,
-                        'tp': 2},
 }
 
 def test_correct():
     assert check_correct(CORRECT, _get_stats('data.txt', 'data.txt'))
 
 ATTEMPT = {
- 'link_entity_match': {'fn': 0,
+ 'entity_match': {'fn': 0,
                        'fp': 1,
                        'fscore': 0.6666666666666666,
                        'precision': 0.5,
                        'recall': 1.0,
                        'tp': 1},
- 'strong_all_match': {'fn': 1,
-                      'fp': 1,
-                      'fscore': 0.5,
-                      'precision': 0.5,
-                      'recall': 0.5,
-                      'tp': 1},
  'strong_link_match': {'fn': 0,
                        'fp': 1,
                        'fscore': 0.6666666666666666,
@@ -105,42 +88,18 @@ ATTEMPT = {
                           'precision': 1.0,
                           'recall': 1.0,
                           'tp': 2},
- 'weak_all_match': {'fn': 1,
-                    'fp': 1,
-                    'fscore': 0.5,
-                    'precision': 0.5,
-                    'recall': 0.5,
-                    'tp': 1},
- 'weak_link_match': {'fn': 0,
-                     'fp': 1,
-                     'fscore': 0.6666666666666666,
-                     'precision': 0.5,
-                     'recall': 1.0,
-                     'tp': 1},
- 'weak_mention_match': {'fn': 0,
-                        'fp': 0,
-                        'fscore': 1.0,
-                        'precision': 1.0,
-                        'recall': 1.0,
-                        'tp': 2},
 }
 
 def test_attempt():
     assert check_correct(ATTEMPT, _get_stats('data.txt', 'data_attempt.txt'))
 
 CORRECT_MORE = {
- 'link_entity_match': {'fn': 0,
+ 'entity_match': {'fn': 0,
                        'fp': 0,
                        'fscore': 1.0,
                        'precision': 1.0,
                        'recall': 1.0,
                        'tp': 3},
- 'strong_all_match': {'fn': 0,
-                      'fp': 0,
-                      'fscore': 1.0,
-                      'precision': 1.0,
-                      'recall': 1.0,
-                      'tp': 4},
  'strong_link_match': {'fn': 0,
                        'fp': 0,
                        'fscore': 1.0,
@@ -153,42 +112,18 @@ CORRECT_MORE = {
                           'precision': 1.0,
                           'recall': 1.0,
                           'tp': 4},
- 'weak_all_match': {'fn': 0,
-                    'fp': 0,
-                    'fscore': 1.0,
-                    'precision': 1.0,
-                    'recall': 1.0,
-                    'tp': 4},
- 'weak_link_match': {'fn': 0,
-                     'fp': 0,
-                     'fscore': 1.0,
-                     'precision': 1.0,
-                     'recall': 1.0,
-                     'tp': 3},
- 'weak_mention_match': {'fn': 0,
-                        'fp': 0,
-                        'fscore': 1.0,
-                        'precision': 1.0,
-                        'recall': 1.0,
-                        'tp': 4},
 }
 
 def test_more_correct():
     assert check_correct(CORRECT_MORE, _get_stats('data_more.txt', 'data_more.txt'))
 
 CORRECT_ATTEMPT = {
- 'link_entity_match': {'fn': 2,
+ 'entity_match': {'fn': 2,
                        'fp': 2,
                        'fscore': 0.3333333333333333,
                        'precision': 0.3333333333333333,
                        'recall': 0.3333333333333333,
                        'tp': 1},
- 'strong_all_match': {'fn': 3,
-                      'fp': 3,
-                      'fscore': 0.25,
-                      'precision': 0.25,
-                      'recall': 0.25,
-                      'tp': 1},
  'strong_link_match': {'fn': 2,
                        'fp': 2,
                        'fscore': 0.3333333333333333,
@@ -201,24 +136,6 @@ CORRECT_ATTEMPT = {
                           'precision': 1.0,
                           'recall': 1.0,
                           'tp': 4},
- 'weak_all_match': {'fn': 3,
-                    'fp': 3,
-                    'fscore': 0.25,
-                    'precision': 0.25,
-                    'recall': 0.25,
-                    'tp': 1},
- 'weak_link_match': {'fn': 2,
-                     'fp': 2,
-                     'fscore': 0.3333333333333333,
-                     'precision': 0.3333333333333333,
-                     'recall': 0.3333333333333333,
-                     'tp': 1},
- 'weak_mention_match': {'fn': 0,
-                        'fp': 0,
-                        'fscore': 1.0,
-                        'precision': 1.0,
-                        'recall': 1.0,
-                        'tp': 4},
 }
 
 def test_more_attempt():
