@@ -4,12 +4,15 @@ import sys
 from filter import Filter
 from evaluate import Evaluate
 from analyze import Analyze
+from significance import Significance
 
 APPS = [
     Filter,
     Evaluate,
     Analyze,
+    Significance,
 ]
+
 
 def main(args=sys.argv[1:]):
     p = argparse.ArgumentParser(description='Evaluation tools for Named Entity Linking output.')
@@ -19,7 +22,10 @@ def main(args=sys.argv[1:]):
 
     namespace = vars(p.parse_args(args))
     cls = namespace.pop('cls')
-    obj = cls(**namespace)
+    try:
+        obj = cls(**namespace)
+    except ValueError as e:
+        p.error(e.message)
     print obj()
 
 if __name__ == '__main__':

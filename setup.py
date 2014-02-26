@@ -8,5 +8,8 @@ setup(name='conll03_nel_eval',
         'console_scripts': [
             'cne = conll03_nel_eval.__main__:main',
         ],
-      }
+      },
+      install_requires=[
+          'joblib',
+      ]
 )
