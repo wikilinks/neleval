@@ -281,10 +281,11 @@ class Reader(Dialected):
                             raise e
                         if iob is None or iob == 'O':
                             if m is not None:
+                                # leaving mention
                                 sentence.append(m)
                                 m = None
                             sentence.append(Token(j, j+1, token))
-                        elif m is not None and iob == 'I':
+                        elif iob == 'I' and m is not None and m.link == link:
                             # mid-mention
                             m.texts.append(token)
                             m.end += 1
