@@ -51,7 +51,7 @@ class Evaluate(object):
         fmt - format
         """
         self.system = sorted(Reader(open(system)))
-        self.gold = sorted(Reader(open(system)))
+        self.gold = sorted(Reader(open(gold)))
         fmt_func = FMTS.get(fmt)
         assert fmt_func is not None
         self.fmt_func = fmt_func
