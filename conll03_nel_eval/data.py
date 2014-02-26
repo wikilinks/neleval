@@ -285,9 +285,11 @@ class Reader(Dialected):
                                 m = None
                             sentence.append(Token(j, j+1, token))
                         elif m is not None and iob == 'I':
+                            # mid-mention
                             m.texts.append(token)
                             m.end += 1
                         elif iob in 'IB':
+                            # transitioning from O or I to B, or from O to I -> begin mention
                             if m is not None:
                                 sentence.append(m)
                                 m = None
