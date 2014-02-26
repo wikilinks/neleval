@@ -34,8 +34,19 @@ def _permutation_trial(per_doc1, per_doc2):
     return _result_diff(pseudo1, pseudo2)
 
 
+def count_permutation_trials(per_doc1, per_doc2, base_diff, n_trials):
+    metrics, bases = zip(*base_diff.iteritems())
+    ops = [operator.le if base < 0 else operator.ge
+           for base in bases]
+    better = [0] * len(metrics)
+    for _ in xrange(n_trials):
+        result = _permutation_trial(per_doc1, per_doc2)
+        for i, metric in enumerate(metrics):
+            better[i] += ops[i](result[metric], bases[i])
+    return dict(zip(metrics, better))
+
+
 def _bootstrap_trial(per_doc1, per_doc2):
-    # XXX: is this implementation correct?
     indices = [random.randint(0, len(per_doc1) - 1)
                for i in xrange(len(per_doc1))]
     pseudo1 = sum((per_doc1[i] for i in indices), Matrix())
@@ -43,23 +54,24 @@ def _bootstrap_trial(per_doc1, per_doc2):
     return _result_diff(pseudo1, pseudo2)
 
 
-def count_better_trials(trial, per_doc1, per_doc2, base_diff, n_trials):
+def count_bootstrap_trials(per_doc1, per_doc2, base_diff, n_trials):
+    # XXX: is this implementation correct?
     metrics, bases = zip(*base_diff.iteritems())
-    ops = [operator.le if base < 0 else operator.ge
-           for base in bases]
-    better = [0] * len(metrics)
+    signs = [base >= 0 for base in bases]
+    same_sign = [0] * len(metrics)
     for _ in xrange(n_trials):
-        result = trial(per_doc1, per_doc2)
+        result = _bootstrap_trial(per_doc1, per_doc2)
         for i, metric in enumerate(metrics):
-            better[i] += ops[i](result[metric], bases[i])
-    return dict(zip(metrics, better))
+            same_sign[i] += signs[i] == (result[metric] >= 0)
+    return dict(zip(metrics, same_sign))
 
 
 class Significance(object):
     """Test for pairwise significance between systems"""
 
-    METHODS = {'permute': _permutation_trial,
-               'bootstrap': _bootstrap_trial}
+    METHODS = {'permute': count_permutation_trials,
+               #'bootstrap': count_bootstrap_trials,
+               }
 
     def __init__(self, systems, gold, trials=10000, method='permute',
                  n_jobs=1):
@@ -91,8 +103,7 @@ class Significance(object):
 
     def significance(self, (per_doc1, overall1), (per_doc2, overall2)):
         base_diff = _result_diff(overall1, overall2)
-        randomized_diffs = functools.partial(count_better_trials,
-                                             self.METHODS[self.method],
+        randomized_diffs = functools.partial(self.METHODS[self.method],
                                              per_doc1, per_doc2,
                                              base_diff)
         n_jobs = self.n_jobs
