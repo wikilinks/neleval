@@ -284,15 +284,14 @@ class Reader(Dialected):
                                 sentence.append(m)
                                 m = None
                             sentence.append(Token(j, j+1, token))
-                        elif iob == 'B':
+                        elif m is not None and iob == 'I':
+                            m.texts.append(token)
+                            m.end += 1
+                        elif iob in 'IB':
                             if m is not None:
                                 sentence.append(m)
                                 m = None
                             m = Mention(j, j+1, name, [token], link=link, score=score)
-                        elif iob == 'I':
-                            assert m is not None
-                            m.texts.append(token)
-                            m.end += 1
                         else:
                             assert False, 'Unexpected IOB case "{}"'.format(iob)
                         i, l = lines.next()
