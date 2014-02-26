@@ -5,12 +5,16 @@ from filter import Filter
 from evaluate import Evaluate
 from analyze import Analyze
 from significance import Significance
+from release import Release
+from merge import Merge
 
 APPS = [
     Filter,
     Evaluate,
     Analyze,
     Significance,
+    Release,
+    Merge,
 ]
 
 
