@@ -278,6 +278,12 @@ class Document(object):
                     i += 1
             sentence.spans = new_spans
 
+    @property
+    def n_tokens(self):
+        if not self.sentences:
+            return 0
+        return self.sentences[-1].spans[-1].end
+
 ## Readers and writers.
 class Dialected(object):
     def __init__(self, f, dialect_name=DEFAULT_DIALECT):
