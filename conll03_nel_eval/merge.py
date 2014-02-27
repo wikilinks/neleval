@@ -15,7 +15,14 @@ class Merge(object):
         data = {}
         with open(self.fname) as f:
             for l in f:
-                doc_id, start, end, link, score = l.decode(ENC).rstrip('\n').split('\t')
+                parts = l.decode(ENC).rstrip('\n').split('\t')
+                doc_id = start = end = link = score = None
+                if len(parts) == 4:
+                    doc_id, start, end, link = parts
+                elif len(parts) == 5:
+                    doc_id, start, end, link, score = parts
+                else:
+                    raise ValueError('Expected 4 or 5 parts to the line, got {}'.format(parts))
                 if not doc_id in data:
                     data[doc_id] = []
                 data[doc_id].append((int(start), int(end), link or None, 
