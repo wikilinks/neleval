@@ -7,6 +7,7 @@ from analyze import Analyze
 from significance import Significance
 from release import Release
 from merge import Merge
+from knit import Tagme
 
 APPS = [
     Filter,
@@ -15,6 +16,7 @@ APPS = [
     Significance,
     Release,
     Merge,
+    Tagme,
 ]
 
 
