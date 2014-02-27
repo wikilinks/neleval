@@ -87,7 +87,7 @@ class Tagme(object):
         for annotation in instance.iter('annotation'):
             # annotation text
             m, char_count = self.mention(annotation, char_count)
-            if m.score and self.thresh and m.score > self.thresh:
+            if m.link and m.score and self.thresh and m.score > self.thresh:
                 mentions.append(m)
             doc_texts.extend(m.texts)
             # annotation tail
@@ -108,10 +108,15 @@ class Tagme(object):
         start = char_count
         name = unicode(elem.text).replace('\n', '<s/>')
         texts, char_count = self.tokens(elem.text, char_count)
-        link = unicode(elem.get('title'))
+        link = self.link(elem)
         score = float(elem.get('score'))
         m = Mention(start, char_count, name, texts, link, score)
         return m, char_count
+
+    def link(self, elem):
+        link = elem.get('title')
+        if link:
+            return '_'.join(unicode(elem.get('title')).split())
 
     def annots_by_tokid(self, annots, doc_texts):
         """Yield (startid, mention) tuples based on gold tokens."""
