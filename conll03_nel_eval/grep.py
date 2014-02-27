@@ -7,7 +7,7 @@ import textwrap
 import argparse
 import itertools
 
-from .data import Reader, Writer, Document, Sentence
+from .data import Reader, Writer, Document, Sentence, Mention
 
 
 # TODO: something with char encodings
@@ -31,23 +31,23 @@ def _read_aux(f):
 
 
 class Grep(object):
-    """Limit an evaluation file to mentions matching given criteria
+    """Limit annotated mentions to those matching a criterion
 
     This either matches a regular expression against the mention text, or
     accepts an auxiliary file, such as the CoNLL 2003 NER-annotated training
     data. Only system mentions whose metadata matches the expression will be
-    output.
+    output, along with all tokens.
 
-    For example, to extract only mentions containing china, use: `
+    For example, to retain only mentions containing china, use: `
         %(prog)s China my-data.linked
     `.
 
-    To extract any mentions in one input that are mentions in another, use: `
+    To retain any mentions in one input that are mentions in another, use: `
         # field 4 is link prediction; . means match any non-empty text
         %(prog)s '.' --field 4 --aux other-data.linked my-data.linked
     `.
 
-    To extract only LOC entity mentions in the input
+    To retain only LOC entity mentions in the input
         # field 3 is NER IOB tag, but CoNLL delimits by space
         %(prog)s LOC --field 3 --aux <(tr ' ' '\\t' < conll03/tags.eng) my-data.linked
     `.
@@ -88,34 +88,31 @@ class Grep(object):
                 aux_doc = next(aux_reader)
                 assert len(aux_doc) == doc.n_tokens, 'Expected same number of tokens, got {} in aux and {} in input'.format(len(aux_doc), doc.n_tokens)
 
-            filtered = list(self.filter_mentions(string_matches, doc,
-                                                 aux_doc, field_slice))
-            if not filtered:
-                continue
-            # all mentions as one sentence
-            out_doc = Document(doc.doc_id, [Sentence(filtered)])
-            writer.write(out_doc)
+            for sent, ment in self.filter_mentions(string_matches, doc,
+                                                   aux_doc, field_slice):
+                sent.explode_mention(ment)
+
+            writer.write(doc)
         return out_file.getvalue()
 
     def filter_mentions(self, string_matches, doc, aux_doc=None, field_slice=None):
-        # warning: modifies doc in-place
-        start = 0
-        for mention in doc.iter_mentions():
-            if aux_doc is None:
-                text = mention.text
-            else:
-                aux_mention = aux_doc[mention.start:mention.end]
-                transposed = list(itertools.izip_longest(*aux_mention))[field_slice]
-                text = '\n'.join(' '.join(tup) for tup in transposed)
-            if self.debug:
-                print(mention, repr(text), sep='\t', file=sys.stderr)
+        """Generates mentions that don't match the criterion"""
+        for sentence in doc.sentences:
+            for span in sentence.spans:
+                if not isinstance(span, Mention):
+                    continue
+                mention = span
+                if aux_doc is None:
+                    text = mention.text
+                else:
+                    aux_mention = aux_doc[mention.start:mention.end]
+                    transposed = list(itertools.izip_longest(*aux_mention))[field_slice]
+                    text = '\n'.join(' '.join(tup) for tup in transposed)
+                if self.debug:
+                    print(mention, repr(text), sep='\t', file=sys.stderr)
 
-            if string_matches(text):
-                mention = copy(mention)
-                mention.end = mention.end - mention.start + start
-                mention.start = start
-                start = mention.end
-                yield mention
+                if not string_matches(text):
+                    yield sentence, mention
 
     @classmethod
     def add_arguments(cls, sp):
