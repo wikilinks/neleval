@@ -31,8 +31,9 @@ class Filter(object):
         with open(mapping) as f:
             for l in f:
                 bits = l.decode('utf8').rstrip().split('\t')
-                title = bits[0]
+                title = bits[0].replace(' ', '_')
                 for r in bits[1:]:
+                    r = r.replace(' ', '_')
                     redirects[r] = title
                 redirects[title] = title
         return redirects
