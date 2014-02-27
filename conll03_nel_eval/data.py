@@ -132,6 +132,16 @@ class Sentence(object):
     def __iter__(self):
         return iter(self.spans)
 
+    def explode_mention(self, mention):
+        """Replaces the given mention (or mention index) with tokens"""
+        if isinstance(mention, Mention):
+            ind = self.spans.index(mention)
+        else:
+            ind = mention
+            mention = self.spans[ind]
+        self.spans[ind:ind+1] = [Token(j, j+1, mention.texts[i])
+                                 for i, j in enumerate(range(mention.start, mention.end))]
+
 # Helper functions: key() and match()
 def strong_key(i):
     return (i.start, i.end)
