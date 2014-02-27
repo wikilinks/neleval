@@ -40,7 +40,7 @@ class Fetch(object):
                 if e in self.seen:
                     continue
                 self.seen.add(e)
-                current = self.w.redirected(e.decode('utf8')) # current title
+                current = self.w.redirected(e) # current title
                 redirects = self.w.redirects(current) # all incoming redirects
                 redirects = list(redirects)
                 yield current, sorted(redirects)
