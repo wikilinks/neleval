@@ -8,6 +8,7 @@ from significance import Significance
 from release import Release
 from merge import Merge
 from knit import Tagme
+from fetch_map import Fetch
 
 APPS = [
     Filter,
@@ -17,6 +18,7 @@ APPS = [
     Release,
     Merge,
     Tagme,
+    Fetch,
 ]
 
 

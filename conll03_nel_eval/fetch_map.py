@@ -1,44 +1,46 @@
 #!/usr/bin/env python
 """
-Fetch redirects for entities in gold standard.
-
-Call as, e.g.:
-  cat /data/nel/conll03/aida-yago2-dataset/AIDA-YAGO2-dataset.tsv \
-    | python fetch_map.py \
-    --split testa  \
-    > maps/map-testa-fromapi-20140130.tsv
+Fetch redirects for entities in in AIDA/CoNLL-formatted file.
 """
-import sys
-import operator
-from data import Data
+import re
+from data import Reader
 from wikipedia import Wikipedia
-from utils import log
+from cStringIO import StringIO
 
-def fetch(data, split=None):
-    w = Wikipedia()
-    seen = set()
-    for d in data.documents.values():
-        if split is not None and d.split != split:
-            continue # doc not in specified split
-        for e in d.entities:
-            if e in seen:
+class Fetch(object):
+    def __init__(self, fname, keep=None):
+        self.fname = fname # aida/conll gold file
+        self.keep = re.compile(keep) if keep else None # e.g., .*testb.*
+        self.w = Wikipedia()
+        self.seen = set()
+
+    def __call__(self):
+        self.data = list(Reader(open(self.fname)))
+        self.redirects = dict(self.fetch())        
+        out = StringIO()
+        for e, r in sorted(self.redirects.iteritems()):
+            line = '\t'.join([e] + r)
+            print >>out, line.encode('utf8')
+        return out.getvalue()
+
+    @classmethod
+    def add_arguments(cls, sp):
+        p = sp.add_parser('fetch', help='Fetch redirects for entities in file.')
+        p.add_argument('fname', metavar='FILE')
+        p.add_argument('-k', '--keep', help='regex pattern to capture')
+        p.set_defaults(cls=cls)
+        return p
+
+    def fetch(self):
+        for doc in self.data:
+            if self.keep and not self.keep.match(doc.doc_id):
                 continue
-            seen.add(e)
-            current = w.redirected(e.decode('utf8')) # fetch current title
-            redirects = w.redirects(current) # fetch all incoming redirects
-            yield current, sorted(list(redirects))
-
-def write(redirects, fh=sys.stdout):
-    redirects = dict(redirects)
-    for e, r in sorted(redirects.iteritems()):
-        line = '%s\n' % '\t'.join([e] + r)
-        fh.write(line.encode('utf8'))
-
-if __name__ == '__main__':
-    import argparse
-    ap = argparse.ArgumentParser()
-    ap.add_argument('--split', help='Data split to process')
-    args = ap.parse_args()
-    data = Data.read(sys.stdin)
-    redirects = fetch(data, split=args.split)
-    write(redirects)
+            for e in doc.iter_entities():
+                e = ' '.join(e.split('_')) # TODO why url piece not title?
+                if e in self.seen:
+                    continue
+                self.seen.add(e)
+                current = self.w.redirected(e.decode('utf8')) # current title
+                redirects = self.w.redirects(current) # all incoming redirects
+                redirects = list(redirects)
+                yield current, sorted(redirects)
