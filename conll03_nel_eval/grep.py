@@ -1,3 +1,5 @@
+from __future__ import print_function
+import sys
 import io
 import re
 from copy import copy
@@ -55,7 +57,7 @@ class Grep(object):
     delimited by tabs.
     """
 
-    def __init__(self, system, expr, aux=None, field=None, ignore_case=False):
+    def __init__(self, system, expr, aux=None, field=None, ignore_case=False, debug=False):
         if aux is None and field is not None:
             raise ValueError('--field requires --aux to be set')
         self.system = system
@@ -63,6 +65,7 @@ class Grep(object):
         self.aux = aux
         self.field = field
         self.ignore_case = ignore_case
+        self.debug = debug
 
     def __call__(self):
         out_file = io.BytesIO()
@@ -104,7 +107,9 @@ class Grep(object):
                 aux_mention = aux_doc[mention.start:mention.end]
                 transposed = list(itertools.izip_longest(*aux_mention))[field_slice]
                 text = '\n'.join(' '.join(tup) for tup in transposed)
-                #print(repr(text))
+            if self.debug:
+                print(mention, repr(text), sep='\t', file=sys.stderr)
+
             if string_matches(text):
                 mention = copy(mention)
                 mention.end = mention.end - mention.start + start
@@ -119,7 +124,8 @@ class Grep(object):
                           formatter_class=argparse.RawDescriptionHelpFormatter)
         p.add_argument('expr', help='A PCRE regular expression to match against mention metadata')
         p.add_argument('system', metavar='FILE')
-        p.add_argument('--aux')
+        p.add_argument('--aux', help='Aligned text to match within')
+        p.add_argument('--debug', action='store_true', default=False, help='Show text being matched against on stderr')
         p.add_argument('-f', '--field', type=int, default=None,
                        help='tabs-delimited field in the auxiliary file to match against (default any)')
         p.add_argument('-i', '--ignore-case', action='store_true', default=False)
