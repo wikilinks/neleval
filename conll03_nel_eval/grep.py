@@ -13,7 +13,7 @@ from .data import Reader, Writer, Document, Sentence, Mention
 # TODO: something with char encodings
 
 
-def _read_aux(f):
+def _read_aux(f, delim='\t'):
     # generates a list of lines per doc
     lines = []
     for l in f:
@@ -22,9 +22,10 @@ def _read_aux(f):
                 yield lines
                 lines = []
             continue
-        l = l.split()
+        l = l.strip()
         if not l:
             continue
+        l = l.split(delim)
         lines.append(l)
     if lines:
         yield lines
@@ -49,7 +50,7 @@ class Grep(object):
 
     To retain only LOC entity mentions in the input
         # field 3 is NER IOB tag, but CoNLL delimits by space
-        %(prog)s LOC --field 3 --aux <(tr ' ' '\\t' < conll03/tags.eng) my-data.linked
+        %(prog)s LOC --field 3 --delim ' ' --aux conll03/tags.eng my-data.linked
     `.
 
     All tokens in the auxiliary file must align with the input, with documents
@@ -57,13 +58,14 @@ class Grep(object):
     delimited by tabs.
     """
 
-    def __init__(self, system, expr, aux=None, field=None, ignore_case=False, debug=False):
+    def __init__(self, system, expr, aux=None, field=None, delim='\t', ignore_case=False, debug=False):
         if aux is None and field is not None:
             raise ValueError('--field requires --aux to be set')
         self.system = system
         self.expr = expr
         self.aux = aux
         self.field = field
+        self.delim = delim
         self.ignore_case = ignore_case
         self.debug = debug
 
@@ -72,7 +74,7 @@ class Grep(object):
         writer = Writer(out_file)
         string_matches = re.compile(self.expr).search
         if self.aux is not None:
-            aux_reader = _read_aux(open(self.aux))
+            aux_reader = _read_aux(open(self.aux), self.delim)
 
             if self.field is None:
                 field_slice = slice(None, None)
@@ -124,7 +126,9 @@ class Grep(object):
         p.add_argument('--aux', help='Aligned text to match within')
         p.add_argument('--debug', action='store_true', default=False, help='Show text being matched against on stderr')
         p.add_argument('-f', '--field', type=int, default=None,
-                       help='tabs-delimited field in the auxiliary file to match against (default any)')
+                       help='field in the auxiliary file to match against (default: any)')
+        p.add_argument('-d', '--delim', default='\t',
+                       help='delimiter between fields in the auxiliary file (default: tab)')
         p.add_argument('-i', '--ignore-case', action='store_true', default=False)
         p.set_defaults(cls=cls)
         return p

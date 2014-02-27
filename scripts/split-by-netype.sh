@@ -26,7 +26,7 @@ do
 	for netype in PER LOC ORG MISC
 	do
 		echo $1.$netype >&2
-		$CNE grep $netype -f3 --aux "$CONLL_TAGS_PATH" "$1" > "$1.$netype" || exit 1
+		$CNE grep $netype -f3 -d' ' --aux "$CONLL_TAGS_PATH" "$1" > "$1.$netype" || exit 1
 	done
 
 	shift
