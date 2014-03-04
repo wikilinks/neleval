@@ -15,7 +15,7 @@ TEMPLATE = u'{}\t{}\t{}\t{}\t{}'
 ENC = 'utf8'
 
 # Different styles of format.
-class CoNLLDialect(object):
+class AIDADialect(object):
     DOC_ID = re.compile('^-DOCSTART- \(?(?P<doc_id>[^\)]*)\)?$')
     NIL = '--NME--'
     def __init__(self):
@@ -66,9 +66,9 @@ class CoNLLDialect(object):
         return token, iob, name, link, score
 
 DIALECTS = {
-    'CoNLL': CoNLLDialect,
+    'AIDA': AIDADialect,
 }
-DEFAULT_DIALECT = 'CoNLL'
+DEFAULT_DIALECT = 'AIDA'
 
 # Data model.
 class Span(object):
