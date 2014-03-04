@@ -6,6 +6,8 @@ from .data import Reader, Writer, ENC, Document, Sentence, Mention, Token
 
 
 class Unstitch(object):
+    'Produce release file from system output'
+
     def __init__(self, fname):
         """
         fname - system output
@@ -20,14 +22,15 @@ class Unstitch(object):
         return '\n'.join(lines).encode(ENC)
             
     @classmethod
-    def add_arguments(cls, sp):
-        p = sp.add_parser('unstitch', help='Produce release file from system output')
+    def add_arguments(cls, p):
         p.add_argument('fname', metavar='FILE')
         p.set_defaults(cls=cls)
         return p
 
 
 class Stitch(object):
+    'Merge release file with gold-standard'
+
     def __init__(self, fname, gold=None):
         """
         fname - system output (release format)
@@ -64,8 +67,7 @@ class Stitch(object):
         return out.getvalue()
             
     @classmethod
-    def add_arguments(cls, sp):
-        p = sp.add_parser('stitch', help='Merge release file with gold-standard.')
+    def add_arguments(cls, p):
         p.add_argument('fname', metavar='FILE')
         p.add_argument('-g', '--gold')
         p.set_defaults(cls=cls)
@@ -73,6 +75,8 @@ class Stitch(object):
 
 
 class Tagme(object):
+    'Reformat tagme annotations to aida/conll format'
+
     def __init__(self, fname, tmxml, keep=None, threshold=0.0):
         self.fname = fname # aida/conll gold file
         self.tmxml = tmxml # tagme xml annotations file
@@ -88,9 +92,7 @@ class Tagme(object):
         return out.getvalue()
 
     @classmethod
-    def add_arguments(cls, sp):
-        p = sp.add_parser('tagme',
-                          help='Reformat tagme annotations to aida/conll format')
+    def add_arguments(cls, p):
         p.add_argument('fname', metavar='FILE')
         p.add_argument('-a', '--tmxml', help='tagme2 xml annotations file')
         p.add_argument('-k', '--keep', help='regex pattern to capture')

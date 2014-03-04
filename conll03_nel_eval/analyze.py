@@ -38,6 +38,7 @@ class LinkingError(namedtuple('Error', 'doc_id text gold system')):
 
 
 class Analyze(object):
+    """Analyze errors"""
     def __init__(self, system, gold=None, unique=False, summary=False):
         self.system = system
         self.gold = gold
@@ -79,8 +80,7 @@ class Analyze(object):
                 yield LinkingError(g.doc_id, m.text, m.link, None)
 
     @classmethod
-    def add_arguments(cls, sp):
-        p = sp.add_parser('analyze', help='Analyze errors')
+    def add_arguments(cls, p):
         p.add_argument('system', metavar='FILE')
         p.add_argument('-g', '--gold')
         p.add_argument('-u', '--unique', action='store_true', default=False,
