@@ -1,34 +1,32 @@
 #!/usr/bin/env python
 import argparse
 import sys
-from filter import Filter
-from evaluate import Evaluate
-from analyze import Analyze
-from significance import Significance
-from release import Release
-from merge import Merge
-from knit import Tagme
-from fetch_map import Fetch
-from grep import Grep
+from .prepare import Prepare
+from .evaluate import Evaluate
+from .analyze import Analyze
+from .significance import Significance
+from .formats import Unstitch, Stitch, Tagme
+from .fetch_map import FetchMapping
+from .filter import FilterMentions
 
 APPS = [
     Evaluate,
     Analyze,
     Significance,
-    Filter,
-    Grep,
-    Release,
-    Merge,
+    Prepare,
+    FilterMentions,
+    Unstitch,
+    Stitch,
     Tagme,
-    Fetch,
+    FetchMapping,
 ]
 
 
 def main(args=sys.argv[1:]):
     p = argparse.ArgumentParser(description='Evaluation tools for Named Entity Linking output.')
     sp = p.add_subparsers()
-    for a in APPS:
-        a.add_arguments(sp)
+    for cls in APPS:
+        cls.add_arguments(sp)
 
     namespace = vars(p.parse_args(args))
     cls = namespace.pop('cls')
