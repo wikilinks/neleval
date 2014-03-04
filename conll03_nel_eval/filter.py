@@ -109,7 +109,8 @@ class FilterMentions(object):
                 else:
                     aux_mention = aux_doc[mention.start:mention.end]
                     transposed = list(itertools.izip_longest(*aux_mention))[field_slice]
-                    text = '\n'.join(' '.join(tup) for tup in transposed)
+                    text = '\n'.join(' '.join(x or '' for x in tup)
+                                     for tup in transposed)
                 if self.debug:
                     print(mention, repr(text), sep='\t', file=sys.stderr)
 
