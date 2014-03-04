@@ -9,12 +9,14 @@ from release import Release
 from merge import Merge
 from knit import Tagme
 from fetch_map import Fetch
+from grep import Grep
 
 APPS = [
-    Filter,
     Evaluate,
     Analyze,
     Significance,
+    Filter,
+    Grep,
     Release,
     Merge,
     Tagme,
