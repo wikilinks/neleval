@@ -124,8 +124,7 @@ class Significance(object):
                 for metric, counts in zip(metrics, zip(*all_counts))}
 
     @classmethod
-    def add_arguments(cls, sp):
-        p = sp.add_parser('significance', help=cls.__doc__)
+    def add_arguments(cls, p):
         p.add_argument('systems', nargs='+', metavar='FILE')
         p.add_argument('-g', '--gold')
         p.add_argument('-n', '--trials', default=10000, type=int)

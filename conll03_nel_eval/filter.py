@@ -120,10 +120,7 @@ class FilterMentions(object):
                     yield sentence, mention
 
     @classmethod
-    def add_arguments(cls, sp):
-        p = sp.add_parser('filter-mentions', help=cls.__doc__.split('\n')[0],
-                          description=textwrap.dedent(cls.__doc__.split('\n', 1)[1].rstrip()) or None,
-                          formatter_class=argparse.RawDescriptionHelpFormatter)
+    def add_arguments(cls, p):
         p.add_argument('expr', help='A PCRE regular expression to match against mention metadata')
         p.add_argument('system', metavar='FILE')
         p.add_argument('--aux', help='Aligned text to match within')

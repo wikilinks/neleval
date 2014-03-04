@@ -44,8 +44,7 @@ class Prepare(object):
         return redirects
 
     @classmethod
-    def add_arguments(cls, sp):
-        p = sp.add_parser(cls.__name__.lower(), help=cls.__doc__.split('\n')[0])
+    def add_arguments(cls, p):
         p.add_argument('fname', metavar='FILE')
         p.add_argument('-k', '--keep', help='Regular expression pattern to capture')
         p.add_argument('-m', '--mapping', help='Mapping for titles')
