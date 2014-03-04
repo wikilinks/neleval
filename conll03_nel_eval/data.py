@@ -132,6 +132,16 @@ class Sentence(object):
     def __iter__(self):
         return iter(self.spans)
 
+    def explode_mention(self, mention):
+        """Replaces the given mention (or mention index) with tokens"""
+        if isinstance(mention, Mention):
+            ind = self.spans.index(mention)
+        else:
+            ind = mention
+            mention = self.spans[ind]
+        self.spans[ind:ind+1] = [Token(j, j+1, mention.texts[i])
+                                 for i, j in enumerate(range(mention.start, mention.end))]
+
 # Helper functions: key() and match()
 def strong_key(i):
     return (i.start, i.end)
@@ -277,6 +287,19 @@ class Document(object):
                     new_spans.append(s)
                     i += 1
             sentence.spans = new_spans
+
+    @property
+    def n_tokens(self):
+        if not self.sentences:
+            return 0
+        return self.sentences[-1].spans[-1].end
+
+    @property
+    def n_mentions(self):
+        return sum(isinstance(span, Mention)
+                   for sent in self.sentences
+                   for span in sent.spans)
+
 
 ## Readers and writers.
 class Dialected(object):
