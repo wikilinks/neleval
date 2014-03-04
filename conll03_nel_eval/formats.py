@@ -1,7 +1,76 @@
+from io import BytesIO
 import re
 import xml.etree.cElementTree as ET
-from data import Reader, Document, Sentence, Mention, Token, Writer
-from cStringIO import StringIO
+
+from .data import Reader, Writer, ENC, Document, Sentence, Mention, Token
+
+
+class Unstitch(object):
+    def __init__(self, fname):
+        """
+        fname - system output
+        """
+        self.fname = fname
+
+    def __call__(self):
+        lines = []
+        for doc in list(sorted(Reader(open(self.fname)))):
+            for m in doc.iter_mentions():
+                lines.append(u'{}\t{}\t{}\t{}\t{}'.format(doc.doc_id, m.start, m.end, m.link or '', m.score or ''))
+        return '\n'.join(lines).encode(ENC)
+            
+    @classmethod
+    def add_arguments(cls, sp):
+        p = sp.add_parser('unstitch', help='Produce release file from system output')
+        p.add_argument('fname', metavar='FILE')
+        p.set_defaults(cls=cls)
+        return p
+
+
+class Stitch(object):
+    def __init__(self, fname, gold=None):
+        """
+        fname - system output (release format)
+        gold - gold standard
+        """
+        self.fname = fname
+        self.gold = gold
+
+    def __call__(self):
+        # Read release file.
+        data = {}
+        with open(self.fname) as f:
+            for l in f:
+                parts = l.decode(ENC).rstrip('\n').split('\t')
+                doc_id = start = end = link = score = None
+                if len(parts) == 4:
+                    doc_id, start, end, link = parts
+                elif len(parts) == 5:
+                    doc_id, start, end, link, score = parts
+                else:
+                    raise ValueError('Expected 4 or 5 parts to the line, got {}'.format(parts))
+                if not doc_id in data:
+                    data[doc_id] = []
+                data[doc_id].append((int(start), int(end), link or None, 
+                                    float(score) if score else None))
+        # Merge into docs. 
+        docs = list(sorted(Reader(open(self.gold))))
+        out = BytesIO()
+        w = Writer(out)
+        for doc in docs:
+            doc.clear_mentions()
+            doc.set_mentions(data.get(doc.doc_id, []))
+            w.write(doc)
+        return out.getvalue()
+            
+    @classmethod
+    def add_arguments(cls, sp):
+        p = sp.add_parser('stitch', help='Merge release file with gold-standard.')
+        p.add_argument('fname', metavar='FILE')
+        p.add_argument('-g', '--gold')
+        p.set_defaults(cls=cls)
+        return p
+
 
 class Tagme(object):
     def __init__(self, fname, tmxml, keep=None, threshold=0.0):
@@ -12,7 +81,7 @@ class Tagme(object):
 
     def __call__(self):
         self.docs = dict(self.docs_by_text())
-        out = StringIO()
+        out = BytesIO()
         w = Writer(out)
         for doc in self.knit():
             w.write(doc)
@@ -21,7 +90,7 @@ class Tagme(object):
     @classmethod
     def add_arguments(cls, sp):
         p = sp.add_parser('tagme',
-                          help='Knit tagme annotations to aida/conll format')
+                          help='Reformat tagme annotations to aida/conll format')
         p.add_argument('fname', metavar='FILE')
         p.add_argument('-a', '--tmxml', help='tagme2 xml annotations file')
         p.add_argument('-k', '--keep', help='regex pattern to capture')
