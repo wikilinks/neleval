@@ -39,19 +39,16 @@ class Grep(object):
     data. Only system mentions whose metadata matches the expression will be
     output, along with all tokens.
 
-    For example, to retain only mentions containing china, use: `
+    For example, to retain only mentions containing china, use:
         %(prog)s China my-data.linked
-    `.
 
-    To retain any mentions in one input that are mentions in another, use: `
+    To retain any mentions in one input that are mentions in another, use:
         # field 4 is link prediction; . means match any non-empty text
         %(prog)s '.' --field 4 --aux other-data.linked my-data.linked
-    `.
 
-    To retain only LOC entity mentions in the input
+    To retain only LOC entity mentions in the input, use:
         # field 3 is NER IOB tag, but CoNLL delimits by space
         %(prog)s LOC --field 3 --delim ' ' --aux conll03/tags.eng my-data.linked
-    `.
 
     All tokens in the auxiliary file must align with the input, with documents
     delimited by lines beginning '-DOCSTART-' or '-X-'. Other lines have fields
