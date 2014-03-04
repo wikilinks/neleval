@@ -2,12 +2,9 @@ from __future__ import print_function
 import sys
 import io
 import re
-from copy import copy
-import textwrap
-import argparse
 import itertools
 
-from .data import Reader, Writer, Document, Sentence, Mention
+from .data import Reader, Writer, Mention
 
 
 # TODO: something with char encodings
