@@ -85,16 +85,22 @@ class Grep(object):
             aux_doc = None
             field_slice = None
 
+        n_mentions_in = n_mentions_out = 0
+
         for doc in Reader(open(self.system)):
             if aux_reader:
                 aux_doc = next(aux_reader)
                 assert len(aux_doc) == doc.n_tokens, 'Expected same number of tokens, got {} in aux and {} in input'.format(len(aux_doc), doc.n_tokens)
 
+            n_mentions_in += doc.n_mentions
             for sent, ment in self.filter_mentions(string_matches, doc,
                                                    aux_doc, field_slice):
                 sent.explode_mention(ment)
+            n_mentions_out += doc.n_mentions
 
             writer.write(doc)
+        print('{} of {} mentions match {!r}'.format(n_mentions_out, n_mentions_in, self.expr),
+              file=sys.stderr)
         return out_file.getvalue()
 
     def filter_mentions(self, string_matches, doc, aux_doc=None, field_slice=None):

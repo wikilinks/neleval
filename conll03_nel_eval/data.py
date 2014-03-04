@@ -294,6 +294,13 @@ class Document(object):
             return 0
         return self.sentences[-1].spans[-1].end
 
+    @property
+    def n_mentions(self):
+        return sum(isinstance(span, Mention)
+                   for sent in self.sentences
+                   for span in sent.spans)
+
+
 ## Readers and writers.
 class Dialected(object):
     def __init__(self, f, dialect_name=DEFAULT_DIALECT):
