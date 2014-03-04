@@ -9,6 +9,8 @@ from .data import Reader
 from .wikipedia import Wikipedia
 
 class FetchMapping(object):
+    'Fetch ID mapping from Wikipedia API redirects'
+
     def __init__(self, fname, keep=None):
         self.fname = fname # aida/conll gold file
         self.keep = re.compile(keep) if keep else None # e.g., .*testb.*
@@ -25,8 +27,7 @@ class FetchMapping(object):
         return out.getvalue()
 
     @classmethod
-    def add_arguments(cls, sp):
-        p = sp.add_parser('fetch-mapping', help='Fetch ID mapping from Wikipedia API redirects')
+    def add_arguments(cls, p):
         p.add_argument('fname', metavar='FILE')
         p.add_argument('-k', '--keep', help='regex pattern to capture')
         p.set_defaults(cls=cls)

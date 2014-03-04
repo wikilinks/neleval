@@ -44,6 +44,8 @@ FMTS = {
 
 
 class Evaluate(object):
+    'Evaluate system output'
+
     def __init__(self, system, gold=None, fmt=DEFAULT_FMT):
         """
         system - system output
@@ -61,8 +63,7 @@ class Evaluate(object):
         return self.fmt_func(self.results)
 
     @classmethod
-    def add_arguments(cls, sp):
-        p = sp.add_parser('evaluate', help='Evaluate system output')
+    def add_arguments(cls, p):
         p.add_argument('system', metavar='FILE')
         p.add_argument('-g', '--gold')
         p.add_argument('-f', '--fmt', default=DEFAULT_FMT)
