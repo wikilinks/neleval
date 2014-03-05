@@ -120,7 +120,8 @@ class Significance(object):
             metrics, counts = zip(*result.iteritems())
             all_counts.append(counts)
 
-        return {metric: (sum(counts) + 1) / (self.trials + 1)
+        return {metric: {'diff': base_diff,
+                         'p': (sum(counts) + 1) / (self.trials + 1)}
                 for metric, counts in zip(metrics, zip(*all_counts))}
 
     @classmethod
