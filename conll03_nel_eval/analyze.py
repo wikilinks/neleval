@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 from collections import namedtuple, Counter
 
 from .data import Reader, Writer, strong_key, ENC
@@ -5,36 +7,46 @@ from .utils import log
 from .evaluate import Evaluate
 
 
-class _Nil(object):
+class _Missing(object):
     def __str__(self):
-        return "NIL"
+        return "MISSING"
 
-NIL = _Nil()
+MISSING = _Missing()
 
 
 class LinkingError(namedtuple('Error', 'doc_id text gold system')):
     @property
     def label(self):
-        if self.gold is None:
+        if self.gold is MISSING:
             return 'extra'
-        if self.system is None:
+        if self.system is MISSING:
             return 'missing'
         if self.gold == self.system:
             return 'correct'
-        if self.gold is NIL:
+        if self.gold is None:
             return 'nil-as-link'
-        if self.system is NIL:
+        if self.system is None:
             return 'link-as-nil'
         return 'wrong-link'
 
+    @staticmethod
+    def _str(val, pre):
+        if val is MISSING:
+            return u''
+        elif val is None:
+            return u'{}NIL'.format(pre)
+        return u'{}"{}"'.format(pre, val)
+
+    @property
+    def _system_str(self):
+        return self._str(self.system, 's')
+
+    @property
+    def _gold_str(self):
+        return self._str(self.gold, 'g')
+
     def __str__(self):
-        if self.gold is None:
-            fmt = u'{label}\t{doc_id}\tm"{text}"\ts"{system}"'
-        elif self.system is None:
-            fmt = u'{label}\t{doc_id}\tm"{text}"\tg"{gold}"'
-        else:
-            fmt = u'{label}\t{doc_id}\tm"{text}"\tg"{gold}"\ts"{system}"'
-        return fmt.format(label=self.label, **self._asdict())
+        return u'{0.label}\t{0.doc_id}\tm"{0.text}"\t{0._gold_str}\t{0._system_str}'.format(self)
 
 
 class Analyze(object):
@@ -73,11 +85,11 @@ class Analyze(object):
             for g_m, s_m in tp:
                 if g_m.link == s_m.link:
                     continue  # Correct case.
-                yield LinkingError(g.doc_id, g_m.text, g_m.link or NIL, s_m.link or NIL)
+                yield LinkingError(g.doc_id, g_m.text, g_m.link, s_m.link)
             for _, m in fp:
-                yield LinkingError(g.doc_id, m.text, None, m.link)
+                yield LinkingError(g.doc_id, m.text, MISSING, m.link)
             for m, _ in fn:
-                yield LinkingError(g.doc_id, m.text, m.link, None)
+                yield LinkingError(g.doc_id, m.text, m.link, MISSING)
 
     @classmethod
     def add_arguments(cls, p):
