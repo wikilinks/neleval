@@ -3,7 +3,7 @@
 usage() {
 	echo 'Select mentions in linked text by CoNLL03 Shared Task entity types.
 
-Usage: $0 conll03ner/etc/tags.eng linked1 ...
+Usage: '$0' conll03ner/etc/tags.eng.testb linked1 ...
 
 Produces files such as linked1.PER, linked1.LOC, linked1.ORG, linked1.MISC
 containing only the corresponding entity mentions in the evaluation format.
