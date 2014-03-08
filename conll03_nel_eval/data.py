@@ -7,6 +7,7 @@ from .utils import log
 
 MATCHES = '''
 strong_mention_match
+strong_linked_mention_match
 strong_link_match
 entity_match
 '''.strip().split()
@@ -204,6 +205,9 @@ class Document(object):
     # Matching mentions.
     def strong_mention_match(self, other):
         return self._match(other, strong_key, 'iter_mentions')
+
+    def strong_linked_mention_match(self, other):
+        return self._match(other, strong_key, 'iter_links')
 
     def strong_link_match(self, other):
         return self._match(other, strong_link_key, 'iter_links')
