@@ -66,6 +66,12 @@ CORRECT = {
                           'precision': 1.0,
                           'recall': 1.0,
                           'tp': 2},
+ 'strong_linked_mention_match': {'fn': 0,
+                                 'fp': 0,
+                                 'fscore': 1.0,
+                                 'precision': 1.0,
+                                 'recall': 1.0,
+                                 'tp': 1},
 }
 
 def test_correct():
@@ -90,6 +96,12 @@ ATTEMPT = {
                           'precision': 1.0,
                           'recall': 1.0,
                           'tp': 2},
+ 'strong_linked_mention_match': {'fn': 0,
+                                 'fp': 1,
+                                 'fscore': 0.6666666666666666,
+                                 'precision': 0.5,
+                                 'recall': 1.0,
+                                 'tp': 1},
 }
 
 def test_attempt():
@@ -114,6 +126,12 @@ CORRECT_MORE = {
                           'precision': 1.0,
                           'recall': 1.0,
                           'tp': 4},
+ 'strong_linked_mention_match': {'fn': 0,
+                                 'fp': 0,
+                                 'fscore': 1.0,
+                                 'precision': 1.0,
+                                 'recall': 1.0,
+                                 'tp': 3},
 }
 
 def test_more_correct():
@@ -138,6 +156,12 @@ CORRECT_ATTEMPT = {
                           'precision': 1.0,
                           'recall': 1.0,
                           'tp': 4},
+ 'strong_linked_mention_match': {'fn': 1,
+                                 'fp': 1,
+                                 'fscore': 0.6666666666666666,
+                                 'precision': 0.6666666666666666,
+                                 'recall': 0.6666666666666666,
+                                 'tp': 2},
 }
 
 def test_more_attempt():
