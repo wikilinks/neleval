@@ -1,14 +1,52 @@
+# vim: set fileencoding=utf-8 :
+
 from __future__ import division
 from collections import defaultdict
 import itertools
 import random
 import operator
 import functools
+import json
 
 from joblib.parallel import Parallel, delayed, cpu_count
 
-from data import Reader
+from data import MATCHES, Reader
 from evaluate import Evaluate, Matrix
+
+
+def tab_format(data, metrics=['precision', 'recall', 'fscore']):
+    rows = []
+    for row in data:
+        stats = row['stats']
+        rows.append([row['sys1'], row['sys2'], row['match'],]
+                    + sum(([stats[metric]['diff'], stats[metric]['p']] for metric in metrics), []))
+    header = ['sys1', 'sys2', 'match'] + sum(([u'Δ-' + metric[:6], 'p-' + metric[:6]] for metric in metrics), [])
+
+    sys_width = max(len(col) for row in rows for col in row[:2])
+    sys_width = max(sys_width, 4)
+    match_width = max(len(row[2]) for row in rows)
+    match_width = max(match_width, 5)
+
+    fmt = (u'{:%ds}\t{:%ds}\t{:%ds}' % (sys_width, sys_width, match_width))
+    ret = (fmt + u'\t{}' * len(metrics) * 2).format(*header)
+    fmt += u''.join(u'\t{:+8.3f}\t{:8.3f}' for metric in metrics)
+    ret += u''.join(u'\n' + fmt.format(*row) for row in rows)
+    return ret.encode('utf-8')
+
+
+def json_format(data, metrics):
+    return json.dumps(data)
+
+
+def no_format(data, metrics):
+    return data
+
+
+FMTS = {
+    'tab': tab_format,
+    'json': json_format,
+    'no_format': no_format,
+}
 
 
 def sum(it, start=0):
@@ -74,7 +112,7 @@ class Significance(object):
                }
 
     def __init__(self, systems, gold, trials=10000, method='permute',
-                 n_jobs=1):
+                 n_jobs=1, metrics=['precision', 'recall', 'fscore'], fmt='json'):
         if len(systems) < 2:
             raise ValueError('Require at least two systems to compare')
         if method not in self.METHODS:
@@ -84,6 +122,8 @@ class Significance(object):
         self.method = method
         self.trials = trials
         self.n_jobs = n_jobs
+        self.metrics = metrics
+        self.fmt = FMTS[fmt] if fmt is not callable else fmt
 
     def __call__(self):
         all_counts = defaultdict(dict)
@@ -93,15 +133,17 @@ class Significance(object):
             for match, per_doc, overall in Evaluate.count_all(system, gold):
                 all_counts[match][path] = (per_doc, overall)
 
-        results = [(sys1, sys2, match,
-                    self.significance(match_counts[sys1], match_counts[sys2]))
+        results = [{'sys1': sys1, 'sys2': sys2,
+                    'match': match,
+                    'stats': self.significance(match_counts[sys1], match_counts[sys2])}
                    for sys1, sys2 in itertools.combinations(self.systems, 2)
-                   for match, match_counts in all_counts.iteritems()]
+                   for match, match_counts in sorted(all_counts.iteritems(),
+                                                     key=lambda (k, v): MATCHES.index(k))]
 
-        # TODO: format results
-        return results
+        return self.fmt(results, self.metrics)
 
     def significance(self, (per_doc1, overall1), (per_doc2, overall2)):
+        # TODO: limit to metrics
         base_diff = _result_diff(overall1, overall2)
         randomized_diffs = functools.partial(self.METHODS[self.method],
                                              per_doc1, per_doc2,
@@ -120,7 +162,7 @@ class Significance(object):
             metrics, counts = zip(*result.iteritems())
             all_counts.append(counts)
 
-        return {metric: {'diff': base_diff,
+        return {metric: {'diff': base_diff[metric],
                          'p': (sum(counts) + 1) / (self.trials + 1)}
                 for metric, counts in zip(metrics, zip(*all_counts))}
 
@@ -136,5 +178,8 @@ class Significance(object):
                        help='Use bootstrap resampling')
         p.add_argument('-j', '--n_jobs', default=1, type=int,
                        help='Number of parallel processes, use -1 for all CPUs')
+        p.add_argument('-f', '--fmt', default=json_format, choices=FMTS.keys())
+        p.add_argument('--metrics', default='precision recall fscore'.split(),
+                       type=lambda x: x.split(','), help='Test significance for which metrics (default: precision,recall,fscore)')
         p.set_defaults(cls=cls)
         return p
