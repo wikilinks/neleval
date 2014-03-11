@@ -46,7 +46,7 @@ class Prepare(object):
     @classmethod
     def add_arguments(cls, p):
         p.add_argument('fname', metavar='FILE')
-        p.add_argument('-k', '--keep', help='Regular expression pattern to capture')
+        p.add_argument('-k', '--keep', help='Regular expression pattern to select document IDs')
         p.add_argument('-m', '--mapping', help='Mapping for titles')
         p.set_defaults(cls=cls)
         return p
