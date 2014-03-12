@@ -43,7 +43,7 @@ class AIDADialect(object):
             if len(line_bits) == 6 or len(line_bits) == 5:
                 iob = line_bits[0]
                 name = line_bits[1]
-                link = line_bits[3].split('/')[-1]
+                link = line_bits[3]
             # [iob, name, entity_id, score]
             elif len(line_bits) == 4:
                 # TODO handle multiple entities with scores
