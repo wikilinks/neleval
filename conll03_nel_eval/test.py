@@ -4,12 +4,19 @@ from pprint import pprint
 
 from data import Reader, Mention
 from evaluate import Evaluate
+from utils import normalise_link
 
 DIR = os.path.join(os.path.dirname(__file__))
 EXAMPLES = os.path.join(DIR, 'examples')
 
 DATA = os.path.join(EXAMPLES, 'data.txt')
 DATA_FULL = os.path.join(EXAMPLES, 'data_full.txt')
+
+def test_normalisation():
+    assert normalise_link('Some title') == 'Some_title'
+    assert normalise_link('http://en.wikipedia.org/wiki/Some title') == 'Some_title'
+    assert normalise_link('http://fr.wikipedia.org/wiki/Some') == 'Some'
+    assert normalise_link('Some') == 'Some'
 
 def test_data():
     d = list(Reader(open(DATA)))

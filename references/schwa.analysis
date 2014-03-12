@@ -1,0 +1,5 @@
+1306	missing
+652	extra
+605	wrong-link
+337	nil-as-link
+111	link-as-nil

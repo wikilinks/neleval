@@ -1,0 +1,5 @@
+tp	fp	fn	precis	recall	fscore	match
+4310	652	1306	0.869	0.767	0.815	strong_mention_match
+3343	708	1142	0.825	0.745	0.783	strong_linked_mention_match
+2738	1313	1747	0.676	0.610	0.642	strong_link_match
+1712	693	1023	0.712	0.626	0.666	entity_match

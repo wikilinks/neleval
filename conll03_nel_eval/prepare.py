@@ -2,13 +2,11 @@ import re
 from io import BytesIO
 
 from .data import Reader, Writer
-from .utils import log
-
+from .utils import log, normalise_link
 
 class Prepare(object):
-    """Map entity IDs to a different KB, and select documents by doc-ID
+    """Map entity IDs to a different KB, normalises entity IDs, and select documents by doc-ID
     """
-
     def __init__(self, fname, keep=None, mapping=None):
         self.fname = fname
         self.keep = re.compile(keep) if keep else None
@@ -22,10 +20,11 @@ class Prepare(object):
         for doc in docs:
             if self.keep and not self.keep.match(doc.doc_id):
                 continue
-            if self.mapping:
-                for m in doc.iter_links():
-                    l = m.link.replace(' ', '_')
-                    m.link = self.mapping.get(l, l)
+            for m in doc.iter_links():
+                l = normalise_link(m.link)
+                if self.mapping:
+                    l = self.mapping.get(l, l)
+                m.link = l
             w.write(doc)
         return out.getvalue()
 
