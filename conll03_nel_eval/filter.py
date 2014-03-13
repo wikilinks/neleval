@@ -1,11 +1,10 @@
 from __future__ import print_function
-import sys
 import io
 import re
 import itertools
 
 from .data import Reader, Writer, Mention
-
+from .utils import log
 
 # TODO: something with char encodings
 
@@ -52,7 +51,7 @@ class FilterMentions(object):
     delimited by tabs.
     """
 
-    def __init__(self, system, expr, aux=None, field=None, delim='\t', ignore_case=False, debug=False):
+    def __init__(self, system, expr, aux=None, field=None, delim='\t', ignore_case=False, show_text=False):
         if aux is None and field is not None:
             raise ValueError('--field requires --aux to be set')
         self.system = system
@@ -61,7 +60,7 @@ class FilterMentions(object):
         self.field = field
         self.delim = delim
         self.ignore_case = ignore_case
-        self.debug = debug
+        self.show_text = show_text
 
     def __call__(self):
         out_file = io.BytesIO()
@@ -93,8 +92,7 @@ class FilterMentions(object):
             n_mentions_out += doc.n_mentions
 
             writer.write(doc)
-        print('{} of {} mentions match {!r}'.format(n_mentions_out, n_mentions_in, self.expr),
-              file=sys.stderr)
+        log.info('{} of {} mentions match {!r}'.format(n_mentions_out, n_mentions_in, self.expr))
         return out_file.getvalue()
 
     def filter_mentions(self, string_matches, doc, aux_doc=None, field_slice=None):
@@ -111,8 +109,9 @@ class FilterMentions(object):
                     transposed = list(itertools.izip_longest(*aux_mention))[field_slice]
                     text = '\n'.join(' '.join(x or '' for x in tup)
                                      for tup in transposed)
-                if self.debug:
-                    print(mention, repr(text), sep='\t', file=sys.stderr)
+                # Debatably, this could be done using log.debug, but controlling the level using argparse is a pain.
+                if self.show_text:
+                    log.info(u'{}\t{}'.format(mention, repr(text)))
 
                 if not string_matches(text):
                     yield sentence, mention
@@ -122,7 +121,7 @@ class FilterMentions(object):
         p.add_argument('expr', help='A PCRE regular expression to match against mention metadata')
         p.add_argument('system', metavar='FILE')
         p.add_argument('--aux', help='Aligned text to match within')
-        p.add_argument('--debug', action='store_true', default=False, help='Show text being matched against on stderr')
+        p.add_argument('--show-text', action='store_true', default=False, help='Show text being matched against on stderr')
         p.add_argument('-f', '--field', type=int, default=None,
                        help='field in the auxiliary file to match against (default: any)')
         p.add_argument('-d', '--delim', default='\t',

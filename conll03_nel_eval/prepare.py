@@ -14,7 +14,7 @@ class Prepare(object):
 
     def __call__(self):
         docs = list(Reader(open(self.fname)))
-        log('Read {} documents from {}'.format(len(docs), self.fname))
+        log.info('Read {} documents from {}'.format(len(docs), self.fname))
         out = BytesIO()
         w = Writer(out)
         for doc in docs:
