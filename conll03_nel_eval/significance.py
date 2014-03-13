@@ -8,11 +8,14 @@ import operator
 import functools
 import json
 
-from joblib.parallel import Parallel, delayed, cpu_count
+# Attempt to import joblib, but don't fail.
+try:
+    from joblib.parallel import Parallel, delayed, cpu_count
+except ImportError:
+    Parallel = delayed = cpu_count = None
 
 from data import MATCHES, Reader
 from evaluate import Evaluate, Matrix
-
 
 def tab_format(data, metrics=['precision', 'recall', 'fscore']):
     rows = []
@@ -117,6 +120,9 @@ class Significance(object):
             raise ValueError('Require at least two systems to compare')
         if method not in self.METHODS:
             raise ValueError('Unsupported method: {}'.format(method))
+        # Check whether import worked, generate a more useful error.
+        if Parallel is None:
+            raise ImportError('Package: "joblib" not available, please install to run significance tests.')
         self.systems = systems
         self.gold = gold
         self.method = method

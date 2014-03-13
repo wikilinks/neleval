@@ -4,7 +4,6 @@ Evaluate linker performance.
 """
 import json
 from data import MATCHES, Reader
-from utils import log
 
 METRICS = [
     'tp',

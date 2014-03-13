@@ -1,8 +1,8 @@
 import re
-import sys
+import logging
 
-def log(*s):
-    print >> sys.stderr, s
+logging.basicConfig(level=logging.INFO, format='%(levelname)s\t%(message)s')
+log = logging.getLogger()
 
 WIKI_PREFIX = re.compile('^http://[^.]+.wikipedia.org/wiki/')
 def normalise_link(l):
