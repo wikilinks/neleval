@@ -9,7 +9,13 @@ setup(name='conll03_nel_eval',
             'cne = conll03_nel_eval.__main__:main',
         ],
       },
-      install_requires=[
-          'joblib',
-      ]
+      extras_require={
+          'significance': [
+            'joblib',
+          ],
+          'dev': [
+            'pyflakes',
+            'nose',
+          ],
+      }
 )

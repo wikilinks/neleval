@@ -342,7 +342,7 @@ class Reader(Dialected):
                         try:
                             token, iob, name, link, score = self.dialect.extract_link(l)
                         except AssertionError, e:
-                            log('Error reading line {}\t{}'.format(i, e))
+                            log.error('Error reading line {}\t{}'.format(i, e))
                             raise e
                         if iob is None or iob == 'O':
                             if m is not None:

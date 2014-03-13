@@ -2,10 +2,7 @@ from __future__ import print_function
 
 from collections import namedtuple, Counter
 
-from .data import Reader, Writer, strong_key, ENC
-from .utils import log
-from .evaluate import Evaluate
-
+from .data import Reader, ENC
 
 class _Missing(object):
     def __str__(self):

@@ -4,7 +4,7 @@ A small Wikipedia API wrapper.
 """
 import urllib
 import json
-from utils import log
+from .utils import log
 
 API_URL = 'http://en.wikipedia.org/w/api.php'
 
@@ -61,5 +61,5 @@ class Wikipedia(object):
         """Return json-formatted Wikipedia API result for given parameters."""
         params['format'] = 'json'
         url = API_URL + '?' + urllib.urlencode(params)
-        log('fetching %s..' % url)
+        log.info('Fetching {}'.format(url))
         return json.loads(urllib.urlopen(url).read())
