@@ -1,7 +1,7 @@
 conll03_nel_eval
 ================
 
-Python evaluation scripts for AIDA-formatted CoNLL data
+Python evaluation scripts for [AIDA-formatted CoNLL data](https://github.com/wikilinks/conll03_nel_eval/wiki/Data%20set)
 
 Quickstart
 ==========
