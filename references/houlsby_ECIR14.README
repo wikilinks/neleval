@@ -1,0 +1,21 @@
+BIBTEX
+
+@incollection{houlsby2014scalable,
+  title={A Scalable Gibbs Sampler for Probabilistic Entity Linking},
+  author={Houlsby, Neil and Ciaramita, Massimiliano},
+  booktitle={Advances in Information Retrieval},
+  pages={335--346},
+  year={2014},
+  publisher={Springer}
+}
+
+DESCRIPTION
+
+The system described in this paper uses a variant of the Latent Dirichlet
+Allocation topic model to link entities to Wikipedia. Each topic in the LDA
+model is associated with a single Wikipedia article. The topic distributions are
+fixed using statistics collected from Wikipedia. Inference in this Wikipedia LDA
+model corresponds to probabilistic entity linking and in the evaluations the MAP
+entities are selected. Inference is performed using a new Gibbs sampler that
+exploits topic sparsity for efficiency. In the experiments only the mentions
+with gold-standard annotations in the Aida-CoNLL corpus are annotated.
