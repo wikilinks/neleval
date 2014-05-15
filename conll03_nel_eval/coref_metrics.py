@@ -1,4 +1,4 @@
-from __future__ import division
+from __future__ import division, print_function
 
 from functools import partial
 from collections import defaultdict
@@ -123,9 +123,6 @@ def b_cubed(true, pred):
 def pairwise_f1(true, pred):
     """Measure the proportion of correctly identified pairwise coindexations
 
-    This is called MUC score, and erroneously cited to Vilain et al. (2102) in
-    the CoNLL 2011-2012 Shared Task descriptions.
-
     TODO: tests
     """
     pred_mapping = sets_to_mapping(pred)
@@ -155,7 +152,7 @@ def _vilain(A, B_mapping):
     return numerator / denominator
 
 
-def vilain(true, pred):
+def muc(true, pred):
     """The MUC evaluation metric defined in Vilain et al. (1995)
 
     This calculates recall error for each true cluster C as the number of
@@ -163,23 +160,68 @@ def vilain(true, pred):
     superset of C.
 
     Examples from Vilain et al. (1995):
-    >>> vilain({1: {'A', 'B', 'C', 'D'}},
-    ...        {1: {'A', 'B'}, 2: {'C', 'D'}})  # doctest: +ELLIPSIS
+    >>> muc({1: {'A', 'B', 'C', 'D'}},
+    ...     {1: {'A', 'B'}, 2: {'C', 'D'}})  # doctest: +ELLIPSIS
     (1.0, 0.66..., 0.8)
-    >>> vilain({1: {'A', 'B'}, 2: {'C', 'D'}},
-    ...        {1: {'A', 'B', 'C', 'D'}})  # doctest: +ELLIPSIS
+    >>> muc({1: {'A', 'B'}, 2: {'C', 'D'}},
+    ...     {1: {'A', 'B', 'C', 'D'}})  # doctest: +ELLIPSIS
     (0.66..., 1.0, 0.8)
-    >>> vilain({1: {'A', 'B', 'C'}}, {1: {'A', 'C'}})  # doctest: +ELLIPSIS
+    >>> muc({1: {'A', 'B', 'C'}}, {1: {'A', 'C'}})  # doctest: +ELLIPSIS
     (1.0, 0.5, 0.66...)
-    >>> vilain({1: {'B', 'C', 'D', 'E', 'G', 'H', 'J'}},
-    ...        {1: {'A', 'B', 'C'}, 2: {'D', 'E', 'F'}, 3: {'G', 'H', 'I'}})
+    >>> muc({1: {'B', 'C', 'D', 'E', 'G', 'H', 'J'}},
+    ...     {1: {'A', 'B', 'C'}, 2: {'D', 'E', 'F'}, 3: {'G', 'H', 'I'}})
     ... # doctest: +ELLIPSIS
     (0.5, 0.5, 0.5)
-    >>> vilain({1: {'A', 'B', 'C'}, 2: {'D', 'E', 'F', 'G'}},
-    ...        {1: {'A', 'B'}, 2: {'C', 'D'}, 3: {'F', 'G', 'H'}})
+    >>> muc({1: {'A', 'B', 'C'}, 2: {'D', 'E', 'F', 'G'}},
+    ...     {1: {'A', 'B'}, 2: {'C', 'D'}, 3: {'F', 'G', 'H'}})
     ... # doctest: +ELLIPSIS
     (0.5, 0.4, 0.44...)
     """
     p = _vilain(pred, sets_to_mapping(true))
     r = _vilain(true, sets_to_mapping(pred))
     return p, r, _f1(p, r)
+
+
+def read_conll_coref(f):
+    res = defaultdict(set)
+    # TODO: handle annotations over document boundary
+    start = None
+    i = 0
+    for l in f:
+        if l.startswith('#') or not l.strip():
+            continue
+        i += 1
+        doc_id, tag = l.strip().split(' ', 1)
+        if tag == '-':
+            continue
+        if tag.endswith(')'):
+            if start is None:
+                assert tag.startswith('(')
+            else:
+                assert not tag.startswith('(')
+            cid = tag.lstrip('(').rstrip(')')
+            res[cid].add((doc_id, start, i))
+            start = None
+        elif tag.startswith('('):
+            start = i
+    return dict(res)
+
+
+if __name__ == '__main__':
+    import argparse
+    ap = argparse.ArgumentParser(description='CoNLL2011-2 coreference evaluator')
+    ap.add_argument('key_file', type=argparse.FileType('r'))
+    ap.add_argument('response_file', type=argparse.FileType('r'))
+    args = ap.parse_args()
+    METRICS = {
+        'bcubed': b_cubed,
+        'ceafe': entity_ceaf,
+        'ceafm': mention_ceaf,
+        'muc': muc,
+        'pairs': pairwise_f1,
+    }
+    key = read_conll_coref(args.key_file)
+    response = read_conll_coref(args.response_file)
+    print('Metric', 'P', 'R', 'F1', sep='\t')
+    for name, fn in sorted(METRICS.items()):
+        print(name, *('{:0.2f}'.format(100 * x) for x in fn(key, response)), sep='\t')
