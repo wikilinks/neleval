@@ -3,6 +3,7 @@ from __future__ import division, print_function
 from functools import partial
 from collections import defaultdict
 import itertools
+import re
 
 import numpy as np
 
@@ -131,8 +132,8 @@ def pairwise_f1(true, pred):
         for m1, m2 in itertools.combinations(cluster, 2):
             if pred_mapping.get(m1) == pred_mapping.get(m2):
                 correct += 1
-    p = correct / sum(len(cluster) - 1 for cluster in pred.values())
-    r = correct / sum(len(cluster) - 1 for cluster in true.values())
+    p = correct / sum(len(cluster) * (len(cluster) - 1) for cluster in pred.values()) * 2
+    r = correct / sum(len(cluster) * (len(cluster) - 1) for cluster in true.values()) * 2
     return p, r, _f1(p, r)
 
 
@@ -185,25 +186,27 @@ def muc(true, pred):
 def read_conll_coref(f):
     res = defaultdict(set)
     # TODO: handle annotations over document boundary
-    start = None
     i = 0
+    opened = {}
     for l in f:
-        if l.startswith('#') or not l.strip():
+        if l.startswith('#'):
             continue
+        l = l.split()
+        if not l:
+            assert not opened
+            continue
+
         i += 1
-        doc_id, tag = l.strip().split(' ', 1)
-        if tag == '-':
-            continue
-        if tag.endswith(')'):
-            if start is None:
-                assert tag.startswith('(')
-            else:
-                assert not tag.startswith('(')
-            cid = tag.lstrip('(').rstrip(')')
-            res[cid].add((doc_id, start, i))
-            start = None
-        elif tag.startswith('('):
-            start = i
+        tag = l[-1]
+
+        for match in re.finditer(r'\(?[0-9]+\)?', tag):
+            match = match.group()
+            cid = match.strip('()')
+            if match.startswith('('):
+                assert cid not in opened
+                opened[cid] = i
+            if match.endswith(')'):
+                res[cid].add((opened.pop(cid), i))
     return dict(res)
 
 
