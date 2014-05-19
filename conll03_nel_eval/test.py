@@ -1,8 +1,9 @@
 
 import os
+from io import BytesIO
 from pprint import pprint
 
-from data import Reader, Mention
+from data import Reader, Mention, Writer
 from evaluate import Evaluate
 from utils import normalise_link
 
@@ -25,6 +26,15 @@ def test_data():
     assert len(list(doc.iter_mentions())) == 2
     assert len(list(doc.iter_links())) == 1
     assert len(list(doc.iter_nils())) == 1
+
+def test_read_write():
+    for f in (DATA, DATA_FULL):
+        out = BytesIO()
+        w = Writer(out)
+        for doc in list(Reader(open(f))):
+            w.write(doc)
+        ostr = '\n'.join(l.rstrip('\t') for l in out.getvalue().split('\n'))
+        assert ostr == open(f).read()
 
 def test_sentences():
     """ Checks that we can read contiguous sentences with the indices making sense. """
