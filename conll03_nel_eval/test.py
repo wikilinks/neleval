@@ -4,6 +4,7 @@ from io import BytesIO
 from pprint import pprint
 
 from data import Reader, Mention, Writer
+from formats import Unstitch, Stitch
 from evaluate import Evaluate
 from utils import normalise_link
 
@@ -33,8 +34,22 @@ def test_read_write():
         w = Writer(out)
         for doc in list(Reader(open(f))):
             w.write(doc)
-        ostr = '\n'.join(l.rstrip('\t') for l in out.getvalue().split('\n'))
-        assert ostr == open(f).read()
+        w_str = '\n'.join(l.rstrip('\t') for l in out.getvalue().split('\n'))
+        assert w_str == open(f).read()
+
+def test_unstitch_stitch():
+    def unstitch(f):
+        u_fname = '{}.unstitched.tmp'.format(f)
+        u_fh = open(u_fname, 'w')
+        u_str = Unstitch(f)()
+        print >>u_fh, u_str
+        u_fh.close()
+        return u_fname
+    for f in (DATA, DATA_FULL):
+        u_fname = unstitch(f)
+        s_str = Stitch(u_fname, f)()
+        s_str = '\n'.join(l.rstrip('\t') for l in s_str.split('\n'))
+        assert s_str == open(f).read()
 
 def test_sentences():
     """ Checks that we can read contiguous sentences with the indices making sense. """
