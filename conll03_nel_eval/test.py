@@ -1,25 +1,49 @@
-
-import os
+#!/usr/bin/env python
+from .annotation import Annotation, AnnotationReader, Candidate
+from .data import Reader, Mention, Writer
+from .evaluate import Evaluate
+from .formats import Unstitch, Stitch
+from .tac import PrepareTac
+from .utils import normalise_link
 from io import BytesIO
 from pprint import pprint
-
-from data import Reader, Mention, Writer
-from formats import Unstitch, Stitch
-from tac import PrepareTac
-from evaluate import Evaluate
-from utils import normalise_link
+import os
 
 DIR = os.path.join(os.path.dirname(__file__))
 EXAMPLES = os.path.join(DIR, 'examples')
-
 DATA = os.path.join(EXAMPLES, 'data.txt')
 DATA_FULL = os.path.join(EXAMPLES, 'data_full.txt')
-
 TAC_GOLD_QUERIES = os.path.join(EXAMPLES, 'tac_gold.xml')
 TAC_GOLD_LINKS = os.path.join(EXAMPLES, 'tac_gold.tab')
 TAC_GOLD_COMB = os.path.join(EXAMPLES, 'tac_gold.combined.tsv')
 #TAC_SYS_QUERIES = os.path.join(EXAMPLES, 'tac_system.xml')
 #TAC_SYS_LINKS = os.path.join(EXAMPLES, 'tac_system.tab')
+
+EXPECTED_ANNOTS = [
+    Annotation("bolt-eng-DF-200-192451-5799099", 2450, 2454,
+               candidates=[Candidate("kb_A", 1.0, "GPE")]),
+    Annotation("bolt-eng-DF-200-192453-5806828", 3287, 3295,
+               candidates=[Candidate("kb_A", 1.0, "GPE")]),
+    Annotation("XIN_ENG_20100703.0052", 500, 502,
+               candidates=[Candidate("kb_A", 1.0, "GPE")]),
+    Annotation("AFP_ENG_20100314.0466", 247, 256,
+               candidates=[Candidate("kb_A", 1.0, "GPE")]),
+    Annotation("AFP_ENG_20100212.0648", 338, 367,
+               candidates=[Candidate("kb_B", 1.0, "PER")]),
+    Annotation("APW_ENG_20100209.1003", 573, 577,
+               candidates=[Candidate("kb_B", 1.0, "PER")]),
+    Annotation("eng-NG-31-100506-10870984", 322, 335,
+               candidates=[Candidate("NIL000", 1.0, "PER")]),
+    Annotation("bolt-eng-DF-170-181103-8888234", 322, 334,
+               candidates=[Candidate("NIL000", 1.0, "PER")]),
+    Annotation("bolt-eng-DF-199-192909-6666623", 128269, 128275,
+               candidates=[Candidate("NIL001", 1.0, "ORG")]),
+    Annotation("AFP_ENG_20100120.0809", 109, 121,
+               candidates=[Candidate("NIL001", 1.0, "ORG")]),
+    ]
+def test_annotation_reader():
+    annots = list(AnnotationReader(TAC_GOLD_COMB))
+    assert [str(a) for a in annots] == [str(a) for a in EXPECTED_ANNOTS]
 
 def test_tac_prepare():
     combined = PrepareTac(TAC_GOLD_LINKS, TAC_GOLD_QUERIES)()

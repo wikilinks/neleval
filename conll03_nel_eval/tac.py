@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from .annotation import Annotation, Candidate
 from .data import ENC
 from collections import defaultdict
 from xml.etree.cElementTree import iterparse
@@ -69,31 +70,3 @@ class TacReader(object):
         for child in query_elem:
             d[child.tag] = child.text
         return qid, d[DOCID_ELEM], d[START_ELEM], d[END_ELEM], d[NAME_ELEM]
-
-class Annotation(object):
-    def __init__(self, docid, start, end, candidates=[]):
-        self.docid = docid
-        self.start = start
-        self.end = end
-        self.candidates = candidates
-
-    def __str__(self):
-        return u'{}\t{}\t{}\t{}'.format(
-            self.docid,
-            self.start,
-            self.end,
-            u'\t'.join([str(c) for c in self.candidates])
-            )
-
-class Candidate(object):
-    def __init__(self, kbid, score=None, type=None):
-        self.kbid = kbid
-        self.score = score
-        self.type = type
-
-    def __cmp__(self, other):
-        assert isinstance(other, Candidate)
-        return cmp(self.score, other.score)
-
-    def __str__(self):
-        return u'{}\t{}\t{}'.format(self.kbid, self.score, self.type or '')
