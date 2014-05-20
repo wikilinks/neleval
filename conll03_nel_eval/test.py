@@ -5,6 +5,7 @@ from pprint import pprint
 
 from data import Reader, Mention, Writer
 from formats import Unstitch, Stitch
+from tac import PrepareTac
 from evaluate import Evaluate
 from utils import normalise_link
 
@@ -13,6 +14,31 @@ EXAMPLES = os.path.join(DIR, 'examples')
 
 DATA = os.path.join(EXAMPLES, 'data.txt')
 DATA_FULL = os.path.join(EXAMPLES, 'data_full.txt')
+
+TAC_GOLD_QUERIES = os.path.join(EXAMPLES, 'tac_gold.xml')
+TAC_GOLD_LINKS = os.path.join(EXAMPLES, 'tac_gold.tab')
+TAC_GOLD_COMB = os.path.join(EXAMPLES, 'tac_gold.combined.tsv')
+#TAC_SYS_QUERIES = os.path.join(EXAMPLES, 'tac_system.xml')
+#TAC_SYS_LINKS = os.path.join(EXAMPLES, 'tac_system.tab')
+
+def test_tac_prepare():
+    combined = PrepareTac(TAC_GOLD_LINKS, TAC_GOLD_QUERIES)()
+    assert combined == open(TAC_GOLD_COMB).read().rstrip('\n')
+
+"""
+def test_tac_eval():
+    def combine(links_fname, queries_fname):
+        c_fname = '{}.combined.tmp'.format(links_fname)
+        with open(c_fname, 'w') as c_fh):
+            print >>c_fh, PrepareTac(links, queries)()
+        return c_fname
+    gold = combine(TAC_GOLD_LINKS, TAC_GOLD_QUERIES)
+    system = combine(TAC_SYSTEM_LINKS, TAC_SYSTEM_QUERIES)
+    stats = Evaluate(gold, system, fmt='no_format')()
+    check_correct(TAC_CORRECT, stats)
+    os.remove(gold)
+    os.remove(system)
+"""
 
 def test_normalisation():
     assert normalise_link('Some title') == 'Some_title'
@@ -40,16 +66,15 @@ def test_read_write():
 def test_unstitch_stitch():
     def unstitch(f):
         u_fname = '{}.unstitched.tmp'.format(f)
-        u_fh = open(u_fname, 'w')
-        u_str = Unstitch(f)()
-        print >>u_fh, u_str
-        u_fh.close()
+        with open(u_fname, 'w') as u_fh:
+            print >>u_fh, Unstitch(f)()
         return u_fname
     for f in (DATA, DATA_FULL):
         u_fname = unstitch(f)
         s_str = Stitch(u_fname, f)()
         s_str = '\n'.join(l.rstrip('\t') for l in s_str.split('\n'))
         assert s_str == open(f).read()
+        os.remove(u_fname)
 
 def test_sentences():
     """ Checks that we can read contiguous sentences with the indices making sense. """
