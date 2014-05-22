@@ -2,8 +2,8 @@
 """
 Evaluate linker performance.
 """
+from .document import Document, MATCH_SETS, DEFAULT_MATCH_SET, Reader
 import json
-from annotation import MATCHES, Reader, Document
 
 METRICS = [
     'tp',
@@ -14,48 +14,29 @@ METRICS = [
     'fscore',
 ]
 
-def tab_format(data, num_fmt='{:.3f}', delimiter='\t'):
-    lines = [delimiter.join([i[:6] for i in METRICS] + ['match'])]
-    for match in MATCHES:
-        row = []
-        for metric in METRICS:
-            v = data.get(match, {}).get(metric, 0)
-            if isinstance(v, float):
-                row.append(num_fmt.format(v))
-            else:
-                row.append(str(v))
-        row.append(match)
-        lines.append(delimiter.join(row))
-    return '\n'.join(lines)
-
-def json_format(data):
-    return json.dumps(data)
-
-def no_format(data):
-    return data
-
+FMTS = [
+    'tab_format',
+    'json_format',
+    'no_format',
+]
 DEFAULT_FMT = 'tab'
-FMTS = {
-    'tab': tab_format,
-    'json': json_format,
-    'no_format': no_format,
-}
 
 
 class Evaluate(object):
     'Evaluate system output'
 
-    def __init__(self, system, gold=None, fmt=DEFAULT_FMT):
+    def __init__(self, system, gold=None, matches=DEFAULT_MATCH_SET,
+                 fmt=DEFAULT_FMT):
         """
-        System - system output
+        system - system output
         gold - gold standard
+        matches - match definitions to use
         fmt - format
         """
         self.system = Reader(open(system))
         self.gold = Reader(open(gold))
-        fmt_func = FMTS.get(fmt)
-        assert fmt_func is not None
-        self.fmt_func = fmt_func
+        self.matches = MATCH_SETS[matches]
+        self.format = getattr(self, fmt)
         self.doc_pairs = list(self.iter_pairs())
 
     def iter_pairs(self):
@@ -67,27 +48,29 @@ class Evaluate(object):
             yield sdoc, gdoc
 
     def __call__(self, matches=None):
-        self.results = self.evaluate(self.doc_pairs, matches)
-        return self.fmt_func(self.results)
+        self.results = self.evaluate(self.doc_pairs, matches or self.matches)
+        return self.format()
 
     @classmethod
     def add_arguments(cls, p):
         p.add_argument('system', metavar='FILE')
         p.add_argument('-g', '--gold')
         p.add_argument('-f', '--fmt', default=DEFAULT_FMT)
+        p.add_argument('-m', '--matches', default='hachey_acl14',
+                       choices=MATCH_SETS.keys())
         p.set_defaults(cls=cls)
         return p
 
     @classmethod
-    def evaluate(cls, doc_pairs, matches=None):
+    def evaluate(cls, doc_pairs, matches):
         results = {}
         for match, per_doc, overall in cls.count_all(doc_pairs, matches):
             results[match] = overall.results
         return results
 
     @classmethod
-    def count_all(cls, doc_pairs, matches=None):
-        for m in matches or MATCHES:
+    def count_all(cls, doc_pairs, matches):
+        for m in matches:
             yield (m,) + cls.count(m, doc_pairs)
 
     @classmethod
@@ -99,6 +82,28 @@ class Evaluate(object):
             per_doc.append(Matrix.from_doc(sdoc, gdoc, match))
         overall = sum(per_doc, Matrix())
         return per_doc, overall
+
+    # formatters
+
+    def tab_format(self, num_fmt='{:.3f}', delimiter='\t'):
+        lines = [delimiter.join([i[:6] for i in METRICS] + ['match'])]
+        for match in self.matches:
+            row = []
+            for metric in METRICS:
+                v = self.results.get(match, {}).get(metric, 0)
+                if isinstance(v, float):
+                    row.append(num_fmt.format(v))
+                else:
+                    row.append(str(v))
+            row.append(match)
+            lines.append(delimiter.join(row))
+        return '\n'.join(lines)
+
+    def json_format(self):
+        return json.dumps(self.results)
+
+    def no_format(self):
+        return self.results
 
 
 class Matrix(object):
@@ -122,7 +127,7 @@ class Matrix(object):
         return self
 
     @classmethod
-    def from_doc(cls, sdoc, gdoc, match=MATCHES[0]):
+    def from_doc(cls, sdoc, gdoc, match):
         """
         Initialise from doc.
         sdoc - system Document object

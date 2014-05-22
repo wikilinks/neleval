@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from .annotation import Reader as AnnotationReader
+from .document import Reader as AnnotationReader, ALL_MATCHES
 from .data import Reader, Mention, Writer
 from .evaluate import Evaluate
 from .formats import Unstitch, Stitch
@@ -67,7 +67,7 @@ def test_annotation_read_write():
 def test_conll_data():
     d = list(Reader(open(CONLL_GOLD)))
     assert len(d) == 1
-    doc = list(d)[0]
+    doc = list(d)[0] 
     assert len(list(doc.iter_mentions())) == 2
     assert len(list(doc.iter_links())) == 1
     assert len(list(doc.iter_nils())) == 1
@@ -107,7 +107,8 @@ def test_normalisation():
 # EVAL TESTS
 
 def _get_stats(gold_path, sys_path):
-    stats = Evaluate(sys_path, gold=gold_path, fmt='no_format')()
+    stats = Evaluate(sys_path, gold=gold_path,
+                     matches=ALL_MATCHES, fmt='no_format')()
     pprint(stats)
     return stats
 
@@ -117,7 +118,7 @@ def check_correct(expected, actual):
         assert expected[k] == actual[k], 'Different on key "{}".\nexpected\t{}\nactual\t{}'.format(k, expected[k], actual[k])
     return True
 
-TAC_ATTEMPT = {
+EXPECTED_TAC_SYS = {
  'entity_match': {'fn': 0,
                   'fp': 0,
                   'fscore': 1.0,
@@ -130,6 +131,24 @@ TAC_ATTEMPT = {
                        'precision': 1.0,
                        'recall': 1.0,
                        'tp': 6},
+ 'strong_nil_match': {'fn': 0,
+                      'fp': 0,
+                      'fscore': 1.0,
+                      'precision': 1.0,
+                      'recall': 1.0,
+                      'tp': 4},
+ 'strong_all_match': {'fn': 0,
+                      'fp': 0,
+                      'fscore': 1.0,
+                      'precision': 1.0,
+                      'recall': 1.0,
+                      'tp': 10},
+ 'strong_typed_all_match': {'fn': 0,
+                      'fp': 0,
+                      'fscore': 1.0,
+                      'precision': 1.0,
+                      'recall': 1.0,
+                      'tp': 10},
  'strong_mention_match': {'fn': 0,
                           'fp': 0,
                           'fscore': 1.0,
@@ -145,9 +164,9 @@ TAC_ATTEMPT = {
 }
 
 def test_tac_eval():
-    check_correct(TAC_ATTEMPT, _get_stats(TAC_GOLD_COMB, TAC_SYS_COMB))
+    check_correct(EXPECTED_TAC_SYS, _get_stats(TAC_GOLD_COMB, TAC_SYS_COMB))
 
-CORRECT = {
+EXPECTED_CONLL_SELFEVAL = {
  'entity_match': {'fn': 0,
                        'fp': 0,
                        'fscore': 1.0,
@@ -160,6 +179,24 @@ CORRECT = {
                        'precision': 1.0,
                        'recall': 1.0,
                        'tp': 1},
+ 'strong_nil_match': {'fn': 0,
+                      'fp': 0,
+                      'fscore': 1.0,
+                      'precision': 1.0,
+                      'recall': 1.0,
+                      'tp': 1},
+ 'strong_all_match': {'fn': 0,
+                      'fp': 0,
+                      'fscore': 1.0,
+                      'precision': 1.0,
+                      'recall': 1.0,
+                      'tp': 2},
+ 'strong_typed_all_match': {'fn': 0,
+                      'fp': 0,
+                      'fscore': 1.0,
+                      'precision': 1.0,
+                      'recall': 1.0,
+                      'tp': 2},
  'strong_mention_match': {'fn': 0,
                           'fp': 0,
                           'fscore': 1.0,
@@ -174,12 +211,12 @@ CORRECT = {
                                  'tp': 1},
 }
 
-def test_conll_correct():
-    assert check_correct(CORRECT,
+def test_conll_selfeval():
+    assert check_correct(EXPECTED_CONLL_SELFEVAL,
                          _get_stats(CONLL_GOLD_UNSTITCHED,
                                     CONLL_GOLD_UNSTITCHED))
 
-ATTEMPT = {
+EXPECTED_CONLL_SYSA = {
  'entity_match': {'fn': 0,
                        'fp': 1,
                        'fscore': 0.6666666666666666,
@@ -192,6 +229,24 @@ ATTEMPT = {
                        'precision': 0.5,
                        'recall': 1.0,
                        'tp': 1},
+ 'strong_nil_match': {'fn': 1,
+                      'fp': 0,
+                      'fscore': 0.0,
+                      'precision': 1.0,
+                      'recall': 0.0,
+                      'tp': 0},
+ 'strong_all_match': {'fn': 1,
+                      'fp': 1,
+                      'fscore': 0.5,
+                      'precision': 0.5,
+                      'recall': 0.5,
+                      'tp': 1},
+ 'strong_typed_all_match': {'fn': 1,
+                      'fp': 1,
+                      'fscore': 0.5,
+                      'precision': 0.5,
+                      'recall': 0.5,
+                      'tp': 1},
  'strong_mention_match': {'fn': 0,
                           'fp': 0,
                           'fscore': 1.0,
@@ -207,12 +262,12 @@ ATTEMPT = {
 }
 
 def test_conll_sysa():
-    assert check_correct(ATTEMPT,
+    assert check_correct(EXPECTED_CONLL_SYSA,
                          _get_stats(CONLL_GOLD_UNSTITCHED,
                                     CONLL_SYSA_UNSTITCHED))
 
 
-CORRECT_MORE = {
+EXPECTED_CONLL_MULTI_SELFEVAL = {
  'entity_match': {'fn': 0,
                        'fp': 0,
                        'fscore': 1.0,
@@ -225,6 +280,24 @@ CORRECT_MORE = {
                        'precision': 1.0,
                        'recall': 1.0,
                        'tp': 3},
+ 'strong_nil_match': {'fn': 0,
+                      'fp': 0,
+                      'fscore': 1.0,
+                      'precision': 1.0,
+                      'recall': 1.0,
+                      'tp': 1},
+ 'strong_all_match': {'fn': 0,
+                      'fp': 0,
+                      'fscore': 1.0,
+                      'precision': 1.0,
+                      'recall': 1.0,
+                      'tp': 4},
+ 'strong_typed_all_match': {'fn': 0,
+                      'fp': 0,
+                      'fscore': 1.0,
+                      'precision': 1.0,
+                      'recall': 1.0,
+                      'tp': 4},
  'strong_mention_match': {'fn': 0,
                           'fp': 0,
                           'fscore': 1.0,
@@ -239,12 +312,12 @@ CORRECT_MORE = {
                                  'tp': 3},
 }
 
-def test_conll_multi_correct():
-    assert check_correct(CORRECT_MORE,
+def test_conll_multi_selfeval():
+    assert check_correct(EXPECTED_CONLL_MULTI_SELFEVAL,
                          _get_stats(CONLL_MULTI_GOLD_UNSTITCHED,
                                     CONLL_MULTI_GOLD_UNSTITCHED))
 
-CORRECT_ATTEMPT = {
+EXPECTED_CONLL_MULTI_SYSA = {
  'entity_match': {'fn': 2,
                        'fp': 2,
                        'fscore': 0.3333333333333333,
@@ -257,6 +330,24 @@ CORRECT_ATTEMPT = {
                        'precision': 0.3333333333333333,
                        'recall': 0.3333333333333333,
                        'tp': 1},
+ 'strong_nil_match': {'fn': 1,
+                      'fp': 1,
+                      'fscore': 1.0,
+                      'precision': 0.0,
+                      'recall': 0.0,
+                      'tp': 0},
+ 'strong_all_match': {'fn': 3,
+                      'fp': 3,
+                      'fscore': 0.25,
+                      'precision': 0.25,
+                      'recall': 0.25,
+                      'tp': 1},
+ 'strong_typed_all_match': {'fn': 3,
+                      'fp': 3,
+                      'fscore': 0.25,
+                      'precision': 0.25,
+                      'recall': 0.25,
+                      'tp': 1},
  'strong_mention_match': {'fn': 0,
                           'fp': 0,
                           'fscore': 1.0,
@@ -272,6 +363,6 @@ CORRECT_ATTEMPT = {
 }
 
 def test_conll_multi_sysa():
-    assert check_correct(CORRECT_ATTEMPT,
+    assert check_correct(EXPECTED_CONLL_MULTI_SYSA,
                          _get_stats(CONLL_MULTI_GOLD_UNSTITCHED,
                                     CONLL_MULTI_SYSA_UNSTITCHED))
