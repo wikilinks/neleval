@@ -3,7 +3,7 @@
 Evaluate linker performance.
 """
 import json
-from data import MATCHES, Reader
+from annotation import MATCHES, Reader, Document
 
 METRICS = [
     'tp',
@@ -47,18 +47,27 @@ class Evaluate(object):
 
     def __init__(self, system, gold=None, fmt=DEFAULT_FMT):
         """
-        system - system output
+        System - system output
         gold - gold standard
         fmt - format
         """
-        self.system = sorted(Reader(open(system)))
-        self.gold = sorted(Reader(open(gold)))
+        self.system = Reader(open(system))
+        self.gold = Reader(open(gold))
         fmt_func = FMTS.get(fmt)
         assert fmt_func is not None
         self.fmt_func = fmt_func
+        self.doc_pairs = list(self.iter_pairs())
+
+    def iter_pairs(self):
+        sdocs = {d.id:d for d in self.system}
+        gdocs = {d.id:d for d in self.gold}
+        for docid in set(sdocs.keys()).union(gdocs.keys()):
+            sdoc = sdocs.get(docid) or Document(docid, [])
+            gdoc = gdocs.get(docid) or Document(docid, [])
+            yield sdoc, gdoc
 
     def __call__(self, matches=None):
-        self.results = self.evaluate(self.system, self.gold, matches)
+        self.results = self.evaluate(self.doc_pairs, matches)
         return self.fmt_func(self.results)
 
     @classmethod
@@ -70,22 +79,23 @@ class Evaluate(object):
         return p
 
     @classmethod
-    def evaluate(cls, system, gold, matches=None):
+    def evaluate(cls, doc_pairs, matches=None):
         results = {}
-        for match, per_doc, overall in cls.count_all(system, gold, matches):
+        for match, per_doc, overall in cls.count_all(doc_pairs, matches):
             results[match] = overall.results
         return results
 
     @classmethod
-    def count_all(cls, system, gold, matches=None):
+    def count_all(cls, doc_pairs, matches=None):
         for m in matches or MATCHES:
-            yield (m,) + cls.count(m, system, gold)
+            yield (m,) + cls.count(m, doc_pairs)
 
     @classmethod
-    def count(cls, match, system, gold):
+    def count(cls, match, doc_pairs):
         per_doc = []
-        for sdoc, gdoc in zip(system, gold):
-            assert sdoc.doc_id == gdoc.doc_id, 'Require system and gold to be in the same order "{}" != "{}"'.format(sdoc.doc_id, gdoc.doc_id)
+        for sdoc, gdoc in doc_pairs:
+            print sdoc
+            print gdoc
             per_doc.append(Matrix.from_doc(sdoc, gdoc, match))
         overall = sum(per_doc, Matrix())
         return per_doc, overall
