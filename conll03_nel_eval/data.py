@@ -143,30 +143,6 @@ class Sentence(object):
         self.spans[ind:ind+1] = [Token(j, j+1, mention.texts[i])
                                  for i, j in enumerate(range(mention.start, mention.end))]
 
-# Helper functions: key() and match()
-def strong_key(i):
-    return (i.start, i.end)
-
-def strong_link_key(i):
-    return (i.start, i.end, i.link)
-
-def entity_key(i):
-    return i
-
-def weak_key(i):
-    return list(xrange(i.start, i.end))
-
-def weak_link_key(i):
-    return [(j, i.link) for j in xrange(i.start, i.end)]
-
-def weak_match(i, items, key_func):
-    matches = []
-    for i in key_func(i):
-        res = items.get(i)
-        if res is not None:
-            matches.append(i)
-    return matches
-
 class Document(object):
     def __init__(self, doc_id, sentences):
         self.doc_id = doc_id
@@ -201,58 +177,6 @@ class Document(object):
 
     def iter_entities(self):
         return iter(set(l.link for l in self.iter_links()))
-
-    # Matching mentions.
-    def strong_mention_match(self, other):
-        return self._match(other, strong_key, 'iter_mentions')
-
-    def strong_linked_mention_match(self, other):
-        return self._match(other, strong_key, 'iter_links')
-
-    def strong_link_match(self, other):
-        return self._match(other, strong_link_key, 'iter_links')
-
-    def weak_mention_match(self, other):
-        raise NotImplementedError('See #26')
-        # TODO Weak match: calculate TP and FN based on gold mentions
-        return self._match(other, weak_key, weak_match, 'iter_mentions')
-
-    def weak_link_match(self, other):
-        raise NotImplementedError('See #26')
-        return self._match(other, weak_link_key, weak_match, 'iter_links')
-
-    def entity_match(self, other):
-        return self._match(other, entity_key, 'iter_entities')
-
-    def _match(self, other, key_func, items_func_name):
-        """ Assesses the match between this and the other document.
-        * other (Document)
-        * key_func (a function that takes an item, returns a key)
-        * items_func (the name of a function that is called on Sentences)
-
-        Returns three lists of items:
-        * tp [(item, other_item), ...]
-        * fp [(None, other_item), ...]
-        * fn [(item, None), ...]
-        """
-        assert isinstance(other, Document)
-        assert self.doc_id == other.doc_id, 'Must compare same document: {} vs {}'.format(self.doc_id, other.doc_id)
-        tp, fp = [], []
-
-        # Index document items.
-        index = {key_func(i): i for i in getattr(self, items_func_name)()}
-
-        for o_i in getattr(other, items_func_name)():
-            k = key_func(o_i)
-            i = index.pop(k, None)
-            # Matching - true positive.
-            if i is not None:
-                tp.append((i, o_i))
-            # Unmatched in other - false positive.
-            else:
-                fp.append((None, o_i))
-        fn = [(i, None) for i in sorted(index.values())]
-        return tp, fp, fn
 
     def clear_mentions(self):
         """ Removes mentions, replacing with original tokens. """
