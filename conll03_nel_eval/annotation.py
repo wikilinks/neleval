@@ -28,7 +28,7 @@ class Annotation(object):
             return self.candidates[0]
 
     @property
-    def id(self):
+    def eid(self):
         "Return link KB ID or NIL cluster ID (default cluster ID is None)"
         if self.link:
             return self.link.id
@@ -53,9 +53,9 @@ class Annotation(object):
 
     @property
     def is_nil(self):
-        if self.id is None:
+        if self.eid is None:
             return True
-        if self.id.startswith('NIL'):
+        if self.eid.startswith('NIL'):
             return True
         return False
 
@@ -100,10 +100,10 @@ class Candidate(object):
         cols = s.rstrip('\t').split('\t')
         if len(cols) == 1:
             # link includes id only
-            yield Candidate(cols[0])
+            yield cls(cols[0])
         elif len(cols) == 2:
             # link includes id and score
-            yield Candidate(cols[0], float(cols[1]))
+            yield cls(cols[0], float(cols[1]))
         elif len(cols[3:]) % 3 == 0:
             # >=1 (id, score, type) candidate tuples
             for i in xrange(0, len(cols), 3):
