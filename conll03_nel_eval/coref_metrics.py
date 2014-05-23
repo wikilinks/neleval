@@ -183,8 +183,8 @@ def _f1(a, b):
 
 
 def _prf(p_num, p_den, r_num, r_den):
-    p = p_num / p_den if p_den > 0 else 0. # TODO default 0 or 1?
-    r = r_num / r_den if r_den > 0 else 0. # TODO default 0 or 1?
+    p = p_num / p_den if p_den > 0 else 0.
+    r = r_num / r_den if r_den > 0 else 0.
     return p, r, _f1(p, r)
 
 
@@ -242,30 +242,20 @@ def ceaf(true, pred, similarity=dice):
         Xrow[:] = [similarity(R, S) for S in pred]
     indices = linear_assignment(-X)
 
-    numerator = sum(X[indices[:, 0], indices[:, 1]])
-    true_denom = sum(similarity(R, R) for R in true.values())
-    pred_denom = sum(similarity(S, S) for S in pred)
-    #p = numerator / pred_denom # TODO redundant?
-    #r = numerator / true_denom # TODO redundant?
-    #return _prf(numerator, pred_denom, numerator, true_denom)
-    return int(numerator), int(pred_denom-numerator), int(true_denom-numerator) # TODO ok?
+    tp = sum(X[indices[:, 0], indices[:, 1]])
+    pden = sum(similarity(R, R) for R in true.values())
+    rden = sum(similarity(S, S) for S in pred)
+    return tp, pden-tp, tp, rden-tp
 
 
 @_cross_check('ceafe')
 def entity_ceaf(true, pred):
-    # TODO ok?
     return ceaf(true, pred, similarity=dice)
 
 
 @_cross_check('ceafm')
 def mention_ceaf(true, pred):
-    # TOTO ok?
     return ceaf(true, pred, similarity=overlap)
-
-
-# TODO remove if above ok
-#entity_ceaf = _cross_check('ceafe')(partial(ceaf, similarity=dice))
-#mention_ceaf = _cross_check('ceafm')(partial(ceaf, similarity=overlap))
 
 
 def _b_cubed(A, B, A_mapping, B_mapping, EMPTY=frozenset([])):
@@ -284,35 +274,20 @@ def b_cubed(true, pred):
     """
     true_mapping = sets_to_mapping(true)
     pred_mapping = sets_to_mapping(pred)
-    p_num, p_den = _b_cubed(pred, true, pred_mapping, true_mapping)
-    r_num, r_den = _b_cubed(true, pred, true_mapping, pred_mapping)
-    return _prf(p_num, p_den, r_num, r_den) # TODO handle diff p & r tps
+    ptp, pden = _b_cubed(pred, true, pred_mapping, true_mapping)
+    rtp, rden = _b_cubed(true, pred, true_mapping, pred_mapping)
+    return ptp, pden-ptp, rtp, rden-rtp
 
-
-def pairwise_f1_old(true, pred):
-    """Measure the proportion of correctly identified pairwise coindexations
-
-    TODO: tests
-    """
-    pred_mapping = sets_to_mapping(pred)
-    correct = 0
-    for cluster in true.values():
-        for m1, m2 in itertools.combinations(cluster, 2):
-            if pred_mapping.get(m1) == pred_mapping.get(m2):
-                correct += 1
-    p_den = sum(len(cluster) * (len(cluster) - 1) for cluster in pred.values()) * 2
-    r_den = sum(len(cluster) * (len(cluster) - 1) for cluster in true.values()) * 2
-    #return _prf(correct, p_den, correct, r_den)
-    return int(correct), int(p_den-correct), int(r_den-correct) # TODO ok for tp, fp, fn?
 
 def _pairs(C):
     "Return pairs of instances across all clusters in C"
-    return frozenset(itertools.chain(*[itertools.combinations(c,2) for c in C]))
+    return frozenset(itertools.chain(
+            *[itertools.combinations_with_replacement(c,2) for c in C]))
 
 def _matrix(true, pred):
-    "Return (tp, fp, fn) tuple for true and predicted sets"
-    i = true & pred
-    return len(i), len(pred)-len(i), len(true)-len(i)
+    "Return (ptp, fp, rtp, fn) tuple for true and predicted sets"
+    tp = len(true & pred)
+    return tp, len(pred)-tp, tp, len(true)-tp
 
 def pairwise_f1(true, pred):
     return _matrix(_pairs(true.values()), _pairs(pred.values()))
@@ -360,9 +335,9 @@ def muc(true, pred):
     ... # doctest: +ELLIPSIS
     (0.5, 0.4, 0.44...)
     """
-    p_num, p_den = _vilain(pred, sets_to_mapping(true))
-    r_num, r_den = _vilain(true, sets_to_mapping(pred))
-    return _prf(p_num, p_den, r_num, r_den) # TODO handle diff p & r tps
+    ptp, pden = _vilain(pred, sets_to_mapping(true))
+    rtp, rden = _vilain(true, sets_to_mapping(pred))
+    return ptp, pden-ptp, rtp, rden-rtp
 
 
 # Configuration constants
@@ -389,7 +364,7 @@ CMATCH_SETS = {
         ],
     NO_CMATCHES: [],
 }
-DEFAULT_CMATCH_SET = TMP_CMATCHES # TODO until matrix and tp, fp, fn updates
+DEFAULT_CMATCH_SET = NO_CMATCHES # TODO until matrix and tp, fp, fn updates
 
 
 
