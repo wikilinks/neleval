@@ -2,7 +2,10 @@
 """
 Evaluate linker performance.
 """
-from .document import Document, MATCH_SETS, DEFAULT_MATCH_SET, Reader
+from .document import Document, Reader
+from .document import LMATCH_SETS, DEFAULT_LMATCH_SET
+from .document import by_cluster
+from .coref_metrics import CMATCH_SETS, DEFAULT_CMATCH_SET
 import json
 
 METRICS = [
@@ -25,19 +28,23 @@ DEFAULT_FMT = 'tab'
 class Evaluate(object):
     'Evaluate system output'
 
-    def __init__(self, system, gold=None, matches=DEFAULT_MATCH_SET,
+    def __init__(self, system, gold=None,
+                 lmatches=DEFAULT_LMATCH_SET,
+                 cmatches=DEFAULT_CMATCH_SET,
                  fmt=DEFAULT_FMT):
         """
         system - system output
         gold - gold standard
-        matches - match definitions to use
-        fmt - format
+        lmatches - link match definitions to use
+        cmatches - cluster match definitions to use
+        fmt - output format
         """
-        self.system = Reader(open(system))
-        self.gold = Reader(open(gold))
-        self.matches = MATCH_SETS[matches]
+        self.system = list(Reader(open(system)))
+        self.gold = list(Reader(open(gold)))
+        self.lmatches = LMATCH_SETS[lmatches]
+        self.cmatches = CMATCH_SETS[cmatches]
         self.format = getattr(self, fmt)
-        self.doc_pairs = list(self.iter_pairs())
+        self.doc_pairs = list(self.iter_pairs()) # TODO skip if clust only
 
     def iter_pairs(self):
         sdocs = {d.id:d for d in self.system}
@@ -47,8 +54,11 @@ class Evaluate(object):
             gdoc = gdocs.get(docid) or Document(docid, [])
             yield sdoc, gdoc
 
-    def __call__(self, matches=None):
-        self.results = self.evaluate(self.doc_pairs, matches or self.matches)
+    def __call__(self, lmatches=None, cmatches=None):
+        lmatches = lmatches or self.lmatches
+        self.results = self.link_eval(self.doc_pairs, lmatches)
+        cmatches = cmatches or self.cmatches
+        self.results.update(self.clust_eval(self.system, self.gold, cmatches))
         return self.format()
 
     @classmethod
@@ -56,16 +66,29 @@ class Evaluate(object):
         p.add_argument('system', metavar='FILE')
         p.add_argument('-g', '--gold')
         p.add_argument('-f', '--fmt', default=DEFAULT_FMT)
-        p.add_argument('-m', '--matches', default='hachey_acl14',
+        p.add_argument('-l', '--lmatches', default=DEFAULT_LMATCH_SET,
+                       choices=MATCH_SETS.keys())
+        p.add_argument('-c', '--cmatches', default=DEFAULT_CMATCH_SET,
                        choices=MATCH_SETS.keys())
         p.set_defaults(cls=cls)
         return p
 
     @classmethod
-    def evaluate(cls, doc_pairs, matches):
+    def link_eval(cls, doc_pairs, matches):
         results = {}
         for match, per_doc, overall in cls.count_all(doc_pairs, matches):
             results[match] = overall.results
+        return results
+
+    @classmethod
+    def clust_eval(cls, system, gold, matches):
+        results = {}
+        sclust = dict(by_cluster((a for d in system for a in d.annotations)))
+        print sclust
+        gclust = dict(by_cluster((a for d in gold for a in d.annotations)))
+        print gclust
+        for m in matches:
+            results[m.__name__] = Matrix.from_clust(gclust, sclust, m).results
         return results
 
     @classmethod
@@ -77,8 +100,6 @@ class Evaluate(object):
     def count(cls, match, doc_pairs):
         per_doc = []
         for sdoc, gdoc in doc_pairs:
-            print sdoc
-            print gdoc
             per_doc.append(Matrix.from_doc(sdoc, gdoc, match))
         overall = sum(per_doc, Matrix())
         return per_doc, overall
@@ -87,17 +108,25 @@ class Evaluate(object):
 
     def tab_format(self, num_fmt='{:.3f}', delimiter='\t'):
         lines = [delimiter.join([i[:6] for i in METRICS] + ['match'])]
-        for match in self.matches:
-            row = []
-            for metric in METRICS:
-                v = self.results.get(match, {}).get(metric, 0)
-                if isinstance(v, float):
-                    row.append(num_fmt.format(v))
-                else:
-                    row.append(str(v))
-            row.append(match)
+        for lmatch in self.lmatches:
+            row = self.row(match, self.results)
+            lines.append(delimiter.join(row))
+        for cmatch in self.cmatches:
+            row = self.row(cmatch.__name__, self.results)
             lines.append(delimiter.join(row))
         return '\n'.join(lines)
+
+    def row(self, match_str, results):
+        row = []
+        match_results = self.results.get(match_str, {})
+        for metric in METRICS:
+            val = match_results.get(metric, 0)
+            if isinstance(val, float):
+                row.append(num_mt.format(val))
+            else:
+                row.append(str(val))
+        row.append(match_str)
+        return row
 
     def json_format(self):
         return json.dumps(self.results)
@@ -136,6 +165,12 @@ class Matrix(object):
         """
         tp, fp, fn = getattr(gdoc, match)(sdoc)
         return cls(len(tp), len(fp), len(fn))
+
+    @classmethod
+    def from_clust(cls, sclust, gclust, match):
+        # TODO remove
+        tp, fp, fn = match(gclust, sclust)
+        return cls(tp, fp, fn)
 
     @property
     def results(self):

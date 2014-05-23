@@ -1,6 +1,7 @@
 #!/usr/bin/env python
-from .document import Reader as AnnotationReader, ALL_MATCHES
+from .document import Reader as AnnotationReader, ALL_LMATCHES
 from .data import Reader, Mention, Writer
+from .coref_metrics import NO_CMATCHES
 from .evaluate import Evaluate
 from .formats import Unstitch, Stitch
 from .tac import PrepareTac
@@ -108,7 +109,9 @@ def test_normalisation():
 
 def _get_stats(gold_path, sys_path):
     stats = Evaluate(sys_path, gold=gold_path,
-                     matches=ALL_MATCHES, fmt='no_format')()
+                     lmatches=ALL_LMATCHES,
+                     cmatches=NO_CMATCHES, # TODO add test output for all
+                     fmt='no_format')()
     pprint(stats)
     return stats
 
