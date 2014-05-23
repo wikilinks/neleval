@@ -136,22 +136,28 @@ class Evaluate(object):
 
 
 class Matrix(object):
-    def __init__(self, tp=0, fp=0, fn=0):
-        self.tp = tp
+    def __init__(self, ptp=0, fp=0, rtp=0, fn=0):
+        self.ptp = ptp
         self.fp = fp
+        self.rtp = rtp
         self.fn = fn
 
     def __str__(self):
-        return 'tp={},fp={},fn={}'.format(self.tp, self.fp, self.fn)
+        return 'ptp={},fp={},rtp={},fn={}'.format(self.ptp,
+                                                  self.fp,
+                                                  self.rtp,
+                                                  self.fn)
 
     def __add__(self, other):
-        return Matrix(self.tp + other.tp,
+        return Matrix(self.ptp + other.ptp,
                       self.fp + other.fp,
+                      self.rtp + other.rtp,
                       self.fn + other.fn)
 
     def __iadd__(self, other):
-        self.tp += other.tp
+        self.ptp += other.ptp
         self.fp += other.fp
+        self.rtp += other.rtp
         self.fn += other.fn
         return self
 
@@ -164,13 +170,13 @@ class Matrix(object):
         match - match method on doc
         """
         tp, fp, fn = getattr(gdoc, match)(sdoc)
-        return cls(len(tp), len(fp), len(fn))
+        return cls(len(tp), len(fp), len(tp), len(fn))
 
     @classmethod
     def from_clust(cls, sclust, gclust, match):
         # TODO remove
-        tp, fp, fn = match(gclust, sclust)
-        return cls(tp, fp, fn)
+        ptp, fp, rtp, fn = match(gclust, sclust)
+        return cls(ptp, fp, rtp, fn)
 
     @property
     def results(self):
@@ -178,18 +184,19 @@ class Matrix(object):
             'precision': self.precision,
             'recall': self.recall,
             'fscore': self.fscore,
-            'tp': self.tp,
+            'ptp': self.ptp,
             'fp': self.fp,
+            'rtp': self.rtp,
             'fn': self.fn,
             }
 
     @property
     def precision(self):
-        return self.div(self.tp, self.tp+self.fp)
+        return self.div(self.ptp, self.ptp+self.fp)
 
     @property
     def recall(self):
-        return self.div(self.tp, self.tp+self.fn)
+        return self.div(self.rtp, self.rtp+self.fn)
 
     def div(self, n, d):
         return 1.0 if d == 0 else n / float(d)
