@@ -44,7 +44,7 @@ ENC = 'utf8'
 # Helper functions for indexing annotations
 
 def strong_key(i):
-    return (i.start, i.end)
+    return (i.docid, i.start, i.end)
 
 def strong_link_key(i):
     return (i.start, i.end, i.kbid)
