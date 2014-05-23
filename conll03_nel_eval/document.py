@@ -3,12 +3,12 @@
 from .annotation import Annotation
 from collections import OrderedDict
 
-ALL_MATCHES = 'all'
-CORNOLTI_WWW13_MATCHES = 'cornolti_www13'
-HACHEY_ACL14_MATCHES = 'hachey_acl14'
-TAC_MATCHES = 'tac'
-MATCH_SETS = {
-    ALL_MATCHES: [
+ALL_LMATCHES = 'all'
+CORNOLTI_WWW13_LMATCHES = 'cornolti_www13'
+HACHEY_ACL14_LMATCHES = 'hachey_acl14'
+TAC_LMATCHES = 'tac'
+LMATCH_SETS = {
+    ALL_LMATCHES: [
         'strong_mention_match',
         'strong_linked_mention_match',
         'strong_link_match',
@@ -17,30 +17,32 @@ MATCH_SETS = {
         'strong_typed_all_match',
         'entity_match',
         ],
-    CORNOLTI_WWW13_MATCHES: [
+    CORNOLTI_WWW13_LMATCHES: [
         'strong_linked_mention_match',
         'strong_link_match',
         'entity_match',
         ],
-    HACHEY_ACL14_MATCHES: [
+    HACHEY_ACL14_LMATCHES: [
         'strong_mention_match', # full ner
         'strong_linked_mention_match',
         'strong_link_match',
         'entity_match',
         ],
-    TAC_MATCHES: [
+    TAC_LMATCHES: [
         'strong_link_match', # recall equivalent to kb accuracy before 2014
         'strong_nil_match', # recall equivalent to nil accuracy before 2014
         'strong_all_match', # recall equivalent to overall accuracy before 2014
         'strong_typed_all_match',  # wikification f-score for 2014
         ],
     }
-DEFAULT_MATCH_SET = HACHEY_ACL14_MATCHES
+DEFAULT_LMATCH_SET = HACHEY_ACL14_LMATCHES
 
 TEMPLATE = u'{}\t{}\t{}\t{}\t{}'
 ENC = 'utf8'
 
-# Helper functions: key() and match()
+
+# Helper functions for indexing annotations
+
 def strong_key(i):
     return (i.start, i.end)
 
@@ -59,6 +61,9 @@ def weak_key(i):
 def weak_link_key(i):
     return [(j, i.kbid) for j in xrange(i.start, i.end)]
 
+
+# Helper function for matching annotations
+
 def weak_match(i, items, key_func):
     matches = []
     for i in key_func(i):
@@ -67,6 +72,9 @@ def weak_match(i, items, key_func):
             matches.append(i)
     return matches
 
+
+# Document class contains methods for linking annotation
+
 class Document(object):
     def __init__(self, id, annotations):
         self.id = id
@@ -74,9 +82,6 @@ class Document(object):
 
     def __str__(self):
         return u'\n'.join(str(a) for a in self.annotations)
-
-    def __cmp__(self, other):
-        return cmp(self.id, other.id)
 
     # Accessing Spans.
     def _iter_mentions(self, link=True, nil=True):
@@ -163,25 +168,43 @@ class Document(object):
         return tp, fp, fn
 
 
+# Grouping annotations
+
+def by_document(annotations):
+    d = OrderedDict()
+    for a in annotations:
+        if a.docid in d:
+            d[a.docid].append(a)
+        else:
+            d[a.docid] = [a]
+    return d.iteritems()
+
+def by_cluster(annotations):
+    d = {}
+    for a in annotations:
+        key = strong_key(a) # TODO should be strong_typed_key for tac?
+        if a.eid in d:
+            d[a.eid].add(key)
+        else:
+            d[a.eid] = {key}
+    return d.iteritems()
+
+
+# Reading annotations
+
 class Reader(object):
-    def __init__(self, fh):
+    "Read annotations, grouped into documents"
+    def __init__(self, fh, group=by_document, cls=Document):
         self.fh = fh
+        self.group = group
+        self.cls = cls
 
     def __iter__(self):
         return self.read()
 
     def read(self):
-        for docid, annots in self.group_by_docid(self.annotations()):
-            yield Document(docid, sorted(annots))
-
-    def group_by_docid(self, annotations):
-        d = OrderedDict()
-        for a in annotations:
-            if a.docid in d:
-                d[a.docid].append(a)
-            else:
-                d[a.docid] = [a]
-        return d.iteritems()
+        for docid, annots in self.group(self.annotations()):
+            yield self.cls(docid, sorted(annots))
 
     def annotations(self):
         "Yield Annotation objects"

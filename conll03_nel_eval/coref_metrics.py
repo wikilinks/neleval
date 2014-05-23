@@ -183,8 +183,8 @@ def _f1(a, b):
 
 
 def _prf(p_num, p_den, r_num, r_den):
-    p = p_num / p_den if p_den > 0 else 0.
-    r = r_num / r_den if r_den > 0 else 0.
+    p = p_num / p_den if p_den > 0 else 0. # TODO default 0 or 1?
+    r = r_num / r_den if r_den > 0 else 0. # TODO default 0 or 1?
     return p, r, _f1(p, r)
 
 
@@ -245,13 +245,27 @@ def ceaf(true, pred, similarity=dice):
     numerator = sum(X[indices[:, 0], indices[:, 1]])
     true_denom = sum(similarity(R, R) for R in true.values())
     pred_denom = sum(similarity(S, S) for S in pred)
-    p = numerator / pred_denom
-    r = numerator / true_denom
-    return _prf(numerator, pred_denom, numerator, true_denom)
+    #p = numerator / pred_denom # TODO redundant?
+    #r = numerator / true_denom # TODO redundant?
+    #return _prf(numerator, pred_denom, numerator, true_denom)
+    return int(numerator), int(pred_denom-numerator), int(true_denom-numerator) # TODO ok?
 
 
-entity_ceaf = _cross_check('ceafe')(partial(ceaf, similarity=dice))
-mention_ceaf = _cross_check('ceafm')(partial(ceaf, similarity=overlap))
+@_cross_check('ceafe')
+def entity_ceaf(true, pred):
+    # TODO ok?
+    return ceaf(true, pred, similarity=dice)
+
+
+@_cross_check('ceafm')
+def mention_ceaf(true, pred):
+    # TOTO ok?
+    return ceaf(true, pred, similarity=overlap)
+
+
+# TODO remove if above ok
+#entity_ceaf = _cross_check('ceafe')(partial(ceaf, similarity=dice))
+#mention_ceaf = _cross_check('ceafm')(partial(ceaf, similarity=overlap))
 
 
 def _b_cubed(A, B, A_mapping, B_mapping, EMPTY=frozenset([])):
@@ -272,10 +286,10 @@ def b_cubed(true, pred):
     pred_mapping = sets_to_mapping(pred)
     p_num, p_den = _b_cubed(pred, true, pred_mapping, true_mapping)
     r_num, r_den = _b_cubed(true, pred, true_mapping, pred_mapping)
-    return _prf(p_num, p_den, r_num, r_den)
+    return _prf(p_num, p_den, r_num, r_den) # TODO handle diff p & r tps
 
 
-def pairwise_f1(true, pred):
+def pairwise_f1_old(true, pred):
     """Measure the proportion of correctly identified pairwise coindexations
 
     TODO: tests
@@ -288,7 +302,20 @@ def pairwise_f1(true, pred):
                 correct += 1
     p_den = sum(len(cluster) * (len(cluster) - 1) for cluster in pred.values()) * 2
     r_den = sum(len(cluster) * (len(cluster) - 1) for cluster in true.values()) * 2
-    return _prf(correct, p_den, correct, r_den)
+    #return _prf(correct, p_den, correct, r_den)
+    return int(correct), int(p_den-correct), int(r_den-correct) # TODO ok for tp, fp, fn?
+
+def _pairs(C):
+    "Return pairs of instances across all clusters in C"
+    return frozenset(itertools.chain(*[itertools.combinations(c,2) for c in C]))
+
+def _matrix(true, pred):
+    "Return (tp, fp, fn) tuple for true and predicted sets"
+    i = true & pred
+    return len(i), len(pred)-len(i), len(true)-len(i)
+
+def pairwise_f1(true, pred):
+    return _matrix(_pairs(true.values()), _pairs(pred.values()))
 
 
 def _vilain(A, B_mapping):
@@ -335,7 +362,34 @@ def muc(true, pred):
     """
     p_num, p_den = _vilain(pred, sets_to_mapping(true))
     r_num, r_den = _vilain(true, sets_to_mapping(pred))
-    return _prf(p_num, p_den, r_num, r_den)
+    return _prf(p_num, p_den, r_num, r_den) # TODO handle diff p & r tps
+
+
+# Configuration constants
+ALL_CMATCHES = 'all'
+TAC_CMATCHES = 'tac'
+TMP_CMATCHES = 'tmp'
+NO_CMATCHES = 'none'
+CMATCH_SETS = {
+    ALL_CMATCHES: [
+        mention_ceaf,
+        entity_ceaf,
+        b_cubed,
+        pairwise_f1,
+        muc,
+        ],
+    TAC_CMATCHES: [
+        mention_ceaf,
+        b_cubed,
+        ],
+    TMP_CMATCHES: [
+        mention_ceaf,
+        entity_ceaf,
+        pairwise_f1,
+        ],
+    NO_CMATCHES: [],
+}
+DEFAULT_CMATCH_SET = TMP_CMATCHES # TODO until matrix and tp, fp, fn updates
 
 
 
