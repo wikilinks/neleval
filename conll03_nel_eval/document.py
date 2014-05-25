@@ -4,8 +4,8 @@ from .annotation import Annotation
 from collections import OrderedDict
 
 ALL_LMATCHES = 'all'
-CORNOLTI_WWW13_LMATCHES = 'cornolti_www13'
-HACHEY_ACL14_LMATCHES = 'hachey_acl14'
+CORNOLTI_WWW13_LMATCHES = 'cornolti'
+HACHEY_ACL14_LMATCHES = 'hachey'
 TAC_LMATCHES = 'tac'
 LMATCH_SETS = {
     ALL_LMATCHES: [
@@ -179,7 +179,7 @@ def by_document(annotations):
             d[a.docid] = [a]
     return d.iteritems()
 
-def by_cluster(annotations):
+def by_entity(annotations):
     d = {}
     for a in annotations:
         key = strong_key(a) # TODO should be strong_typed_key for tac?
