@@ -5,13 +5,14 @@ Evaluate linker performance.
 from .coref_metrics import CMATCH_SETS, DEFAULT_CMATCH_SET, _to_matrix
 from .document import Document, Reader
 from .document import LMATCH_SETS, DEFAULT_LMATCH_SET
-from .document import by_cluster
+from .document import by_entity
 from .utils import log
 import json
 
 METRICS = [
-    'tp',
+    'ptp',
     'fp',
+    'rtp',
     'fn',
     'precision',
     'recall',
@@ -23,7 +24,7 @@ FMTS = [
     'json_format',
     'no_format',
 ]
-DEFAULT_FMT = 'tab'
+DEFAULT_FMT = 'tab_format'
 
 
 class Evaluate(object):
@@ -45,7 +46,8 @@ class Evaluate(object):
         self.lmatches = LMATCH_SETS[lmatches]
         self.cmatches = CMATCH_SETS[cmatches]
         self.format = getattr(self, fmt)
-        self.doc_pairs = list(self.iter_pairs()) # TODO skip if clust only
+        if len(self.lmatches) > 0: # clust eval only
+            self.doc_pairs = list(self.iter_pairs())
 
     def iter_pairs(self):
         sdocs = {d.id:d for d in self.system}
@@ -68,9 +70,9 @@ class Evaluate(object):
         p.add_argument('-g', '--gold')
         p.add_argument('-f', '--fmt', default=DEFAULT_FMT)
         p.add_argument('-l', '--lmatches', default=DEFAULT_LMATCH_SET,
-                       choices=MATCH_SETS.keys())
+                       choices=LMATCH_SETS.keys())
         p.add_argument('-c', '--cmatches', default=DEFAULT_CMATCH_SET,
-                       choices=MATCH_SETS.keys())
+                       choices=CMATCH_SETS.keys())
         p.set_defaults(cls=cls)
         return p
 
@@ -84,10 +86,8 @@ class Evaluate(object):
     @classmethod
     def clust_eval(cls, system, gold, matches):
         results = {}
-        sclust = dict(by_cluster((a for d in system for a in d.annotations)))
-        print sclust
-        gclust = dict(by_cluster((a for d in gold for a in d.annotations)))
-        print gclust
+        sclust = dict(by_entity((a for d in system for a in d.annotations)))
+        gclust = dict(by_entity((a for d in gold for a in d.annotations)))
         for m in matches:
             results[m.__name__] = Matrix.from_clust(gclust, sclust, m).results
         return results
@@ -110,27 +110,27 @@ class Evaluate(object):
     def tab_format(self, num_fmt='{:.3f}', delimiter='\t'):
         lines = [delimiter.join([i[:6] for i in METRICS] + ['match'])]
         for lmatch in self.lmatches:
-            row = self.row(match, self.results)
+            row = self.row(lmatch, self.results, num_fmt)
             lines.append(delimiter.join(row))
         for cmatch in self.cmatches:
-            row = self.row(cmatch.__name__, self.results)
+            row = self.row(cmatch.__name__, self.results, num_fmt)
             lines.append(delimiter.join(row))
         return '\n'.join(lines)
 
-    def row(self, match_str, results):
+    def row(self, match_str, results, num_fmt):
         row = []
         match_results = self.results.get(match_str, {})
         for metric in METRICS:
             val = match_results.get(metric, 0)
             if isinstance(val, float):
-                row.append(num_mt.format(val))
+                row.append(num_fmt.format(val))
             else:
                 row.append(str(val))
         row.append(match_str)
         return row
 
     def json_format(self):
-        return json.dumps(self.results)
+        return json.dumps(self.results, sort_keys=True, indent=4)
 
     def no_format(self):
         return self.results
@@ -175,6 +175,12 @@ class Matrix(object):
 
     @classmethod
     def from_clust(cls, sclust, gclust, match):
+        """
+        Initialise from clustering.
+        sclust - system clustering
+        gclust - gold clustering
+        match - coreference metric
+        """
         # TODO remove?
         ptp, fp, rtp, fn = _to_matrix(*match(gclust, sclust))
         return cls(ptp, fp, rtp, fn)
