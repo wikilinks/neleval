@@ -110,9 +110,8 @@ def _cross_check(metric):
 
 def mapping_to_sets(mapping):
     """
-    >>> sets = mapping_to_sets({'a': 1, 'b': 2, 'c': 1}).items()
-    >>> sorted((k, sorted(v)) for k, v in sets)
-    [(1, ['a', 'c']), (2, ['b'])]
+    Input: {cluster_item: cluster_name} dictionary
+    Output: {cluster_name: set([cluster_items])} dictionary
     """
     s = defaultdict(set)
     for m, k in mapping.items():
@@ -122,8 +121,8 @@ def mapping_to_sets(mapping):
 
 def sets_to_mapping(s):
     """
-    >>> sorted(sets_to_mapping({1: {'a', 'c'}, 2: {'b'}}).items())
-    [('a', 1), ('b', 2), ('c', 1)]
+    Input: {cluster_name: set([cluster_items])} dictionary
+    Output: {cluster_item: cluster_name} dictionary
     """
     return {m: k for k, ms in s.items() for m in ms}
 
@@ -187,6 +186,13 @@ def _prf(p_num, p_den, r_num, r_den):
     r = r_num / r_den if r_den > 0 else 0.
     return p, r, _f1(p, r)
 
+def _to_matrix(p_num, p_den, r_num, r_den):
+    ptp = p_num
+    fp = p_den - p_num
+    rtp = r_num
+    fn = r_den - r_num
+    return ptp, fp, rtp, fn
+
 
 ######## Cluster comparison ########
 
@@ -212,50 +218,29 @@ def overlap(a, b):
 
 
 def ceaf(true, pred, similarity=dice):
-    """
-
-    >>> true = {'A': {1,2,3,4,5}, 'B': {6,7}, 'C': {8, 9, 10, 11, 12}}
-    >>> pred_a = {'A': {1,2,3,4,5}, 'B': {6,7, 8, 9, 10, 11, 12}}
-    >>> pred_b = {'A': {1,2,3,4,5,8, 9, 10, 11, 12}, 'B': {6,7}}
-    >>> pred_c = {'A': {1,2,3,4,5, 6,7, 8, 9, 10, 11, 12}}
-    >>> pred_d = {i: {i,} for i in range(1, 13)}
-    >>> mention_ceaf(true, pred_a)[-1]  # doctest: +ELLIPSIS
-    0.83...
-    >>> entity_ceaf(true, pred_a)[-1]  # doctest: +ELLIPSIS
-    0.73...
-    >>> mention_ceaf(true, pred_b)[-1]  # doctest: +ELLIPSIS
-    0.58...
-    >>> entity_ceaf(true, pred_b)[-1]  # doctest: +ELLIPSIS
-    0.66...
-    >>> mention_ceaf(true, pred_c)  # doctest: +ELLIPSIS
-    (0.416..., 0.416..., 0.416...)
-    >>> entity_ceaf(true, pred_c)  # doctest: +ELLIPSIS
-    (0.588..., 0.196..., 0.294...)
-    >>> mention_ceaf(true, pred_d)  # doctest: +ELLIPSIS
-    (0.25, 0.25, 0.25)
-    >>> entity_ceaf(true, pred_d)  # doctest: +ELLIPSIS
-    (0.111..., 0.444..., 0.177...)
-    """
+    "Luo (2005). On coreference resolution performance metrics. In EMNLP."
     X = np.empty((len(true), len(pred)))
     pred = list(pred.values())
     for R, Xrow in zip(true.values(), X):
         Xrow[:] = [similarity(R, S) for S in pred]
     indices = linear_assignment(-X)
 
-    tp = sum(X[indices[:, 0], indices[:, 1]])
-    pden = sum(similarity(R, R) for R in true.values())
-    rden = sum(similarity(S, S) for S in pred)
-    return tp, pden-tp, tp, rden-tp
-
-
-@_cross_check('ceafe')
-def entity_ceaf(true, pred):
-    return ceaf(true, pred, similarity=dice)
+    p_num = r_num = sum(X[indices[:, 0], indices[:, 1]])
+    p_den = sum(similarity(R, R) for R in true.values())
+    r_den = sum(similarity(S, S) for S in pred)
+    return p_num, p_den, r_num, r_den
 
 
 @_cross_check('ceafm')
 def mention_ceaf(true, pred):
+    "Luo (2005) phi_3"
     return ceaf(true, pred, similarity=overlap)
+
+
+@_cross_check('ceafe')
+def entity_ceaf(true, pred):
+    "Luo (2005) phi_4"
+    return ceaf(true, pred, similarity=dice)
 
 
 def _b_cubed(A, B, A_mapping, B_mapping, EMPTY=frozenset([])):
@@ -269,14 +254,16 @@ def _b_cubed(A, B, A_mapping, B_mapping, EMPTY=frozenset([])):
 @_cross_check('bcub')
 def b_cubed(true, pred):
     """
+    Bagga and Baldwin (1998). Algorithms for scoring coreference chains.
+    In LREC Linguistic Coreference Workshop.
 
     TODO: tests
     """
     true_mapping = sets_to_mapping(true)
     pred_mapping = sets_to_mapping(pred)
-    ptp, pden = _b_cubed(pred, true, pred_mapping, true_mapping)
-    rtp, rden = _b_cubed(true, pred, true_mapping, pred_mapping)
-    return ptp, pden-ptp, rtp, rden-rtp
+    p_num, p_den = _b_cubed(pred, true, pred_mapping, true_mapping)
+    r_num, r_den = _b_cubed(true, pred, true_mapping, pred_mapping)
+    return p_num, p_den, r_num, r_den
 
 
 def _pairs(C):
@@ -284,13 +271,16 @@ def _pairs(C):
     return frozenset(itertools.chain(
             *[itertools.combinations_with_replacement(c,2) for c in C]))
 
-def _matrix(true, pred):
-    "Return (ptp, fp, rtp, fn) tuple for true and predicted sets"
-    tp = len(true & pred)
-    return tp, len(pred)-tp, tp, len(true)-tp
+def _pairwise_f1(true, pred):
+    "Return numerators and denominators for precision and recall"
+    p_num = r_num = len(true & pred)
+    p_den = len(pred)
+    r_den = len(true)
+    return p_num, p_den, r_num, r_den
 
 def pairwise_f1(true, pred):
-    return _matrix(_pairs(true.values()), _pairs(pred.values()))
+    "Return p_num, p_den, r_num, r_den over item pairs."
+    return _pairwise_f1(_pairs(true.values()), _pairs(pred.values()))
 
 
 def _vilain(A, B_mapping):
@@ -316,32 +306,16 @@ def muc(true, pred):
     This calculates recall error for each true cluster C as the number of
     response clusters that would need to be merged in order to produce a
     superset of C.
-
-    Examples from Vilain et al. (1995):
-    >>> muc({1: {'A', 'B', 'C', 'D'}},
-    ...     {1: {'A', 'B'}, 2: {'C', 'D'}})  # doctest: +ELLIPSIS
-    (1.0, 0.66..., 0.8)
-    >>> muc({1: {'A', 'B'}, 2: {'C', 'D'}},
-    ...     {1: {'A', 'B', 'C', 'D'}})  # doctest: +ELLIPSIS
-    (0.66..., 1.0, 0.8)
-    >>> muc({1: {'A', 'B', 'C'}}, {1: {'A', 'C'}})  # doctest: +ELLIPSIS
-    (1.0, 0.5, 0.66...)
-    >>> muc({1: {'B', 'C', 'D', 'E', 'G', 'H', 'J'}},
-    ...     {1: {'A', 'B', 'C'}, 2: {'D', 'E', 'F'}, 3: {'G', 'H', 'I'}})
-    ... # doctest: +ELLIPSIS
-    (0.5, 0.5, 0.5)
-    >>> muc({1: {'A', 'B', 'C'}, 2: {'D', 'E', 'F', 'G'}},
-    ...     {1: {'A', 'B'}, 2: {'C', 'D'}, 3: {'F', 'G', 'H'}})
-    ... # doctest: +ELLIPSIS
-    (0.5, 0.4, 0.44...)
     """
-    ptp, pden = _vilain(pred, sets_to_mapping(true))
-    rtp, rden = _vilain(true, sets_to_mapping(pred))
-    return ptp, pden-ptp, rtp, rden-rtp
+    p_num, p_den = _vilain(pred, sets_to_mapping(true))
+    r_num, r_den = _vilain(true, sets_to_mapping(pred))
+    return p_num, p_den, r_num, r_den
 
 
 # Configuration constants
 ALL_CMATCHES = 'all'
+MUC_CMATCHES = 'muc'
+LUO_CMATCHES = 'luo'
 TAC_CMATCHES = 'tac'
 TMP_CMATCHES = 'tmp'
 NO_CMATCHES = 'none'
@@ -352,6 +326,15 @@ CMATCH_SETS = {
         b_cubed,
         pairwise_f1,
         muc,
+        ],
+    MUC_CMATCHES: [
+        muc,
+        ],
+    LUO_CMATCHES: [
+        muc,
+        b_cubed,
+        mention_ceaf,
+        entity_ceaf,
         ],
     TAC_CMATCHES: [
         mention_ceaf,
@@ -392,4 +375,4 @@ if __name__ == '__main__':
     response = read_conll_coref(args.response_file)
     print('Metric', 'P', 'R', 'F1', sep='\t')
     for name, fn in sorted(METRICS.items()):
-        print(name, *('{:0.2f}'.format(100 * x) for x in fn(key, response)), sep='\t')
+        print(name, *('{:0.2f}'.format(100 * x) for x in _prf(*fn(key, response))), sep='\t')
