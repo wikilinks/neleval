@@ -5,7 +5,7 @@ Evaluate linker performance.
 from .document import Document, Reader
 from .document import LMATCH_SETS, DEFAULT_LMATCH_SET
 from .document import by_cluster
-from .coref_metrics import CMATCH_SETS, DEFAULT_CMATCH_SET
+from .coref_metrics import CMATCH_SETS, DEFAULT_CMATCH_SET, _to_matrix
 import json
 
 METRICS = [
@@ -174,8 +174,8 @@ class Matrix(object):
 
     @classmethod
     def from_clust(cls, sclust, gclust, match):
-        # TODO remove
-        ptp, fp, rtp, fn = match(gclust, sclust)
+        # TODO remove?
+        ptp, fp, rtp, fn = _to_matrix(*match(gclust, sclust))
         return cls(ptp, fp, rtp, fn)
 
     @property

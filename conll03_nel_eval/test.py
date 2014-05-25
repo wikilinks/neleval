@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 from .document import Reader as AnnotationReader, ALL_LMATCHES
 from .data import Reader, Mention, Writer
-from .coref_metrics import TMP_CMATCHES
+from .coref_metrics import mapping_to_sets, sets_to_mapping
+from .coref_metrics import CMATCH_SETS, TMP_CMATCHES, LUO_CMATCHES, _prf, muc
 from .evaluate import Evaluate
 from .formats import Unstitch, Stitch
 from .tac import PrepareTac
@@ -105,7 +106,93 @@ def test_normalisation():
     assert normalise_link('http://fr.wikipedia.org/wiki/Some') == 'Some'
     assert normalise_link('Some') == 'Some'
 
-# EVAL TESTS
+# EVAL TEST UTILITIES
+
+def check_correct(expected, actual):
+    assert expected.viewkeys() == actual.viewkeys(), 'Different keys\nexpected\t{}\nactual\t{}'.format(sorted(expected.keys()), sorted(actual.keys()))
+    for k in expected:
+        assert expected[k] == actual[k], 'Different on key "{}".\nexpected\t{}\nactual\t{}'.format(k, expected[k], actual[k])
+    return True
+
+# CLUSTER EVAL TESTS
+
+MAPPING = {'a': 1, 'b': 2, 'c': 1}
+SETS = {1: {'a', 'c'}, 2: {'b'}}
+def test_conversions():
+    assert mapping_to_sets(MAPPING) == SETS
+    assert sets_to_mapping(SETS) == MAPPING
+    assert sets_to_mapping(mapping_to_sets(MAPPING)) == MAPPING
+    assert mapping_to_sets(sets_to_mapping(SETS)) == SETS
+    
+
+def _get_coref_fscore(gold, resp, cmatches):
+    for f in CMATCH_SETS[cmatches]:
+        yield f.__name__, round(_prf(*f(gold, resp))[2], 3)
+
+LUO05_GOLD = {'A': {1,2,3,4,5}, 'B': {6,7}, 'C': {8, 9, 10, 11, 12}}
+LUO05_RESPS = [
+    ('sysa',
+     {'A': {1,2,3,4,5}, 'B': {6,7, 8, 9, 10, 11, 12}},
+     {'muc': 0.947, 'b_cubed': 0.865,
+      'mention_ceaf': 0.833, 'entity_ceaf': 0.733}),
+    ('sysb',
+     {'A': {1,2,3,4,5,8, 9, 10, 11, 12}, 'B': {6,7}},
+     {'muc': 0.947, 'b_cubed': 0.737,
+      'mention_ceaf': 0.583, 'entity_ceaf': 0.667}),
+    ('sysc',
+     {'A': {1,2,3,4,5, 6,7, 8, 9, 10, 11, 12}},
+     {'muc': 0.900, 'b_cubed': 0.545,
+      'mention_ceaf': 0.417, 'entity_ceaf': 0.294}),
+    ('sysd',
+     {i: {i,} for i in range(1, 13)},
+     {'muc': 0.0, 'b_cubed': 0.400, 
+      'mention_ceaf': 0.250, 'entity_ceaf': 0.178})
+    ]
+def test_luo_ceaf():
+    "Examples from Luo (2005)"
+    for system, response, expected in LUO05_RESPS:
+        actual = dict(_get_coref_fscore(LUO05_GOLD, response, LUO_CMATCHES))
+        check_correct(expected, actual)
+
+def _get_muc_prf(gold, resp):
+    return tuple(round(v, 3) for v in _prf(*muc(gold, resp)))
+
+VILAIN95 = [
+    # Table 1, Row 1
+    ({1: {'A', 'B', 'C', 'D'}},
+     {1: {'A', 'B'}, 2: {'C', 'D'}},
+     (1.0, 0.667, 0.8)),
+    # Table 1, Row 2
+    ({1: {'A', 'B'}, 2: {'C', 'D'}},
+     {1: {'A', 'B', 'C', 'D'}},
+     (0.667, 1.0, 0.8)),
+    # Table 1, Row 3
+    ({1: {'A', 'B', 'C', 'D'}},
+     {1: {'A', 'B', 'C', 'D'}},
+     (1.0, 1.0, 1.0)),
+    # Table 1, Row 4
+    ({1: {'A', 'B', 'C', 'D'}},
+     {1: {'A', 'B'}, 2: {'C', 'D'}},
+     (1.0, 0.667, 0.8)),
+    # Table 1, Row 5
+    ({1: {'A', 'B', 'C'}},
+     {1: {'A', 'C'}},
+     (1.0, 0.5, 0.667)),
+    # More complex 1
+    ({1: {'B', 'C', 'D', 'E', 'G', 'H', 'J'}},
+     {1: {'A', 'B', 'C'}, 2: {'D', 'E', 'F'}, 3: {'G', 'H', 'I'}},
+     (0.5, 0.5, 0.5)),
+    # More complex 2
+    ({1: {'A', 'B', 'C'}, 2: {'D', 'E', 'F', 'G'}},
+     {1: {'A', 'B'}, 2: {'C', 'D'}, 3: {'F', 'G', 'H'}},
+     (0.5, 0.4, 0.444)),
+    ]
+def test_vilain_muc():
+    "Examples from Vilain et al. (1995)"
+    for key, response, expected in VILAIN95:
+        assert _get_muc_prf(key, response) == expected
+
+# EVALUATE TESTS
 
 def _get_stats(gold_path, sys_path):
     stats = Evaluate(sys_path, gold=gold_path,
@@ -114,12 +201,6 @@ def _get_stats(gold_path, sys_path):
                      fmt='no_format')()
     pprint(stats)
     return stats
-
-def check_correct(expected, actual):
-    assert expected.viewkeys() == actual.viewkeys(), 'Different keys\nexpected\t{}\nactual\t{}'.format(sorted(expected.keys()), sorted(actual.keys()))
-    for k in expected:
-        assert expected[k] == actual[k], 'Different on key "{}".\nexpected\t{}\nactual\t{}'.format(k, expected[k], actual[k])
-    return True
 
 EXPECTED_TAC_SYS = {
  'entity_match': {'fn': 0,
