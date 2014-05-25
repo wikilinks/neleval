@@ -347,7 +347,7 @@ CMATCH_SETS = {
         ],
     NO_CMATCHES: [],
 }
-DEFAULT_CMATCH_SET = NO_CMATCHES # TODO until matrix and tp, fp, fn updates
+DEFAULT_CMATCH_SET = ALL_CMATCHES
 
 
 
