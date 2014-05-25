@@ -2,10 +2,11 @@
 """
 Evaluate linker performance.
 """
+from .coref_metrics import CMATCH_SETS, DEFAULT_CMATCH_SET, _to_matrix
 from .document import Document, Reader
 from .document import LMATCH_SETS, DEFAULT_LMATCH_SET
 from .document import by_cluster
-from .coref_metrics import CMATCH_SETS, DEFAULT_CMATCH_SET, _to_matrix
+from .utils import log
 import json
 
 METRICS = [
@@ -199,7 +200,11 @@ class Matrix(object):
         return self.div(self.rtp, self.rtp+self.fn)
 
     def div(self, n, d):
-        return 1.0 if d == 0 else n / float(d)
+        if d == 0:
+            log.warn('Strict p/r defaulting to zero score for zero denominator')
+            return 0.0
+        else:
+            return n / float(d)
 
     @property
     def fscore(self):
