@@ -59,7 +59,7 @@ def _parse_reference_coref_scorer(output):
                          section,
                          re.DOTALL | re.VERBOSE)
         r_num, r_den, p_num, p_den = map(float, match.groups())
-        stats = _prf(p_num, p_den, r_num, r_den)
+        stats = p_num, p_den, r_num, r_den
         if one_metric:
             return stats
         else:
@@ -93,15 +93,16 @@ def _cross_check(metric):
             return fn
 
         def wrapper(true, pred):
-            our_results = fn(true, pred)
-            ref_results = _run_reference_coref_scorer(true, pred, metric)
+            res = fn(true, pred)
+            our_results = _prf(*res)
+            ref_results = _prf(*_run_reference_coref_scorer(true, pred, metric))
             assert len(our_results) == len(ref_results) == 3
             for our_val, ref_val, name in zip(our_results, ref_results, 'PRF'):
                 if abs(our_val - ref_val) > 1e-3:
                     msg = 'Our {}={}; reference {}={}'.format(name, our_val,
                                                               name, ref_val)
                     raise AssertionError(msg)
-            return our_results
+            return res
         return wrapper
     return decorator
 
@@ -352,7 +353,7 @@ DEFAULT_CMATCH_SET = ALL_CMATCHES
 
 
 if REFERENCE_COREF_SCORER_PATH is not None:
-    if _run_reference_coref_scorer({}, {}).get('bcub') != (0., 0., 0.):
+    if _run_reference_coref_scorer({}, {}).get('bcub') != (0, 0, 0, 0):
         warnings.warn('Not using coreference metric debug mode:'
                       'The script is producing invalid output')
         REFERENCE_COREF_SCORER_PATH = None
