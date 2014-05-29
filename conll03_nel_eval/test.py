@@ -2,7 +2,7 @@
 from .document import Reader as AnnotationReader, ALL_LMATCHES
 from .data import Reader, Mention, Writer
 from .coref_metrics import mapping_to_sets, sets_to_mapping
-from .coref_metrics import CMATCH_SETS, TMP_CMATCHES, LUO_CMATCHES, _prf, muc
+from .coref_metrics import CMATCH_SETS, TMP_CMATCHES, LUO_CMATCHES, CAI_STRUBE_CMATCHES, _prf, muc
 from .evaluate import Evaluate
 from .formats import Unstitch, Stitch
 from .tac import PrepareTac
@@ -10,6 +10,8 @@ from .utils import normalise_link
 from io import BytesIO
 from pprint import pprint
 import os
+
+from nose.tools import assert_sequence_equal
 
 DIR = os.path.join(os.path.dirname(__file__))
 EXAMPLES = os.path.join(DIR, 'examples')
@@ -111,7 +113,12 @@ def test_normalisation():
 def check_correct(expected, actual):
     assert expected.viewkeys() == actual.viewkeys(), 'Different keys\nexpected\t{}\nactual\t{}'.format(sorted(expected.keys()), sorted(actual.keys()))
     for k in expected:
-        assert expected[k] == actual[k], 'Different on key "{}".\nexpected\t{}\nactual\t{}'.format(k, expected[k], actual[k])
+        exp = expected[k]
+        act = actual[k]
+        if hasattr(exp, '__iter__'):
+            assert_sequence_equal(exp, act, 'Different on key "{}".\nexpected\t{}\nactual\t{}'.format(k, exp, act))
+        else:
+            assert exp == act, 'Different on key "{}".\nexpected\t{}\nactual\t{}'.format(k, exp, act)
     return True
 
 # CLUSTER EVAL TESTS
@@ -191,6 +198,35 @@ def test_vilain_muc():
     "Examples from Vilain et al. (1995)"
     for key, response, expected in VILAIN95:
         assert _get_muc_prf(key, response) == expected
+
+
+CAI10_TABLES_4_5 = [
+    ({1: {'a', 'b', 'c'}},    # true
+     {2: {'a', 'b'}, 3: {'c'}, 4: {'i'}, 5: {'j'}},   # pred
+     {'cs_b_cubed': (1.0, 0.556, 0.714),  # Note paper says 0.715, but seems incorrect
+      'mention_cs_ceaf': (0.667, 0.667, 0.667)}),
+    ({1: {'a', 'b', 'c'}},
+     {2: {'a', 'b'}, 3: {'i', 'j'}, 4: {'c'}},
+     {'cs_b_cubed': (.8, .556, .656),
+      'mention_cs_ceaf': (.6, .667, .632)}),
+    ({1: {'a', 'b', 'c'}},
+     {2: {'a', 'b'}, 3: {'i', 'j'}, 4: {'k', 'l'}, 5: {'c'}},
+     {'cs_b_cubed': (.714, .556, .625),
+      'mention_cs_ceaf': (.571, .667, .615)}),
+    ({1: {'a', 'b', 'c'}},
+     {2: {'a', 'b'}, 3: {'i', 'j', 'k', 'l'}},
+     {'cs_b_cubed': (.571, .556, .563),
+      'mention_cs_ceaf': (.429, .667, .522)}),
+]
+
+
+def test_cai_strube_twinless_adjustment():
+    "Examples from Cai & Strube (SIGDIAL'10)"
+    for true, pred, expected in CAI10_TABLES_4_5:
+        actual = {f.__name__: tuple(round(x, 3) for x in _prf(*f(true, pred)))
+                  for f in CMATCH_SETS[CAI_STRUBE_CMATCHES]}
+        check_correct(expected, actual)
+
 
 # EVALUATE TESTS
 
