@@ -107,7 +107,7 @@ def _cross_check(metric):
     return decorator
 
 
-######## Data formats ########
+######## Utilities ########
 
 def mapping_to_sets(mapping):
     """
@@ -187,12 +187,59 @@ def _prf(p_num, p_den, r_num, r_den):
     r = r_num / r_den if r_den > 0 else 0.
     return p, r, _f1(p, r)
 
+
 def _to_matrix(p_num, p_den, r_num, r_den):
     ptp = p_num
     fp = p_den - p_num
     rtp = r_num
     fn = r_den - r_num
     return ptp, fp, rtp, fn
+
+
+def twinless_adjustment(true, pred):
+    """Adjusts predictions for differences in mentions
+
+    Following Cai and Strube's (SIGDIAL'10) `sys` variants on B-cubed and CEAF.
+    This produces a different true, pred pair for each of precision and recall
+    calculation.
+
+    Thus for precision:
+        * twinless true mentions -> pred singletons
+        * twinless pred singletons -> discard
+        * twinless pred non-singletons -> true singletons
+    For recall:
+        * twinless true -> pred singletons
+        * twinless pred -> discard
+
+    Returns : p_true, p_pred, r_true, r_pred
+    """
+    true_mapping = sets_to_mapping(true)
+    pred_mapping = sets_to_mapping(pred)
+
+    # common: twinless true -> pred singletons
+    twinless_true = set(true_mapping) - set(pred_mapping)
+    for i, mention in enumerate(twinless_true):
+        pred_mapping[mention] = ('twinless_true', i)
+
+    # recall: twinless pred -> discard
+    r_pred = mapping_to_sets({m: k
+                              for m, k in pred_mapping.items()
+                              if m in true_mapping})
+
+    # precision: twinless pred singletons -> discard; non-singletons -> true
+    for i, (m, k) in enumerate(list(pred_mapping.items())):
+        if m in true_mapping:
+            continue
+        if len(pred[k]) > 1:
+            true_mapping[m] = ('twinless_pred', i)
+        else:
+            del pred_mapping[m]
+
+    p_true = mapping_to_sets(true_mapping)
+    p_pred = mapping_to_sets(pred_mapping)
+
+    return p_true, p_pred, true, r_pred
+
 
 
 ######## Cluster comparison ########
@@ -232,6 +279,15 @@ def ceaf(true, pred, similarity=dice):
     return p_num, p_den, r_num, r_den
 
 
+def cs_ceaf(true, pred, similarity=dice):
+    """CEAF with twinless adjustment from Cai and Strube (2010)"""
+    p_true, p_pred, r_true, r_pred = twinless_adjustment(true, pred)
+    # XXX: there is probably a better way to do this
+    p_num, p_den, _, _ = ceaf(p_true, p_pred, similarity)
+    _, _, r_num, r_den = ceaf(r_true, r_pred, similarity)
+    return p_num, p_den, r_num, r_den
+
+
 @_cross_check('ceafm')
 def mention_ceaf(true, pred):
     "Luo (2005) phi_3"
@@ -244,7 +300,17 @@ def entity_ceaf(true, pred):
     return ceaf(true, pred, similarity=dice)
 
 
-def _b_cubed(A, B, A_mapping, B_mapping, EMPTY=frozenset([])):
+def mention_cs_ceaf(true, pred):
+    return cs_ceaf(true, pred, similarity=overlap)
+
+
+def entity_cs_ceaf(true, pred):
+    return cs_ceaf(true, pred, similarity=dice)
+
+
+def _b_cubed(A, B, EMPTY=frozenset([])):
+    A_mapping = sets_to_mapping(A)
+    B_mapping = sets_to_mapping(B)
     res = 0.
     for m, k in A_mapping.items():
         A_cluster = A.get(k, EMPTY)
@@ -260,10 +326,16 @@ def b_cubed(true, pred):
 
     TODO: tests
     """
-    true_mapping = sets_to_mapping(true)
-    pred_mapping = sets_to_mapping(pred)
-    p_num, p_den = _b_cubed(pred, true, pred_mapping, true_mapping)
-    r_num, r_den = _b_cubed(true, pred, true_mapping, pred_mapping)
+    p_num, p_den = _b_cubed(pred, true)
+    r_num, r_den = _b_cubed(true, pred)
+    return p_num, p_den, r_num, r_den
+
+
+def cs_b_cubed(true, pred):
+    """b_cubed with twinless adjustment from Cai and Strube (2010)"""
+    p_true, p_pred, r_true, r_pred = twinless_adjustment(true, pred)
+    p_num, p_den = _b_cubed(p_pred, p_true)
+    r_num, r_den = _b_cubed(r_true, r_pred)
     return p_num, p_den, r_num, r_den
 
 
@@ -317,6 +389,7 @@ def muc(true, pred):
 ALL_CMATCHES = 'all'
 MUC_CMATCHES = 'muc'
 LUO_CMATCHES = 'luo'
+CAI_STRUBE_CMATCHES = 'cai'
 TAC_CMATCHES = 'tac'
 TMP_CMATCHES = 'tmp'
 NO_CMATCHES = 'none'
@@ -327,6 +400,9 @@ CMATCH_SETS = {
         b_cubed,
         pairwise_f1,
         muc,
+        mention_cs_ceaf,
+        entity_cs_ceaf,
+        cs_b_cubed,
         ],
     MUC_CMATCHES: [
         muc,
@@ -337,6 +413,10 @@ CMATCH_SETS = {
         mention_ceaf,
         entity_ceaf,
         ],
+    CAI_STRUBE_CMATCHES: [
+        cs_b_cubed,
+        mention_cs_ceaf,
+    ],
     TAC_CMATCHES: [
         mention_ceaf,
         b_cubed,
