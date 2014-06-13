@@ -18,8 +18,10 @@ class LinkingError(namedtuple('Error', 'doc_id text gold system')):
             return 'extra'
         if self.system is MISSING:
             return 'missing'
+        if self.gold is None and self.system is None:
+            return 'correct nil'
         if self.gold == self.system:
-            return 'correct'
+            return 'correct link'
         if self.gold is None:
             return 'nil-as-link'
         if self.system is None:
@@ -48,11 +50,12 @@ class LinkingError(namedtuple('Error', 'doc_id text gold system')):
 
 class Analyze(object):
     """Analyze errors"""
-    def __init__(self, system, gold=None, unique=False, summary=False):
+    def __init__(self, system, gold=None, unique=False, summary=False, with_correct=False):
         self.system = system
         self.gold = gold
         self.unique = unique
         self.summary = summary
+        self.with_correct = with_correct
 
     def __call__(self):
         if self.unique:
@@ -80,7 +83,7 @@ class Analyze(object):
             assert g.doc_id == s.doc_id
             tp, fp, fn = g.strong_mention_match(s)
             for g_m, s_m in tp:
-                if g_m.link == s_m.link:
+                if g_m.link == s_m.link and not self.with_correct:
                     continue  # Correct case.
                 yield LinkingError(g.doc_id, g_m.text, g_m.link, s_m.link)
             for _, m in fp:
@@ -96,5 +99,7 @@ class Analyze(object):
                        help='Only consider unique errors')
         p.add_argument('-s', '--summary', action='store_true', default=False,
                        help='Output a summary rather than each instance')
+        p.add_argument('-c', '--with-correct', action='store_true', default=False,
+                       help='Output correct entries as well as errors')
         p.set_defaults(cls=cls)
         return p
