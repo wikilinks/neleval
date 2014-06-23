@@ -12,6 +12,7 @@ from .formats import Unstitch, Stitch, Tagme
 from .fetch_map import FetchMapping
 from .filter import FilterMentions
 from .rcv import ReutersCodes
+from .upload import Upload
 
 APPS = [
     Evaluate,
@@ -24,6 +25,7 @@ APPS = [
     Tagme,
     FetchMapping,
     ReutersCodes,
+    Upload,
 ]
 
 
