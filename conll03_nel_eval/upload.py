@@ -1,4 +1,5 @@
 """Tool to deposit a system output as a github pull request"""
+from __future__ import print_function
 
 import textwrap
 import tempfile
@@ -8,6 +9,8 @@ from subprocess import check_output, CalledProcessError
 import shutil
 import getpass
 import __builtin__
+
+from .formats import Unstitch
 
 if hasattr(__builtin__, 'raw_input'):
     # Py2k compatibility
@@ -114,6 +117,15 @@ class Upload(object):
         return out
         
     def __call__(self):
+        unstitch = Unstitch(self.output_path)
+        try:
+            unstitched_output = unstitch()
+        except Exception as e:
+            raise ValueError('The data is not in the correct format; '
+                             'it may not be stitched for evaluation. '
+                             '(Error was: {!r})'.format(e))
+
+
         repo = self.gh.repository(GITHUB_OWNER, GITHUB_REPO)
         log.info('Creating a personal fork of https://github.com/{}/{}'.format(GITHUB_OWNER, GITHUB_REPO))
         fork = repo.create_fork()
@@ -128,10 +140,12 @@ class Upload(object):
         check_output(git_args + ['checkout', GITHUB_BRANCH])
 
         log.info('Unstitching output and copying it and readme to working copy')
-        # TODO unstitch !!
+
         fmt_args = dict(name=self.system_name, mentions=MENTIONS_NAME[self.mentions], mapping=self.mapping_id)
         to_add = [os.path.join(root, REFERENCE_OUTPUT_FMT.format(**fmt_args))]
-        shutil.copyfile(self.output_path, to_add[-1])
+        
+        with open(to_add[-1], 'w') as fout:
+            print(unstitched_output, file=fout)
         to_add.append(os.path.join(root, REFERENCE_README_FMT.format(**fmt_args)))
         shutil.copyfile(self.readme_path, to_add[-1])
         # TODO evaluate !!
