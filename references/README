@@ -1,0 +1,24 @@
+This directory structure contains reference system outputs and evaluation
+results.
+
+It is divided based on the system evaluation setting:
+
+* system-mentions/ contains outputs where the system did not use any manual
+  mention annotations
+* gold-all-mentions/ contains outputs where the system was provided with manual
+  named entity annotation (CoNLL 2003 Shared Task ground truth, with or without
+  exploiting true type), with the task of disambiguating against a KB and the
+  "NIL" decision.
+* gold-linked-mentions/ contains outputs where the system was provided with
+  only those mentions that could be assigned a KB entity, without the issue of
+  NIL decision. (This is the task originally described in Hoffart et al
+  (EMNLP 2011), and given that their ground truth annotation is constrained by
+  the ability to retrieve entities by name within their KB, it is arguably the
+  most meaningful evaluation over that dataset as published.)
+
+System outputs/evaluations are also specified by the following features:
+* the particular system (e.g. publication and parameters)
+* the dataset (presently AIDA-YAGO's 2011 annotation over CoNLL 2003 ST's
+  testb portion)
+* mapping of output to a shared KB ID space (cf. the ``prepare`` command)
+* optionally, a filter over the output (cf. the ``filter`` command)
