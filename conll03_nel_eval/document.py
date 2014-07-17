@@ -81,7 +81,10 @@ class Document(object):
         self.annotations = annotations
 
     def __str__(self):
-        return u'\n'.join(str(a) for a in self.annotations)
+        return unicode(self)
+
+    def __unicode__(self):
+        return u'\n'.join(unicode(a) for a in self.annotations)
 
     # Accessing Spans.
     def _iter_mentions(self, link=True, nil=True):
@@ -189,6 +192,10 @@ def by_entity(annotations):
             d[a.eid] = {key}
     return d.iteritems()
 
+def by_mention(annotations):
+    return [("{}//{}..{}".format(a.docid, a.start, a.end), [a])
+            for a in annotations]
+
 
 # Reading annotations
 
@@ -203,10 +210,10 @@ class Reader(object):
         return self.read()
 
     def read(self):
-        for docid, annots in self.group(self.annotations()):
-            yield self.cls(docid, sorted(annots))
+        for groupid, annots in self.group(self.annotations()):
+            yield self.cls(groupid, sorted(annots))
 
     def annotations(self):
         "Yield Annotation objects"
         for line in self.fh:
-            yield Annotation.from_string(line.rstrip('\n'))
+            yield Annotation.from_string(line.rstrip('\n').decode(ENC))
