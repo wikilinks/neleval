@@ -89,7 +89,7 @@ class Evaluate(object):
         sclust = dict(by_entity((a for d in system for a in d.annotations)))
         gclust = dict(by_entity((a for d in gold for a in d.annotations)))
         for m in matches:
-            results[m.__name__] = Matrix.from_clust(gclust, sclust, m).results
+            results[m.__name__] = Matrix.from_clust(sclust, gclust, m).results
         return results
 
     @classmethod
