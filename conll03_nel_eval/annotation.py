@@ -9,11 +9,14 @@ class Annotation(object):
         self.candidates = candidates
 
     def __str__(self):
+        return unicode(self)
+
+    def __unicode__(self):
         return u'{}\t{}\t{}\t{}'.format(
             self.docid,
             self.start,
             self.end,
-            u'\t'.join([str(c) for c in self.candidates])
+            u'\t'.join([unicode(c) for c in self.candidates])
             )
 
     def __cmp__(self, other):
@@ -86,6 +89,9 @@ class Candidate(object):
         self.type = type
 
     def __str__(self):
+        return unicode(self)
+
+    def __unicode__(self):
         return u'{}\t{}\t{}'.format(self.id,
                                     self.score or '',
                                     self.type or '')
