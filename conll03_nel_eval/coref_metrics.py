@@ -9,6 +9,7 @@ import tempfile
 import warnings
 import time
 import sys
+import functools
 
 try:
     from scipy import sparse
@@ -101,6 +102,7 @@ def _cross_check(metric):
         if REFERENCE_COREF_SCORER_PATH is None:
             return fn
 
+        @functools.wraps(fn)
         def wrapper(true, pred):
             start = time.time()
             our_results = fn(true, pred)
@@ -110,8 +112,9 @@ def _cross_check(metric):
 
             for our_val, ref_val, name in zip(_prf(*our_results), ref_results, 'PRF'):
                 if abs(our_val - ref_val) > 1e-3:
-                    msg = 'Our {}={}; reference {}={}'.format(name, our_val,
-                                                              name, ref_val)
+                    msg = 'Our {} {}={}; reference {}={}'.format(metric,
+                                                                 name, our_val,
+                                                                 name, ref_val)
                     raise AssertionError(msg)
             return our_results
         return wrapper
