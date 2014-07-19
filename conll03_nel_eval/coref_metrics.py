@@ -10,6 +10,10 @@ import warnings
 import time
 import sys
 
+try:
+    from scipy import sparse
+except ImportError:
+    sparse = None
 import numpy as np
 
 from .munkres import linear_assignment
@@ -225,15 +229,51 @@ def overlap(a, b):
 ######## Coreference metrics ########
 
 
+class OptionalDependencyNote(Warning):
+    pass
+
+
+def _disjoint_max_assignment(similarities):
+    if sparse is None:
+        start = time.time()
+        indices = linear_assignment(-similarities)
+        runtime = time.time() - start
+        if runtime > 1:
+            warnings.warn('The assignment step in CEAF took a long time. '
+                          'We may be able to calculate it faster if you '
+                          'install scipy.', OptionalDependencyNote)
+        return similarities[indices[:, 0], indices[:, 1]].sum()
+
+    # form n*n adjacency matrix
+    where_true, where_pred = np.where(similarities)
+    where_pred = where_pred + similarities.shape[0]
+    n = sum(similarities.shape)
+    A = sparse.coo_matrix((np.ones(len(where_true)), (where_true, where_pred)),
+                          shape=(n, n))
+    n_components, components = sparse.csgraph.connected_components(A, directed=False)
+    total = 0
+    for i in range(n_components):
+        mask = components == i
+        component_true = np.flatnonzero(mask[:similarities.shape[0]])
+        component_pred = np.flatnonzero(mask[similarities.shape[0]:])
+        component_sim = similarities[component_true, :][:, component_pred]
+        if component_sim.shape == (1, 1):
+            total += component_sim[0, 0]
+        else:
+            indices = linear_assignment(-component_sim)
+            total += component_sim[indices[:, 0], indices[:, 1]].sum()
+    #assert total == similarities[tuple(linear_assignment(-similarities).T)].sum()
+    return total
+
+
 def ceaf(true, pred, similarity=dice):
     "Luo (2005). On coreference resolution performance metrics. In EMNLP."
     X = np.empty((len(true), len(pred)))
     pred = list(pred.values())
     for R, Xrow in zip(true.values(), X):
         Xrow[:] = [similarity(R, S) for S in pred]
-    indices = linear_assignment(-X)
 
-    p_num = r_num = sum(X[indices[:, 0], indices[:, 1]])
+    p_num = r_num = _disjoint_max_assignment(X)
     p_den = sum(similarity(R, R) for R in true.values())
     r_den = sum(similarity(S, S) for S in pred)
     return p_num, p_den, r_num, r_den
