@@ -106,7 +106,7 @@ def _cross_check(metric):
             our_results = fn(true, pred)
             our_time = time.time() - start
             #print('Ran our', metric, 'in ', our_time, file=sys.stderr)
-            ref_results = _prf(_run_reference_coref_scorer(true, pred, metric))
+            ref_results = _prf(*_run_reference_coref_scorer(true, pred, metric))
 
             for our_val, ref_val, name in zip(_prf(*our_results), ref_results, 'PRF'):
                 if abs(our_val - ref_val) > 1e-3:
