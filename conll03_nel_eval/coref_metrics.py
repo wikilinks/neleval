@@ -1,6 +1,5 @@
 from __future__ import division, print_function
 
-from functools import partial
 from collections import defaultdict
 import itertools
 import re
@@ -8,6 +7,8 @@ import os
 import subprocess
 import tempfile
 import warnings
+import time
+import sys
 
 import numpy as np
 
@@ -49,17 +50,17 @@ def _parse_reference_coref_scorer(output):
     for section in sections:
         match = re.match(r'''
                          .*
-                         Coreference:\s
+                         \s
                          Recall:\s
                          \(([^/]+)/([^)]+)\)
-                         .*
+                         .*?
                          Precision:\s
                          \(([^/]+)/([^)]+)\)
                          ''',
                          section,
                          re.DOTALL | re.VERBOSE)
         r_num, r_den, p_num, p_den = map(float, match.groups())
-        stats = _prf(p_num, p_den, r_num, r_den)
+        stats = p_num, p_den, r_num, r_den
         if one_metric:
             return stats
         else:
@@ -68,15 +69,19 @@ def _parse_reference_coref_scorer(output):
     return res
 
 
-def _run_reference_coref_scorer(true, pred, metric='all',
-                                script=REFERENCE_COREF_SCORER_PATH):
+def _run_reference_coref_scorer(true, pred, metric='all'):
     true_file = tempfile.NamedTemporaryFile(prefix='coreftrue', delete=False)
     pred_file = tempfile.NamedTemporaryFile(prefix='corefpred', delete=False)
     write_conll_coref(true, pred, true_file, pred_file)
     true_file.close()
     pred_file.close()
-    output = subprocess.check_output([script, metric, true_file.name,
+    start = time.time()
+    output = subprocess.check_output([REFERENCE_COREF_SCORER_PATH,
+                                      metric, true_file.name,
                                       pred_file.name])
+    their_time = time.time() - start
+    #print('Ran perl scorer', metric, 'in ', their_time, file=sys.stderr)
+    #print(output[-400:], file=sys.stderr)
     os.unlink(true_file.name)
     os.unlink(pred_file.name)
     return _parse_reference_coref_scorer(output)
@@ -93,10 +98,14 @@ def _cross_check(metric):
             return fn
 
         def wrapper(true, pred):
+            start = time.time()
             our_results = fn(true, pred)
+            our_time = time.time() - start
+            #print('Ran our', metric, 'in ', our_time, file=sys.stderr)
             ref_results = _run_reference_coref_scorer(true, pred, metric)
-            assert len(our_results) == len(ref_results) == 3
-            for our_val, ref_val, name in zip(our_results, ref_results, 'PRF'):
+
+            assert len(our_results) == len(ref_results) == 4
+            for our_val, ref_val, name in zip(our_results, ref_results, ('p num', 'p den', 'r num', 'r den')):
                 if abs(our_val - ref_val) > 1e-3:
                     msg = 'Our {}={}; reference {}={}'.format(name, our_val,
                                                               name, ref_val)
@@ -352,7 +361,7 @@ DEFAULT_CMATCH_SET = ALL_CMATCHES
 
 
 if REFERENCE_COREF_SCORER_PATH is not None:
-    if _run_reference_coref_scorer({}, {}).get('bcub') != (0., 0., 0.):
+    if _run_reference_coref_scorer({}, {}).get('bcub') != (0., 0., 0., 0.):
         warnings.warn('Not using coreference metric debug mode:'
                       'The script is producing invalid output')
         REFERENCE_COREF_SCORER_PATH = None

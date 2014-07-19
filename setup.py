@@ -4,11 +4,14 @@ setup(name='conll03_nel_eval',
       description='Evaluation utilities for the CoNLL03 Named Entity Linking corpus',
       packages=['conll03_nel_eval'],
       url='https://github.com/benhachey/conll03_nel_eval',
-      entry_points = {
-        'console_scripts': [
-            'cne = conll03_nel_eval.__main__:main',
-        ],
+      entry_points={
+          'console_scripts': [
+              'cne = conll03_nel_eval.__main__:main',
+          ],
       },
+      install_requires=[
+          'numpy',
+      ],
       extras_require={
           'significance': [
             'joblib',
