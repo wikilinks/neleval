@@ -277,8 +277,8 @@ def ceaf(true, pred, similarity=dice):
         Xrow[:] = [similarity(R, S) for S in pred]
 
     p_num = r_num = _disjoint_max_assignment(X)
-    p_den = sum(similarity(R, R) for R in true.values())
-    r_den = sum(similarity(S, S) for S in pred)
+    r_den = sum(similarity(R, R) for R in true.values())
+    p_den = sum(similarity(S, S) for S in pred)
     return p_num, p_den, r_num, r_den
 
 
