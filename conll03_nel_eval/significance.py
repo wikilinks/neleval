@@ -14,7 +14,8 @@ try:
 except ImportError:
     Parallel = delayed = cpu_count = None
 
-from data import MATCHES, Reader
+#from data import MATCHES, Reader
+from document import Reader, LMATCH_SETS, DEFAULT_LMATCH_SET
 from evaluate import Evaluate, Matrix
 
 def tab_format(data, metrics=['precision', 'recall', 'fscore']):
@@ -115,7 +116,8 @@ class Significance(object):
                }
 
     def __init__(self, systems, gold, trials=10000, method='permute',
-                 n_jobs=1, metrics=['precision', 'recall', 'fscore'], fmt='json'):
+                 n_jobs=1, metrics=['precision', 'recall', 'fscore'],
+                 fmt='json', lmatches=DEFAULT_LMATCH_SET):
         if len(systems) < 2:
             raise ValueError('Require at least two systems to compare')
         if method not in self.METHODS:
@@ -128,15 +130,19 @@ class Significance(object):
         self.method = method
         self.trials = trials
         self.n_jobs = n_jobs
+        self.lmatches = LMATCH_SETS[lmatches]
         self.metrics = metrics
         self.fmt = FMTS[fmt] if fmt is not callable else fmt
 
     def __call__(self):
         all_counts = defaultdict(dict)
-        gold = sorted(Reader(open(self.gold)))
+        #gold = sorted(Reader(open(self.gold)))
+        gold = list(Reader(open(self.gold)))
         for path in self.systems:
-            system = sorted(Reader(open(path)))
-            for match, per_doc, overall in Evaluate.count_all(system, gold):
+            #system = sorted(Reader(open(path)))
+            system = list(Reader(open(path)))
+            doc_pairs = list(Evaluate.iter_pairs(system, gold))
+            for match, per_doc, overall in Evaluate.count_all(doc_pairs, self.lmatches):
                 all_counts[match][path] = (per_doc, overall)
 
         results = [{'sys1': sys1, 'sys2': sys2,
@@ -144,7 +150,7 @@ class Significance(object):
                     'stats': self.significance(match_counts[sys1], match_counts[sys2])}
                    for sys1, sys2 in itertools.combinations(self.systems, 2)
                    for match, match_counts in sorted(all_counts.iteritems(),
-                                                     key=lambda (k, v): MATCHES.index(k))]
+                                                     key=lambda (k, v): self.lmatches.index(k))]
 
         return self.fmt(results, self.metrics)
 
@@ -187,5 +193,7 @@ class Significance(object):
         p.add_argument('-f', '--fmt', default=json_format, choices=FMTS.keys())
         p.add_argument('--metrics', default='precision recall fscore'.split(),
                        type=lambda x: x.split(','), help='Test significance for which metrics (default: precision,recall,fscore)')
+        p.add_argument('-l', '--lmatches', default=DEFAULT_LMATCH_SET,
+                       choices=LMATCH_SETS.keys())
         p.set_defaults(cls=cls)
         return p
