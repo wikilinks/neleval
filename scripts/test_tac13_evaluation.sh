@@ -15,12 +15,14 @@ sysdir=$1; shift  # directory containing output from systems
 scodir=$1; shift # directory containing official scores
 outdir=$1; shift # directory to which results are written
 
+SCR=`dirname $0`
+
 SCOFN="tac_2013_kbp_english_entity_linking_evaluation_KB_links.tab.scores"
+JOBS=8 # number of jobs for parallel mode
 
 
 # CALCULATE 2013 SCORES
-scr=`dirname $0`
-$scr/run_tac13_evaluation.sh $goldx $goldt $sysdir $outdir
+$SCR/run_tac13_evaluation.sh $goldx $goldt $sysdir $outdir $JOBS
 report=$outdir/00report.tab
 if [ ! -e $report ]
 then
@@ -59,3 +61,4 @@ fi
 
 
 echo "..done."
+#  LocalWords:  dirname
