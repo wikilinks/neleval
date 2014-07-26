@@ -47,11 +47,12 @@ class Evaluate(object):
         self.cmatches = CMATCH_SETS[cmatches]
         self.format = getattr(self, fmt)
         if len(self.lmatches) > 0: # clust eval only
-            self.doc_pairs = list(self.iter_pairs())
+            self.doc_pairs = list(self.iter_pairs(self.system, self.gold))
 
-    def iter_pairs(self):
-        sdocs = {d.id:d for d in self.system}
-        gdocs = {d.id:d for d in self.gold}
+    @classmethod
+    def iter_pairs(self, system, gold):
+        sdocs = {d.id:d for d in system}
+        gdocs = {d.id:d for d in gold}
         for docid in set(sdocs.keys()).union(gdocs.keys()):
             sdoc = sdocs.get(docid) or Document(docid, [])
             gdoc = gdocs.get(docid) or Document(docid, [])
@@ -89,7 +90,7 @@ class Evaluate(object):
         sclust = dict(by_entity((a for d in system for a in d.annotations)))
         gclust = dict(by_entity((a for d in gold for a in d.annotations)))
         for m in matches:
-            results[m.__name__] = Matrix.from_clust(gclust, sclust, m).results
+            results[m.__name__] = Matrix.from_clust(sclust, gclust, m).results
         return results
 
     @classmethod

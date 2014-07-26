@@ -1,6 +1,5 @@
 from __future__ import division, print_function
 
-from functools import partial
 from collections import defaultdict
 import itertools
 import operator
@@ -9,7 +8,14 @@ import os
 import subprocess
 import tempfile
 import warnings
+import time
+import sys
+import functools
 
+try:
+    from scipy import sparse
+except ImportError:
+    sparse = None
 import numpy as np
 
 from .munkres import linear_assignment
@@ -50,10 +56,10 @@ def _parse_reference_coref_scorer(output):
     for section in sections:
         match = re.match(r'''
                          .*
-                         Coreference:\s
+                         \s
                          Recall:\s
                          \(([^/]+)/([^)]+)\)
-                         .*
+                         .*?
                          Precision:\s
                          \(([^/]+)/([^)]+)\)
                          ''',
@@ -69,15 +75,19 @@ def _parse_reference_coref_scorer(output):
     return res
 
 
-def _run_reference_coref_scorer(true, pred, metric='all',
-                                script=REFERENCE_COREF_SCORER_PATH):
+def _run_reference_coref_scorer(true, pred, metric='all'):
     true_file = tempfile.NamedTemporaryFile(prefix='coreftrue', delete=False)
     pred_file = tempfile.NamedTemporaryFile(prefix='corefpred', delete=False)
     write_conll_coref(true, pred, true_file, pred_file)
     true_file.close()
     pred_file.close()
-    output = subprocess.check_output([script, metric, true_file.name,
+    start = time.time()
+    output = subprocess.check_output([REFERENCE_COREF_SCORER_PATH,
+                                      metric, true_file.name,
                                       pred_file.name])
+    their_time = time.time() - start
+    #print('Ran perl scorer', metric, 'in ', their_time, file=sys.stderr)
+    #print(output[-400:], file=sys.stderr)
     os.unlink(true_file.name)
     os.unlink(pred_file.name)
     return _parse_reference_coref_scorer(output)
@@ -93,15 +103,19 @@ def _cross_check(metric):
         if REFERENCE_COREF_SCORER_PATH is None:
             return fn
 
+        @functools.wraps(fn)
         def wrapper(true, pred):
-            res = fn(true, pred)
-            our_results = _prf(*res)
+            start = time.time()
+            our_results = fn(true, pred)
+            our_time = time.time() - start
+            #print('Ran our', metric, 'in ', our_time, file=sys.stderr)
             ref_results = _prf(*_run_reference_coref_scorer(true, pred, metric))
-            assert len(our_results) == len(ref_results) == 3
-            for our_val, ref_val, name in zip(our_results, ref_results, 'PRF'):
+
+            for our_val, ref_val, name in zip(_prf(*our_results), ref_results, 'PRF'):
                 if abs(our_val - ref_val) > 1e-3:
-                    msg = 'Our {}={}; reference {}={}'.format(name, our_val,
-                                                              name, ref_val)
+                    msg = 'Our {} {}={}; reference {}={}'.format(metric,
+                                                                 name, our_val,
+                                                                 name, ref_val)
                     raise AssertionError(msg)
             return res
         return wrapper
@@ -275,17 +289,53 @@ def overlap(a, b):
 ######## Coreference metrics ########
 
 
+class OptionalDependencyNote(Warning):
+    pass
+
+
+def _disjoint_max_assignment(similarities):
+    if sparse is None:
+        start = time.time()
+        indices = linear_assignment(-similarities)
+        runtime = time.time() - start
+        if runtime > 1:
+            warnings.warn('The assignment step in CEAF took a long time. '
+                          'We may be able to calculate it faster if you '
+                          'install scipy.', OptionalDependencyNote)
+        return similarities[indices[:, 0], indices[:, 1]].sum()
+
+    # form n*n adjacency matrix
+    where_true, where_pred = np.where(similarities)
+    where_pred = where_pred + similarities.shape[0]
+    n = sum(similarities.shape)
+    A = sparse.coo_matrix((np.ones(len(where_true)), (where_true, where_pred)),
+                          shape=(n, n))
+    n_components, components = sparse.csgraph.connected_components(A, directed=False)
+    total = 0
+    for i in range(n_components):
+        mask = components == i
+        component_true = np.flatnonzero(mask[:similarities.shape[0]])
+        component_pred = np.flatnonzero(mask[similarities.shape[0]:])
+        component_sim = similarities[component_true, :][:, component_pred]
+        if component_sim.shape == (1, 1):
+            total += component_sim[0, 0]
+        else:
+            indices = linear_assignment(-component_sim)
+            total += component_sim[indices[:, 0], indices[:, 1]].sum()
+    #assert total == similarities[tuple(linear_assignment(-similarities).T)].sum()
+    return total
+
+
 def ceaf(true, pred, similarity=dice):
     "Luo (2005). On coreference resolution performance metrics. In EMNLP."
     X = np.empty((len(true), len(pred)))
     pred = list(pred.values())
     for R, Xrow in zip(true.values(), X):
         Xrow[:] = [similarity(R, S) for S in pred]
-    indices = linear_assignment(-X)
 
-    p_num = r_num = sum(X[indices[:, 0], indices[:, 1]])
-    p_den = sum(similarity(R, R) for R in true.values())
-    r_den = sum(similarity(S, S) for S in pred)
+    p_num = r_num = _disjoint_max_assignment(X)
+    r_den = sum(similarity(R, R) for R in true.values())
+    p_den = sum(similarity(S, S) for S in pred)
     return p_num, p_den, r_num, r_den
 
 
@@ -443,7 +493,7 @@ DEFAULT_CMATCH_SET = ALL_CMATCHES
 
 
 if REFERENCE_COREF_SCORER_PATH is not None:
-    if _run_reference_coref_scorer({}, {}).get('bcub') != (0, 0, 0, 0):
+    if _run_reference_coref_scorer({}, {}).get('bcub') != (0., 0., 0., 0.):
         warnings.warn('Not using coreference metric debug mode:'
                       'The script is producing invalid output')
         REFERENCE_COREF_SCORER_PATH = None
