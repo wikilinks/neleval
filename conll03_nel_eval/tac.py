@@ -1,8 +1,11 @@
 #!/usr/bin/env python
 from .annotation import Annotation, Candidate
 from .data import ENC
+from .utils import normalise_link
 from collections import defaultdict
 from xml.etree.cElementTree import iterparse
+
+# TODO add reader for TAC before 2014
 
 # query xml element and attribute names
 QUERY_ELEM = 'query'
@@ -14,17 +17,19 @@ NAME_ELEM  = 'name'
 
 class PrepareTac(object):
     "Convert TAC output format for evaluation"
-    def __init__(self, system, queries):
+    def __init__(self, system, queries, mapping=None):
         self.system = system # TAC links file
         self.queries = queries # TAC queries/mentions file
+        self.mapping = self.read_mapping(mapping)
 
     def __call__(self):
-        return '\n'.join(str(a) for a in self.annotations()).encode(ENC)
+        return u'\n'.join(unicode(a) for a in self.annotations()).encode(ENC)
 
     @classmethod
     def add_arguments(cls, p):
         p.add_argument('system', metavar='FILE', help='link annotations')
         p.add_argument('-q', '--queries', help='mention annotations')
+        p.add_argument('-m', '--mapping', help='mapping for titles')
         p.set_defaults(cls=cls)
         return p
 
@@ -32,7 +37,29 @@ class PrepareTac(object):
         "Return list of annotation objects"
         r = TacReader(self.system, self.queries)
         for qid, docid, start, end, name, candidates in r:
-            yield Annotation(docid, start, end, candidates)
+            mapped = list(self.map(candidates))
+            yield Annotation(docid, start, end, mapped)
+
+    def map(self, candidates):
+        for c in candidates:
+            kbid = normalise_link(c.id)
+            if self.mapping:
+                c.id = self.mapping.get(kbid, kbid)
+            yield c
+
+    def read_mapping(self, mapping):
+        if not mapping:
+            return None
+        redirects = {}
+        with open(mapping) as f:
+            for l in f:
+                bits = l.decode('utf8').rstrip().split('\t')
+                title = bits[0].replace(' ', '_')
+                for r in bits[1:]:
+                    r = r.replace(' ', '_')
+                    redirects[r] = title
+                redirects[title] = title
+        return redirects
 
 class TacReader(object):
     def __init__(self, links_file, queries_file):
@@ -49,7 +76,7 @@ class TacReader(object):
         "Return {qid: [(score, kbid, type)]} dictionary"
         d = defaultdict(list)
         for line in open(self.links_file):
-            cols = line.strip().split('\t')
+            cols = line.decode(ENC).strip().split('\t')
             if len(cols) < 3:
                 continue
             qid, kbid, type = cols[:3]
