@@ -3,6 +3,7 @@ from __future__ import division, print_function
 from functools import partial
 from collections import defaultdict
 import itertools
+import operator
 import re
 import os
 import subprocess
@@ -132,26 +133,35 @@ def read_conll_coref(f):
     res = defaultdict(set)
     # TODO: handle annotations over document boundary
     i = 0
-    opened = {}
+    stack = []
     for l in f:
         if l.startswith('#'):
             continue
         l = l.split()
         if not l:
-            assert not opened
+            assert not stack
             continue
 
         i += 1
         tag = l[-1]
 
+        closed_here = []
         for match in re.finditer(r'\(?[0-9]+\)?', tag):
             match = match.group()
             cid = match.strip('()')
             if match.startswith('('):
-                assert cid not in opened
-                opened[cid] = i
+                stack.append((cid, i))
             if match.endswith(')'):
-                res[cid].add((opened.pop(cid), i))
+                start_cid, start = stack.pop()
+                assert start_cid == cid
+                closed_here.append((cid, start))
+
+        # keep only one mention of those with identical spans
+        for _, mentions in itertools.groupby(closed_here,
+                                             operator.itemgetter(1)):
+            cid, start = list(mentions)[-1]  # keep the outermost
+            res[cid].add((start, i))
+
     return dict(res)
 
 
