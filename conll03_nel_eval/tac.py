@@ -28,7 +28,7 @@ class PrepareTac(object):
     @classmethod
     def add_arguments(cls, p):
         p.add_argument('system', metavar='FILE', help='link annotations')
-        p.add_argument('-q', '--queries', help='mention annotations')
+        p.add_argument('-q', '--queries', required=True, help='mention annotations')
         p.add_argument('-m', '--mapping', help='mapping for titles')
         p.set_defaults(cls=cls)
         return p
