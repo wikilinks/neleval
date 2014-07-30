@@ -1,7 +1,11 @@
-conll03_nel_eval
-================
+neleval
+=======
 
-Python evaluation scripts for [AIDA-formatted CoNLL NER data](https://github.com/wikilinks/conll03_nel_eval/wiki/Data%20set)
+Evaluation and error analysis tool for Named Entity Linking / Named Entity Disambiguation / Wikification / Cross-document Coreference Resolution.
+
+
+This repository is currently being reworked.
+
 
 Quickstart
 ==========
