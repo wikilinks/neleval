@@ -120,7 +120,7 @@ def _cross_check(metric):
                                                                  name, our_val,
                                                                  name, ref_val)
                     raise AssertionError(msg)
-            return res
+            return our_results
         return wrapper
     return decorator
 
