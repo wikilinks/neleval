@@ -6,7 +6,7 @@ Python evaluation scripts for [TAC](http://www.nist.gov/tac/) and [CoNLL-YAGO](h
 TAC13 quickstart
 ================
 
-Assumes that `python` is installed on your system with `numpy` (and preferably `scipy` for fast CEAF calculation) and `joblib`.
+Assumes that `python` (2.7, with Py3k support soon) is installed on your system with `numpy` (and preferably `scipy` for fast CEAF calculation) and `joblib`.
 
 ```Shell
 git clone https://github.com/wikilinks/neleval
