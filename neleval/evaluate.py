@@ -6,8 +6,14 @@ from .coref_metrics import CMATCH_SETS, DEFAULT_CMATCH_SET, _to_matrix
 from .document import Document, Reader
 from .document import LMATCH_SETS, DEFAULT_LMATCH_SET
 from .document import by_entity
-from .utils import log
+from .utils import log, bind
+import warnings
 import json
+
+
+class StrictMetricWarning(Warning):
+    pass
+
 
 METRICS = [
     'ptp',
@@ -19,13 +25,6 @@ METRICS = [
     'fscore',
 ]
 
-FMTS = [
-    'tab_format',
-    'json_format',
-    'no_format',
-]
-DEFAULT_FMT = 'tab_format'
-
 
 class Evaluate(object):
     'Evaluate system output'
@@ -33,7 +32,7 @@ class Evaluate(object):
     def __init__(self, system, gold=None,
                  lmatches=DEFAULT_LMATCH_SET,
                  cmatches=DEFAULT_CMATCH_SET,
-                 fmt=DEFAULT_FMT):
+                 fmt='tab'):
         """
         system - system output
         gold - gold standard
@@ -45,14 +44,14 @@ class Evaluate(object):
         self.gold = list(Reader(open(gold)))
         self.lmatches = LMATCH_SETS[lmatches]
         self.cmatches = CMATCH_SETS[cmatches]
-        self.format = getattr(self, fmt)
-        if len(self.lmatches) > 0: # clust eval only
+        self.format = bind(self.FMTS[fmt] if fmt is not callable else fmt, self)
+        if len(self.lmatches) > 0:  # clust eval only
             self.doc_pairs = list(self.iter_pairs(self.system, self.gold))
 
     @classmethod
     def iter_pairs(self, system, gold):
-        sdocs = {d.id:d for d in system}
-        gdocs = {d.id:d for d in gold}
+        sdocs = {d.id: d for d in system}
+        gdocs = {d.id: d for d in gold}
         for docid in set(sdocs.keys()).union(gdocs.keys()):
             sdoc = sdocs.get(docid) or Document(docid, [])
             gdoc = gdocs.get(docid) or Document(docid, [])
@@ -69,7 +68,7 @@ class Evaluate(object):
     def add_arguments(cls, p):
         p.add_argument('system', metavar='FILE')
         p.add_argument('-g', '--gold')
-        p.add_argument('-f', '--fmt', default=DEFAULT_FMT)
+        p.add_argument('-f', '--fmt', default='tab', choices=cls.FMTS.keys())
         p.add_argument('-l', '--lmatches', default=DEFAULT_LMATCH_SET,
                        choices=LMATCH_SETS.keys())
         p.add_argument('-c', '--cmatches', default=DEFAULT_CMATCH_SET,
@@ -135,6 +134,13 @@ class Evaluate(object):
 
     def no_format(self):
         return self.results
+
+    FMTS = {
+        'tab': tab_format,
+        'json': json_format,
+        'none': no_format,
+    }
+
 
 
 class Matrix(object):
@@ -208,7 +214,8 @@ class Matrix(object):
 
     def div(self, n, d):
         if d == 0:
-            log.warn('Strict p/r defaulting to zero score for zero denominator')
+            warnings.warn('Strict P/R defaulting to zero score for zero denominator',
+                          StrictMetricWarning)
             return 0.0
         else:
             return n / float(d)
