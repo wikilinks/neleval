@@ -11,6 +11,7 @@ import warnings
 import time
 import sys
 import functools
+import array
 
 try:
     from scipy import sparse
@@ -22,6 +23,13 @@ try:
     from .munkres import linear_assignment
 except ImportError:
     np = None
+
+try:   # Py3k
+    range = xrange
+    zip = itertools.izip
+    values = dict.itervalues
+except NameError:
+    values = dict.values
 
 
 # TODO: Blanc and standard clustering metrics (e.g. http://scikit-learn.org/stable/modules/clustering.html)
@@ -186,8 +194,8 @@ def write_conll_coref(true, pred, true_file, pred_file):
     """Artificially aligns mentions as CoNLL coreference data
     """
     # relabel clusters
-    true = {'({})'.format(i + 1): s for i, s in enumerate(true.values())}
-    pred = {'({})'.format(i + 1): s for i, s in enumerate(pred.values())}
+    true = {'({})'.format(i + 1): s for i, s in enumerate(values(true))}
+    pred = {'({})'.format(i + 1): s for i, s in enumerate(values(pred))}
     # make lookups
     true_mapping = sets_to_mapping(true)
     pred_mapping = sets_to_mapping(pred)
@@ -268,6 +276,35 @@ def twinless_adjustment(true, pred):
     return p_true, p_pred, true, r_pred
 
 
+def sets_to_matrices(true, pred):
+    if sparse is None:
+        raise RuntimeError('Cannot vectorize without scipy')
+    # TODO: perhaps cache vectorized `true`
+    vocabulary = []
+    true_indptr = array.array('i', [0])
+    for true_cluster in values(true):
+        vocabulary.extend(true_cluster)
+        true_indptr.append(len(vocabulary))
+    n_true = true_indptr[-1]
+
+    vocabulary = defaultdict(None, zip(vocabulary, range(n_true)))
+    vocabulary.default_factory = vocabulary.__len__
+    pred_indptr = array.array('i', [0])
+    pred_indices = array.array('i')
+    for pred_cluster in values(pred):
+        for item in pred_cluster:
+            pred_indices.append(vocabulary[item])
+        pred_indptr.append(len(pred_indices))
+
+    true_indices = np.arange(n_true)
+    true_data = np.ones(n_true, dtype=int)
+    true_matrix = sparse.csr_matrix((true_data, true_indices, true_indptr),
+                                    shape=(len(true), len(vocabulary)))
+    pred_data = np.ones(len(pred_indices), dtype=int)
+    pred_matrix = sparse.csr_matrix((pred_data, pred_indices, pred_indptr),
+                                    shape=(len(pred), len(vocabulary)))
+    return true_matrix, pred_matrix, vocabulary
+
 
 ######## Cluster comparison ########
 
@@ -281,12 +318,36 @@ def dice(a, b):
     return 0.
 
 
+def _vectorized_dice(true_matrix, pred_matrix):
+    overlap = _vectorized_overlap(true_matrix, pred_matrix).astype(float)
+
+    # The following should be no-ops
+    assert overlap.format == true_matrix.format == pred_matrix.format == 'csr'
+
+    true_sizes = np.diff(true_matrix.indptr)
+    pred_sizes = np.diff(pred_matrix.indptr)
+
+    denom = np.repeat(true_sizes, np.diff(overlap.indptr))
+    denom += pred_sizes.take(overlap.indices)
+    overlap.data /= denom
+
+    return overlap
+
+dice.vectorized = _vectorized_dice
+
+
 def overlap(a, b):
     """Intersection of sets
 
     "Mention-based" measure in CoNLL; #3 in CEAF paper
     """
     return len(a & b)
+
+
+def _vectorized_overlap(true_matrix, pred_matrix):
+    return true_matrix * pred_matrix.T
+
+overlap.vectorized = _vectorized_overlap
 
 
 ######## Coreference metrics ########
@@ -308,12 +369,16 @@ def _disjoint_max_assignment(similarities):
         return similarities[indices[:, 0], indices[:, 1]].sum()
 
     # form n*n adjacency matrix
-    where_true, where_pred = np.where(similarities)
+    where_true, where_pred = similarities.nonzero()
     where_pred = where_pred + similarities.shape[0]
     n = sum(similarities.shape)
     A = sparse.coo_matrix((np.ones(len(where_true)), (where_true, where_pred)),
                           shape=(n, n))
     n_components, components = sparse.csgraph.connected_components(A, directed=False)
+
+    if hasattr(similarities, 'toarray'):
+        # faster to work in dense
+        similarities = similarities.toarray()
     total = 0
     for i in range(n_components):
         mask = components == i
@@ -335,14 +400,23 @@ def ceaf(true, pred, similarity=dice):
         warnings.warn('numpy is required to calculate CEAF. '
                       'Returning 0', OptionalDependencyWarning)
         return 0, 0, 0, 0
-    X = np.empty((len(true), len(pred)))
-    pred = list(pred.values())
-    for R, Xrow in zip(true.values(), X):
-        Xrow[:] = [similarity(R, S) for S in pred]
 
-    p_num = r_num = _disjoint_max_assignment(X)
-    r_den = sum(similarity(R, R) for R in true.values())
-    p_den = sum(similarity(S, S) for S in pred)
+    if sparse is None or not hasattr(similarity, 'vectorized'):
+        X = np.empty((len(true), len(pred)))
+        pred = list(values(pred))
+        for R, Xrow in zip(values(true), X):
+            Xrow[:] = [similarity(R, S) for S in pred]
+
+        p_num = r_num = _disjoint_max_assignment(X)
+        r_den = sum(similarity(R, R) for R in values(true))
+        p_den = sum(similarity(S, S) for S in pred)
+    else:
+        true, pred, _ = sets_to_matrices(true, pred)
+        X = similarity.vectorized(true, pred)
+        p_num = r_num = _disjoint_max_assignment(X)
+        r_den = similarity.vectorized(true, true).sum()
+        p_den = similarity.vectorized(pred, pred).sum()
+
     return p_num, p_den, r_num, r_den
 
 
@@ -420,7 +494,7 @@ def _pairwise_f1(true, pred):
 
 def pairwise_f1(true, pred):
     "Return p_num, p_den, r_num, r_den over item pairs."
-    return _pairwise_f1(_pairs(true.values()), _pairs(pred.values()))
+    return _pairwise_f1(_pairs(values(true)), _pairs(values(pred)))
 
 
 def _vilain(A, B_mapping):
