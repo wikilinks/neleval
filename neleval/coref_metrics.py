@@ -16,9 +16,12 @@ try:
     from scipy import sparse
 except ImportError:
     sparse = None
-import numpy as np
 
-from .munkres import linear_assignment
+try:
+    import numpy as np
+    from .munkres import linear_assignment
+except ImportError:
+    np = None
 
 
 # TODO: Blanc and standard clustering metrics (e.g. http://scikit-learn.org/stable/modules/clustering.html)
@@ -117,7 +120,7 @@ def _cross_check(metric):
                                                                  name, our_val,
                                                                  name, ref_val)
                     raise AssertionError(msg)
-            return res
+            return our_results
         return wrapper
     return decorator
 
@@ -289,7 +292,7 @@ def overlap(a, b):
 ######## Coreference metrics ########
 
 
-class OptionalDependencyNote(Warning):
+class OptionalDependencyWarning(Warning):
     pass
 
 
@@ -301,7 +304,7 @@ def _disjoint_max_assignment(similarities):
         if runtime > 1:
             warnings.warn('The assignment step in CEAF took a long time. '
                           'We may be able to calculate it faster if you '
-                          'install scipy.', OptionalDependencyNote)
+                          'install scipy.', OptionalDependencyWarning)
         return similarities[indices[:, 0], indices[:, 1]].sum()
 
     # form n*n adjacency matrix
@@ -328,6 +331,10 @@ def _disjoint_max_assignment(similarities):
 
 def ceaf(true, pred, similarity=dice):
     "Luo (2005). On coreference resolution performance metrics. In EMNLP."
+    if np is None:
+        warnings.warn('numpy is required to calculate CEAF. '
+                      'Returning 0', OptionalDependencyWarning)
+        return 0, 0, 0, 0
     X = np.empty((len(true), len(pred)))
     pred = list(pred.values())
     for R, Xrow in zip(true.values(), X):

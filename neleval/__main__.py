@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+from __future__ import print_function
+
 import argparse
 import textwrap
 import re
@@ -50,7 +52,7 @@ def main(args=sys.argv[1:]):
         obj = cls(**namespace)
     except ValueError as e:
         p.error(e.message)
-    print obj()
+    print(obj())
 
 if __name__ == '__main__':
     main()

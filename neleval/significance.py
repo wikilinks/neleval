@@ -7,6 +7,7 @@ import random
 import operator
 import functools
 import json
+from .utils import bind
 
 # Attempt to import joblib, but don't fail.
 try:
@@ -18,39 +19,13 @@ except ImportError:
 from document import Reader, LMATCH_SETS, DEFAULT_LMATCH_SET
 from evaluate import Evaluate, Matrix
 
-def tab_format(data, metrics=['precision', 'recall', 'fscore']):
-    rows = []
-    for row in data:
-        stats = row['stats']
-        rows.append([row['sys1'], row['sys2'], row['match'],]
-                    + sum(([stats[metric]['diff'], stats[metric]['p']] for metric in metrics), []))
-    header = ['sys1', 'sys2', 'match'] + sum(([u'Δ-' + metric[:6], 'p-' + metric[:6]] for metric in metrics), [])
 
-    sys_width = max(len(col) for row in rows for col in row[:2])
-    sys_width = max(sys_width, 4)
-    match_width = max(len(row[2]) for row in rows)
-    match_width = max(match_width, 5)
-
-    fmt = (u'{:%ds}\t{:%ds}\t{:%ds}' % (sys_width, sys_width, match_width))
-    ret = (fmt + u'\t{}' * len(metrics) * 2).format(*header)
-    fmt += u''.join(u'\t{:+8.3f}\t{:8.3f}' for metric in metrics)
-    ret += u''.join(u'\n' + fmt.format(*row) for row in rows)
-    return ret.encode('utf-8')
-
-
-def json_format(data, metrics):
+def json_format(data):
     return json.dumps(data)
 
 
-def no_format(data, metrics):
+def no_format(data):
     return data
-
-
-FMTS = {
-    'tab': tab_format,
-    'json': json_format,
-    'no_format': no_format,
-}
 
 
 def sum(it, start=0):
@@ -126,7 +101,7 @@ class Significance(object):
 
     def __init__(self, systems, gold, trials=10000, method='permute',
                  n_jobs=1, metrics=['precision', 'recall', 'fscore'],
-                 fmt='json', lmatches=DEFAULT_LMATCH_SET):
+                 fmt='tab', lmatches=DEFAULT_LMATCH_SET):
         if len(systems) < 2:
             raise ValueError('Require at least two systems to compare')
         if method not in self.METHODS:
@@ -141,7 +116,7 @@ class Significance(object):
         self.n_jobs = n_jobs
         self.lmatches = LMATCH_SETS[lmatches]
         self.metrics = metrics
-        self.fmt = FMTS[fmt] if fmt is not callable else fmt
+        self.fmt = bind(self.FMTS[fmt] if fmt is not callable else fmt, self)
 
     def __call__(self):
         all_counts = defaultdict(dict)
@@ -161,7 +136,7 @@ class Significance(object):
                    for match, match_counts in sorted(all_counts.iteritems(),
                                                      key=lambda (k, v): self.lmatches.index(k))]
 
-        return self.fmt(results, self.metrics)
+        return self.fmt(results)
 
     def significance(self, (per_doc1, overall1), (per_doc2, overall2)):
         # TODO: limit to metrics
@@ -192,13 +167,44 @@ class Significance(object):
                        help='Use bootstrap resampling')
         p.add_argument('-j', '--n_jobs', default=1, type=int,
                        help='Number of parallel processes, use -1 for all CPUs')
-        p.add_argument('-f', '--fmt', default=json_format, choices=FMTS.keys())
+        p.add_argument('-f', '--fmt', default='tab', choices=cls.FMTS.keys())
         p.add_argument('--metrics', default='precision recall fscore'.split(),
                        type=lambda x: x.split(','), help='Test significance for which metrics (default: precision,recall,fscore)')
         p.add_argument('-l', '--lmatches', default=DEFAULT_LMATCH_SET,
                        choices=LMATCH_SETS.keys())
         p.set_defaults(cls=cls)
         return p
+
+    def tab_format(self, data):
+        metrics = self.metrics
+        rows = []
+        for row in data:
+            stats = row['stats']
+            rows.append([row['sys1'], row['sys2'], row['match']]
+                        + sum(([stats[metric]['diff'], stats[metric]['p']]
+                               for metric in metrics), []))
+        header = (['sys1', 'sys2', 'match'] +
+                  sum(([u'Δ-' + metric[:6], 'p-' + metric[:6]]
+                       for metric in metrics), []))
+
+        sys_width = max(len(col) for row in rows for col in row[:2])
+        sys_width = max(sys_width, 4)
+        match_width = max(len(row[2]) for row in rows)
+        match_width = max(match_width, 5)
+
+        fmt = (u'{:%ds}\t{:%ds}\t{:%ds}' % (sys_width, sys_width, match_width))
+        ret = (fmt + u'\t{}' * len(metrics) * 2).format(*header)
+        fmt += u''.join(u'\t{:+8.3f}\t{:8.3f}' for metric in metrics)
+        ret += u''.join(u'\n' + fmt.format(*row) for row in rows)
+        return ret.encode('utf-8')
+
+    FMTS = {
+        'tab': tab_format,
+        'json': json_format,
+        'none': no_format,
+    }
+
+
 
 
 def bootstrap_trials(per_doc, n_trials, metrics):
@@ -232,10 +238,11 @@ class Confidence(object):
     """
     def __init__(self, system, gold, trials=10000, percentiles=(90, 95, 99),
                  n_jobs=1, metrics=['precision', 'recall', 'fscore'],
-                 lmatches=DEFAULT_LMATCH_SET):
+                 lmatches=DEFAULT_LMATCH_SET, fmt='tab'):
         # Check whether import worked, generate a more useful error.
         if Parallel is None:
-            raise ImportError('Package: "joblib" not available, please install to run significance tests.')
+            raise ImportError('Package: "joblib" not available, please '
+                              'install to run significance tests.')
         self.system = system
         self.gold = gold
         self.trials = trials
@@ -243,6 +250,7 @@ class Confidence(object):
         self.lmatches = LMATCH_SETS[lmatches]
         self.metrics = metrics
         self.percentiles = percentiles
+        self.fmt = bind(self.FMTS[fmt] if fmt is not callable else fmt, self)
 
     def intervals(self, per_doc):
         results = Parallel(n_jobs=self.n_jobs)(delayed(bootstrap_trials)(per_doc, share, self.metrics)
@@ -255,9 +263,9 @@ class Confidence(object):
         ret = {}
         for metric, values in history.items():
             values.sort()
-            ret[metric] = [(_percentile(values, (100 - p) / 2),
-                            _percentile(values, 100 - (100 - p) / 2))
-                           for p in self.percentiles]
+            ret[metric] = {p: (_percentile(values, (100 - p) / 2),
+                               _percentile(values, 100 - (100 - p) / 2))
+                           for p in self.percentiles}
         return ret
 
     def calculate_all(self):
@@ -275,7 +283,44 @@ class Confidence(object):
         return results
 
     def __call__(self):
-        return json_format(self.calculate_all(), self.metrics)
+        return self.fmt(self.calculate_all())
+
+    def tab_format(self, data):
+        # Input:
+        # [{'match': 'strong_mention_match',
+        #   'overall': {'precision': xx, 'recall': xx, 'fscore': xx},
+        #   'intervals': {'precision': {90: [lo, hi]},
+        #                 'recall': {90: [lo, hi]},
+        #                 'fscore': {90: [lo, hi]}}},
+        # ]
+        percentiles = sorted(self.percentiles)
+        header = ([u'match', u'metric'] +
+                  [u'{:d}%('.format(p) for p in percentiles] +
+                  [u'score'] +
+                  [u'){:d}%'.format(p) for p in reversed(percentiles)])
+
+        getters = ([(lambda entry, metric: entry['intervals'][metric][p][0])
+                    for p in percentiles] +
+                   [lambda entry, metric: entry['overall'][metric]] +
+                   [(lambda entry, metric: entry['intervals'][metric][p][1])
+                    for p in reversed(percentiles)])
+        rows = []
+        for entry in data:
+            for metric in self.metrics:
+                rows.append([entry['match'], metric] +
+                            [getter(entry, metric) for getter in getters])
+
+        lmatch_width = max(map(len, self.lmatches))
+        metric_width = max(map(len, self.metrics))
+        fmt = (u'{:%ds}\t{:%ds}' % (lmatch_width, metric_width))
+        ret = (fmt + u'\t{}' * len(getters)).format(*header)
+        fmt += u''.join(u'\t{:.3f}' * len(getters))
+        ret += u''.join(u'\n' + fmt.format(*row) for row in rows)
+        return ret.encode('utf-8')
+
+    FMTS = {'json': json_format,
+            'tab': tab_format,
+            'none': no_format}
 
     @classmethod
     def add_arguments(cls, p):
@@ -284,13 +329,14 @@ class Confidence(object):
         p.add_argument('-n', '--trials', default=10000, type=int)
         p.add_argument('-j', '--n_jobs', default=1, type=int,
                        help='Number of parallel processes, use -1 for all CPUs')
+        p.add_argument('--percentiles', default=(90, 95, 99),
+                       type=lambda x: map(int, x.split(',')),
+                       help='Output confidence intervals at these percentiles (default: 90,95,99)')
         p.add_argument('--metrics', default='precision recall fscore'.split(),
                        type=lambda x: x.split(','),
-                       help='Test significance for which metrics (default: precision,recall,fscore)')
-        p.add_argument('--percentiles', default=(90, 95, 99),
-                       type=lambda x: map(float, x.split(',')),
-                       help='Output confidence intervals at these percentiles (default: 90,95,99)')
+                       help='Calculate CIs for which metrics (default: precision,recall,fscore)')
         p.add_argument('-l', '--lmatches', default=DEFAULT_LMATCH_SET,
                        choices=LMATCH_SETS.keys())
+        p.add_argument('-f', '--fmt', default='tab', choices=cls.FMTS.keys())
         p.set_defaults(cls=cls)
         return p
