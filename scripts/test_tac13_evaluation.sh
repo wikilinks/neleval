@@ -49,7 +49,7 @@ cat $scores \
 
 # COMPARE CALCULATED TO OFFICIAL
 echo "TEST compare to official 2013 results.."
-if [ `diff $official $report` ]
+if [ "" != "`diff $official $report`" ]
 then
     difff=$outdir/00diff.txt
     diff -y $official $report \
@@ -61,4 +61,4 @@ fi
 
 
 echo "..done."
-#  LocalWords:  dirname
+
