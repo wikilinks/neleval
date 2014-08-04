@@ -255,9 +255,9 @@ class Confidence(object):
         ret = {}
         for metric, values in history.items():
             values.sort()
-            ret[metric] = [(_percentile(values, (100 - p) / 2),
-                            _percentile(values, 100 - (100 - p) / 2))
-                           for p in self.percentiles]
+            ret[metric] = {p: (_percentile(values, (100 - p) / 2),
+                               _percentile(values, 100 - (100 - p) / 2))
+                           for p in self.percentiles}
         return ret
 
     def calculate_all(self):
