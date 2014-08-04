@@ -13,7 +13,7 @@ gold=$1; shift # prepared gold standard annotations (.combined.tsv)
 sys=$1; shift # prepared system annotations (.combined.tsv)
 
 out=`echo $sys | sed 's/.combined.tsv/.evaluation/'`
-./cne evaluate \
+./nel evaluate \
     -l tac \
     -c tac \
     -f 'tab_format' \

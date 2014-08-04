@@ -1,2 +1,0 @@
-#!/bin/bash
-python -m conll03_nel_eval.__main__ "$@"

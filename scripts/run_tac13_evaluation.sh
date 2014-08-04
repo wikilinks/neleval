@@ -26,7 +26,7 @@ cat $goldt \
     > $gtab
 #rm $gtab
 gold=$outdir/gold.combined.tsv
-./cne prepare-tac \
+./nel prepare-tac \
     -q $goldx \
     $gtab \
     > $gold

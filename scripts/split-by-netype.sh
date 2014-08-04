@@ -11,7 +11,7 @@ containing only the corresponding entity mentions in the evaluation format.
 	exit 2
 }
 
-CNE=./cne
+CNE=./nel
 
 CONLL_TAGS_PATH=$1
 shift

@@ -44,7 +44,7 @@ class FilterMentions(object):
 
     To retain only LOC entity mentions in the input, use:
         # field 3 is NER IOB tag, but CoNLL delimits by space
-        %(prog)s LOC --field 3 --delim ' ' --aux conll03/tags.eng my-data.linked
+        %(prog)s LOC --field 3 --delim ' ' --aux neleval/tags.eng my-data.linked
 
     All tokens in the auxiliary file must align with the input, with documents
     delimited by lines beginning '-DOCSTART-' or '-X-'. Other lines have fields

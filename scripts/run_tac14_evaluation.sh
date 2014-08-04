@@ -18,14 +18,14 @@ mkdir tacout # output directory
 
 # STEP 1: CONVERT TO EVALUATION FORMAT
 gold=$outdir/gold.combined.tsv
-./cne prepare-tac -q $goldx $goldt > $gold
+./nel prepare-tac -q $goldx $goldt > $gold
 sys=$outdir/sys.combined.tsv
-./cne prepare-tac -q $sysx $syst > $sys
+./nel prepare-tac -q $sysx $syst > $sys
 
 
 # STEP 2: EVALUATE
 eval=$outdir/sys.eval
-./cne evaluate -l tac -c tac -f 'json_format' -g $gold $sys #> $eval
+./nel evaluate -l tac -c tac -f 'json_format' -g $gold $sys #> $eval
 
 
 # STEP 3: TEST SIGNIFICANCE (TODO)

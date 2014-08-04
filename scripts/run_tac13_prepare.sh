@@ -20,7 +20,7 @@ cat $syst \
     > $stab
 #rm $stab
 out=$outdir/$sys.combined.tsv
-./cne prepare-tac \
+./nel prepare-tac \
     -q $goldx \
     $stab \
     > $out

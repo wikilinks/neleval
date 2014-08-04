@@ -13,7 +13,7 @@ gold=$1; shift # prepared gold standard annotations (.combined.tsv)
 sys=$1; shift # prepared system annotations (.combined.tsv)
 
 out=`echo $sys | sed 's/.combined.tsv/.analysis/'`
-./cne analyze \
+./nel analyze \
     -s \
     -g $gold \
     $sys \

@@ -1,33 +1,22 @@
-neleval
-=======
+Entity linking evaluation
+=========================
 
-Evaluation and error analysis tool for Named Entity Linking / Named Entity Disambiguation / Wikification / Cross-document Coreference Resolution.
+Python evaluation scripts for [TAC](http://www.nist.gov/tac/) and [CoNLL-YAGO](http://www.mpi-inf.mpg.de/departments/databases-and-information-systems/research/yago-naga/aida/downloads/) entity linking data, and related wikification, named entity disambiguation and cross-document coreference tasks.
 
+TAC13 quickstart
+================
 
-This repository is currently being reworked.
-
-
-Quickstart
-==========
-
-Assumes that `python` is installed on your system
+Assumes that `python` is installed on your system with `numpy` (and preferably `scipy` for fast CEAF calculation) and `joblib`.
 
 ```Shell
-git clone https://github.com/benhachey/conll03_nel_eval
-cd conll03_nel_eval
-./cne prepare \
-    -k ".*testb.*" \
-    -m mappings/map-testb-fromapi-20140227.tsv \
-    /path/to/AIDA-YAGO2-dataset.tsv \
-    > gold.txt
-./cne prepare \
-    -k ".*testb.*" \
-    -m mappings/map-testb-fromapi-20140227.tsv \
-    /path/to/system.txt \
-    > system.txt
-./cne evaluate \
-    -g gold.txt \
-    system.txt
+git clone https://github.com/wikilinks/neleval
+cd neleval
+./scripts/run_tac13_evaluation.sh \
+    path/to/queries.xml \
+    path/to/gold.tab \
+    path/to/sys/out/dir \
+    path/to/eval/out/dir \
+    NUM_JOBS_FOR_PARALLEL_MODE
 ```
 
-See [project wiki](https://github.com/benhachey/conll03_nel_eval/wiki/) for details.
+Each file in in the system output directory is scored against gold.tab.

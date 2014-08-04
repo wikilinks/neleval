@@ -19,8 +19,8 @@ class ReutersCodes(object):
                  -f path/to/conll_ner/etc/files.eng.testb \\
                  -m gold.testb.txt -r |
                  grep ^topics:GSPO | cut -f2)
-         cne prepare -k "$KEEP_REGEX" gold.testb.txt > gold.testb.topics:GSPO
-        cne prepare -k "$KEEP_REGEX" system.testb.txt > system.testb.topics:GSPO
+        nel prepare -k "$KEEP_REGEX" gold.testb.txt > gold.testb.topics:GSPO
+        nel prepare -k "$KEEP_REGEX" system.testb.txt > system.testb.topics:GSPO
     """
     def __init__(self, rcv1_dir, files=sys.stdin, map_via=None, as_regexp=False):
         self.rcv1_dir = rcv1_dir
@@ -69,7 +69,7 @@ class ReutersCodes(object):
         ap.add_argument('rcv1_dir', help='RCV1 data directory containing data zipped by day')
         ap.add_argument('-f', '--files', type=argparse.FileType('r'), default=sys.stdin, help='CoNLL NER Reuters file mapping')
         ap.add_argument('-m', '--map-via', type=argparse.FileType('r'), default=None, help='Map RCV paths back to CoNLL-YAGO Doc IDs by providing an annotation file')
-        ap.add_argument('-r', '--as-regexp', action='store_true', default=False, help='List doc IDs as a matching regexp, useful with -m for cne prepare -k')
+        ap.add_argument('-r', '--as-regexp', action='store_true', default=False, help='List doc IDs as a matching regexp, useful with -m for nel prepare -k')
         ap.set_defaults(cls=cls)
         return ap
 

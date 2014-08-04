@@ -39,7 +39,7 @@ fi
 # CALCULATE ALL PAIRWISE SIGNIFICANCE TESTS (NOTE: THIS TAKES A LITTLE WHILE)
 echo "INFO Calculating significance.."
 sign=$outdir/00report.significance.$FMT
-./cne significance \
+./nel significance \
     -g $gold \
     -n $TRIALS \
     --permute \
