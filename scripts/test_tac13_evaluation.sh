@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # 
 # Run TAC 2013 evaluation
+set -e
 
 usage="Usage: $0 GOLD_XML GOLD_TAB SYSTEMS_DIR SCORES_DIR OUT_DIR"
 

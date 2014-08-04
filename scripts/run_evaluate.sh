@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #
 # Evaluate and save to file
+set -e
 
 usage="Usage: $0 GOLD SYSTEM"
 
@@ -14,8 +15,8 @@ sys=$1; shift # prepared system annotations (.combined.tsv)
 
 out=`echo $sys | sed 's/.combined.tsv/.evaluation/'`
 ./nel evaluate \
-    -l tac \
-    -c tac \
+    -l all \
+    -c all \
     -f 'tab_format' \
     -g $gold \
     $sys \

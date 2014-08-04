@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #
 # Run TAC13 evaluation and analysis
+set -e
 
 usage="Usage: $0 GOLD_XML GOLD_TAB SYSTEMS_DIR OUT_DIR"
 
