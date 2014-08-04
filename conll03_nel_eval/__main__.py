@@ -7,16 +7,18 @@ import sys
 from .prepare import Prepare
 from .evaluate import Evaluate
 from .analyze import Analyze
-from .significance import Significance
+from .significance import Significance, Confidence
 from .formats import Unstitch, Stitch, Tagme
 from .fetch_map import FetchMapping
 from .filter import FilterMentions
 from .rcv import ReutersCodes
+from .tac import PrepareTac
 
 APPS = [
     Evaluate,
     Analyze,
     Significance,
+    Confidence,
     Prepare,
     FilterMentions,
     Unstitch,
@@ -24,6 +26,7 @@ APPS = [
     Tagme,
     FetchMapping,
     ReutersCodes,
+    PrepareTac,
 ]
 
 

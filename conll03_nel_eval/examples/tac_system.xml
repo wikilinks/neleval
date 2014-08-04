@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kbpentlink>
+  <query id="doc_01">
+    <name>China</name>
+    <docid>bolt-eng-DF-200-192451-5799099</docid>
+    <beg>2450</beg>
+    <end>2454</end>
+  </query>
+  <query id="doc_02">
+    <name>PRC</name>
+    <docid>bolt-eng-DF-200-192453-5806828</docid>
+    <beg>3287</beg>
+    <end>3295</end>
+  </query>
+  <query id="doc_03">
+    <name>China</name>
+    <docid>XIN_ENG_20100703.0052</docid>
+    <beg>500</beg>
+    <end>502</end>
+  </query>
+  <query id="doc_04">
+    <name>China</name>
+    <docid>AFP_ENG_20100314.0466</docid>
+    <beg>247</beg>
+    <end>256</end>
+  </query>
+  <query id="doc_05">
+    <name>Plain</name>
+    <docid>AFP_ENG_20100212.0648</docid>
+    <beg>338</beg>
+    <end>367</end>
+  </query>
+  <query id="doc_06">
+    <name>Sarah</name>
+    <docid>APW_ENG_20100209.1003</docid>
+    <beg>573</beg>
+    <end>577</end>
+  </query>
+  <query id="doc_07">
+    <name>Xiaoman</name>
+    <docid>eng-NG-31-100506-10870984</docid>
+    <beg>322</beg>
+    <end>335</end>
+  </query>
+  <query id="doc_08">
+    <name>Pan</name>
+    <docid>bolt-eng-DF-170-181103-8888234</docid>
+    <beg>322</beg>
+    <end>334</end>
+  </query>
+  <query id="doc_09">
+    <name>TWC</name>
+    <docid>bolt-eng-DF-199-192909-6666623</docid>
+    <beg>128269</beg>
+    <end>128275</end>
+  </query>
+  <query id="doc_10">
+    <name>Tetherless World Constellation</name>
+    <docid>AFP_ENG_20100120.0809</docid>
+    <beg>109</beg>
+    <end>121</end>
+  </query>
+</kbpentlink>

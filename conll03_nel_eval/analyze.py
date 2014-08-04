@@ -1,8 +1,9 @@
-from __future__ import print_function
+from .document import ENC
+from .document import Reader
+from .document import by_mention
+from collections import Counter
+from collections import namedtuple
 
-from collections import namedtuple, Counter
-
-from .data import Reader, ENC
 
 class _Missing(object):
     def __str__(self):
@@ -11,7 +12,7 @@ class _Missing(object):
 MISSING = _Missing()
 
 
-class LinkingError(namedtuple('Error', 'doc_id text gold system')):
+class LinkingError(namedtuple('Error', 'doc_id gold system')):
     @property
     def label(self):
         if self.gold is MISSING:
@@ -45,7 +46,7 @@ class LinkingError(namedtuple('Error', 'doc_id text gold system')):
         return self._str(self.gold, 'g')
 
     def __str__(self):
-        return u'{0.label}\t{0.doc_id}\tm"{0.text}"\t{0._gold_str}\t{0._system_str}'.format(self)
+        return u'{0.label}\t{0.doc_id}\t{0._gold_str}\t{0._system_str}'.format(self)
 
 
 class Analyze(object):
@@ -77,19 +78,21 @@ class Analyze(object):
             return u'\n'.join(unicode(error) for error in _data()).encode(ENC)
 
     def iter_errors(self):
-        system = list(sorted(Reader(open(self.system))))
-        gold = list(sorted((Reader(open(self.gold)))))
+        system = list(Reader(open(self.system), group=by_mention))
+        gold = list(Reader(open(self.gold), group=by_mention))
         for g, s in zip(gold, system):
-            assert g.doc_id == s.doc_id
+            assert g.id == s.id
             tp, fp, fn = g.strong_mention_match(s)
             for g_m, s_m in tp:
-                if g_m.link == s_m.link and not self.with_correct:
-                    continue  # Correct case.
-                yield LinkingError(g.doc_id, g_m.text, g_m.link, s_m.link)
+                if g_m.kbid == s_m.kbid and not self.with_correct:
+                    #continue  # Correct case.
+                    yield LinkingError(g.id, g_m.kbid, s_m.kbid)
+                else:
+                    yield LinkingError(g.id, g_m.kbid, s_m.kbid)
             for _, m in fp:
-                yield LinkingError(g.doc_id, m.text, MISSING, m.link)
+                yield LinkingError(g.id, MISSING, m.kbid)
             for m, _ in fn:
-                yield LinkingError(g.doc_id, m.text, m.link, MISSING)
+                yield LinkingError(g.id, m.kbid, MISSING)
 
     @classmethod
     def add_arguments(cls, p):

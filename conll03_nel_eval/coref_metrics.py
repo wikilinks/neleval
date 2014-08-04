@@ -1,6 +1,5 @@
 from __future__ import division, print_function
 
-from functools import partial
 from collections import defaultdict
 import itertools
 import operator
@@ -9,7 +8,14 @@ import os
 import subprocess
 import tempfile
 import warnings
+import time
+import sys
+import functools
 
+try:
+    from scipy import sparse
+except ImportError:
+    sparse = None
 import numpy as np
 
 from .munkres import linear_assignment
@@ -50,17 +56,17 @@ def _parse_reference_coref_scorer(output):
     for section in sections:
         match = re.match(r'''
                          .*
-                         Coreference:\s
+                         \s
                          Recall:\s
                          \(([^/]+)/([^)]+)\)
-                         .*
+                         .*?
                          Precision:\s
                          \(([^/]+)/([^)]+)\)
                          ''',
                          section,
                          re.DOTALL | re.VERBOSE)
         r_num, r_den, p_num, p_den = map(float, match.groups())
-        stats = _prf(p_num, p_den, r_num, r_den)
+        stats = p_num, p_den, r_num, r_den
         if one_metric:
             return stats
         else:
@@ -69,15 +75,19 @@ def _parse_reference_coref_scorer(output):
     return res
 
 
-def _run_reference_coref_scorer(true, pred, metric='all',
-                                script=REFERENCE_COREF_SCORER_PATH):
+def _run_reference_coref_scorer(true, pred, metric='all'):
     true_file = tempfile.NamedTemporaryFile(prefix='coreftrue', delete=False)
     pred_file = tempfile.NamedTemporaryFile(prefix='corefpred', delete=False)
     write_conll_coref(true, pred, true_file, pred_file)
     true_file.close()
     pred_file.close()
-    output = subprocess.check_output([script, metric, true_file.name,
+    start = time.time()
+    output = subprocess.check_output([REFERENCE_COREF_SCORER_PATH,
+                                      metric, true_file.name,
                                       pred_file.name])
+    their_time = time.time() - start
+    #print('Ran perl scorer', metric, 'in ', their_time, file=sys.stderr)
+    #print(output[-400:], file=sys.stderr)
     os.unlink(true_file.name)
     os.unlink(pred_file.name)
     return _parse_reference_coref_scorer(output)
@@ -93,27 +103,31 @@ def _cross_check(metric):
         if REFERENCE_COREF_SCORER_PATH is None:
             return fn
 
+        @functools.wraps(fn)
         def wrapper(true, pred):
+            start = time.time()
             our_results = fn(true, pred)
-            ref_results = _run_reference_coref_scorer(true, pred, metric)
-            assert len(our_results) == len(ref_results) == 3
-            for our_val, ref_val, name in zip(our_results, ref_results, 'PRF'):
+            our_time = time.time() - start
+            #print('Ran our', metric, 'in ', our_time, file=sys.stderr)
+            ref_results = _prf(*_run_reference_coref_scorer(true, pred, metric))
+
+            for our_val, ref_val, name in zip(_prf(*our_results), ref_results, 'PRF'):
                 if abs(our_val - ref_val) > 1e-3:
-                    msg = 'Our {}={}; reference {}={}'.format(name, our_val,
-                                                              name, ref_val)
+                    msg = 'Our {} {}={}; reference {}={}'.format(metric,
+                                                                 name, our_val,
+                                                                 name, ref_val)
                     raise AssertionError(msg)
-            return our_results
+            return res
         return wrapper
     return decorator
 
 
-######## Data formats ########
+######## Utilities ########
 
 def mapping_to_sets(mapping):
     """
-    >>> sets = mapping_to_sets({'a': 1, 'b': 2, 'c': 1}).items()
-    >>> sorted((k, sorted(v)) for k, v in sets)
-    [(1, ['a', 'c']), (2, ['b'])]
+    Input: {cluster_item: cluster_name} dictionary
+    Output: {cluster_name: set([cluster_items])} dictionary
     """
     s = defaultdict(set)
     for m, k in mapping.items():
@@ -123,8 +137,8 @@ def mapping_to_sets(mapping):
 
 def sets_to_mapping(s):
     """
-    >>> sorted(sets_to_mapping({1: {'a', 'c'}, 2: {'b'}}).items())
-    [('a', 1), ('b', 2), ('c', 1)]
+    Input: {cluster_name: set([cluster_items])} dictionary
+    Output: {cluster_item: cluster_name} dictionary
     """
     return {m: k for k, ms in s.items() for m in ms}
 
@@ -198,6 +212,60 @@ def _prf(p_num, p_den, r_num, r_den):
     return p, r, _f1(p, r)
 
 
+def _to_matrix(p_num, p_den, r_num, r_den):
+    ptp = p_num
+    fp = p_den - p_num
+    rtp = r_num
+    fn = r_den - r_num
+    return ptp, fp, rtp, fn
+
+
+def twinless_adjustment(true, pred):
+    """Adjusts predictions for differences in mentions
+
+    Following Cai and Strube's (SIGDIAL'10) `sys` variants on B-cubed and CEAF.
+    This produces a different true, pred pair for each of precision and recall
+    calculation.
+
+    Thus for precision:
+        * twinless true mentions -> pred singletons
+        * twinless pred singletons -> discard
+        * twinless pred non-singletons -> true singletons
+    For recall:
+        * twinless true -> pred singletons
+        * twinless pred -> discard
+
+    Returns : p_true, p_pred, r_true, r_pred
+    """
+    true_mapping = sets_to_mapping(true)
+    pred_mapping = sets_to_mapping(pred)
+
+    # common: twinless true -> pred singletons
+    twinless_true = set(true_mapping) - set(pred_mapping)
+    for i, mention in enumerate(twinless_true):
+        pred_mapping[mention] = ('twinless_true', i)
+
+    # recall: twinless pred -> discard
+    r_pred = mapping_to_sets({m: k
+                              for m, k in pred_mapping.items()
+                              if m in true_mapping})
+
+    # precision: twinless pred singletons -> discard; non-singletons -> true
+    for i, (m, k) in enumerate(list(pred_mapping.items())):
+        if m in true_mapping:
+            continue
+        if len(pred[k]) > 1:
+            true_mapping[m] = ('twinless_pred', i)
+        else:
+            del pred_mapping[m]
+
+    p_true = mapping_to_sets(true_mapping)
+    p_pred = mapping_to_sets(pred_mapping)
+
+    return p_true, p_pred, true, r_pred
+
+
+
 ######## Cluster comparison ########
 
 def dice(a, b):
@@ -221,50 +289,88 @@ def overlap(a, b):
 ######## Coreference metrics ########
 
 
-def ceaf(true, pred, similarity=dice):
-    """
+class OptionalDependencyNote(Warning):
+    pass
 
-    >>> true = {'A': {1,2,3,4,5}, 'B': {6,7}, 'C': {8, 9, 10, 11, 12}}
-    >>> pred_a = {'A': {1,2,3,4,5}, 'B': {6,7, 8, 9, 10, 11, 12}}
-    >>> pred_b = {'A': {1,2,3,4,5,8, 9, 10, 11, 12}, 'B': {6,7}}
-    >>> pred_c = {'A': {1,2,3,4,5, 6,7, 8, 9, 10, 11, 12}}
-    >>> pred_d = {i: {i,} for i in range(1, 13)}
-    >>> mention_ceaf(true, pred_a)[-1]  # doctest: +ELLIPSIS
-    0.83...
-    >>> entity_ceaf(true, pred_a)[-1]  # doctest: +ELLIPSIS
-    0.73...
-    >>> mention_ceaf(true, pred_b)[-1]  # doctest: +ELLIPSIS
-    0.58...
-    >>> entity_ceaf(true, pred_b)[-1]  # doctest: +ELLIPSIS
-    0.66...
-    >>> mention_ceaf(true, pred_c)  # doctest: +ELLIPSIS
-    (0.416..., 0.416..., 0.416...)
-    >>> entity_ceaf(true, pred_c)  # doctest: +ELLIPSIS
-    (0.588..., 0.196..., 0.294...)
-    >>> mention_ceaf(true, pred_d)  # doctest: +ELLIPSIS
-    (0.25, 0.25, 0.25)
-    >>> entity_ceaf(true, pred_d)  # doctest: +ELLIPSIS
-    (0.111..., 0.444..., 0.177...)
-    """
+
+def _disjoint_max_assignment(similarities):
+    if sparse is None:
+        start = time.time()
+        indices = linear_assignment(-similarities)
+        runtime = time.time() - start
+        if runtime > 1:
+            warnings.warn('The assignment step in CEAF took a long time. '
+                          'We may be able to calculate it faster if you '
+                          'install scipy.', OptionalDependencyNote)
+        return similarities[indices[:, 0], indices[:, 1]].sum()
+
+    # form n*n adjacency matrix
+    where_true, where_pred = np.where(similarities)
+    where_pred = where_pred + similarities.shape[0]
+    n = sum(similarities.shape)
+    A = sparse.coo_matrix((np.ones(len(where_true)), (where_true, where_pred)),
+                          shape=(n, n))
+    n_components, components = sparse.csgraph.connected_components(A, directed=False)
+    total = 0
+    for i in range(n_components):
+        mask = components == i
+        component_true = np.flatnonzero(mask[:similarities.shape[0]])
+        component_pred = np.flatnonzero(mask[similarities.shape[0]:])
+        component_sim = similarities[component_true, :][:, component_pred]
+        if component_sim.shape == (1, 1):
+            total += component_sim[0, 0]
+        else:
+            indices = linear_assignment(-component_sim)
+            total += component_sim[indices[:, 0], indices[:, 1]].sum()
+    #assert total == similarities[tuple(linear_assignment(-similarities).T)].sum()
+    return total
+
+
+def ceaf(true, pred, similarity=dice):
+    "Luo (2005). On coreference resolution performance metrics. In EMNLP."
     X = np.empty((len(true), len(pred)))
     pred = list(pred.values())
     for R, Xrow in zip(true.values(), X):
         Xrow[:] = [similarity(R, S) for S in pred]
-    indices = linear_assignment(-X)
 
-    numerator = sum(X[indices[:, 0], indices[:, 1]])
-    true_denom = sum(similarity(R, R) for R in true.values())
-    pred_denom = sum(similarity(S, S) for S in pred)
-    p = numerator / pred_denom
-    r = numerator / true_denom
-    return _prf(numerator, pred_denom, numerator, true_denom)
+    p_num = r_num = _disjoint_max_assignment(X)
+    r_den = sum(similarity(R, R) for R in true.values())
+    p_den = sum(similarity(S, S) for S in pred)
+    return p_num, p_den, r_num, r_den
 
 
-entity_ceaf = _cross_check('ceafe')(partial(ceaf, similarity=dice))
-mention_ceaf = _cross_check('ceafm')(partial(ceaf, similarity=overlap))
+def cs_ceaf(true, pred, similarity=dice):
+    """CEAF with twinless adjustment from Cai and Strube (2010)"""
+    p_true, p_pred, r_true, r_pred = twinless_adjustment(true, pred)
+    # XXX: there is probably a better way to do this
+    p_num, p_den, _, _ = ceaf(p_true, p_pred, similarity)
+    _, _, r_num, r_den = ceaf(r_true, r_pred, similarity)
+    return p_num, p_den, r_num, r_den
 
 
-def _b_cubed(A, B, A_mapping, B_mapping, EMPTY=frozenset([])):
+@_cross_check('ceafm')
+def mention_ceaf(true, pred):
+    "Luo (2005) phi_3"
+    return ceaf(true, pred, similarity=overlap)
+
+
+@_cross_check('ceafe')
+def entity_ceaf(true, pred):
+    "Luo (2005) phi_4"
+    return ceaf(true, pred, similarity=dice)
+
+
+def mention_cs_ceaf(true, pred):
+    return cs_ceaf(true, pred, similarity=overlap)
+
+
+def entity_cs_ceaf(true, pred):
+    return cs_ceaf(true, pred, similarity=dice)
+
+
+def _b_cubed(A, B, EMPTY=frozenset([])):
+    A_mapping = sets_to_mapping(A)
+    B_mapping = sets_to_mapping(B)
     res = 0.
     for m, k in A_mapping.items():
         A_cluster = A.get(k, EMPTY)
@@ -275,30 +381,39 @@ def _b_cubed(A, B, A_mapping, B_mapping, EMPTY=frozenset([])):
 @_cross_check('bcub')
 def b_cubed(true, pred):
     """
+    Bagga and Baldwin (1998). Algorithms for scoring coreference chains.
+    In LREC Linguistic Coreference Workshop.
 
     TODO: tests
     """
-    true_mapping = sets_to_mapping(true)
-    pred_mapping = sets_to_mapping(pred)
-    p_num, p_den = _b_cubed(pred, true, pred_mapping, true_mapping)
-    r_num, r_den = _b_cubed(true, pred, true_mapping, pred_mapping)
-    return _prf(p_num, p_den, r_num, r_den)
+    p_num, p_den = _b_cubed(pred, true)
+    r_num, r_den = _b_cubed(true, pred)
+    return p_num, p_den, r_num, r_den
 
+
+def cs_b_cubed(true, pred):
+    """b_cubed with twinless adjustment from Cai and Strube (2010)"""
+    p_true, p_pred, r_true, r_pred = twinless_adjustment(true, pred)
+    p_num, p_den = _b_cubed(p_pred, p_true)
+    r_num, r_den = _b_cubed(r_true, r_pred)
+    return p_num, p_den, r_num, r_den
+
+
+def _pairs(C):
+    "Return pairs of instances across all clusters in C"
+    return frozenset(itertools.chain(
+            *[itertools.combinations_with_replacement(c,2) for c in C]))
+
+def _pairwise_f1(true, pred):
+    "Return numerators and denominators for precision and recall"
+    p_num = r_num = len(true & pred)
+    p_den = len(pred)
+    r_den = len(true)
+    return p_num, p_den, r_num, r_den
 
 def pairwise_f1(true, pred):
-    """Measure the proportion of correctly identified pairwise coindexations
-
-    TODO: tests
-    """
-    pred_mapping = sets_to_mapping(pred)
-    correct = 0
-    for cluster in true.values():
-        for m1, m2 in itertools.combinations(cluster, 2):
-            if pred_mapping.get(m1) == pred_mapping.get(m2):
-                correct += 1
-    p_den = sum(len(cluster) * (len(cluster) - 1) for cluster in pred.values()) * 2
-    r_den = sum(len(cluster) * (len(cluster) - 1) for cluster in true.values()) * 2
-    return _prf(correct, p_den, correct, r_den)
+    "Return p_num, p_den, r_num, r_den over item pairs."
+    return _pairwise_f1(_pairs(true.values()), _pairs(pred.values()))
 
 
 def _vilain(A, B_mapping):
@@ -324,33 +439,61 @@ def muc(true, pred):
     This calculates recall error for each true cluster C as the number of
     response clusters that would need to be merged in order to produce a
     superset of C.
-
-    Examples from Vilain et al. (1995):
-    >>> muc({1: {'A', 'B', 'C', 'D'}},
-    ...     {1: {'A', 'B'}, 2: {'C', 'D'}})  # doctest: +ELLIPSIS
-    (1.0, 0.66..., 0.8)
-    >>> muc({1: {'A', 'B'}, 2: {'C', 'D'}},
-    ...     {1: {'A', 'B', 'C', 'D'}})  # doctest: +ELLIPSIS
-    (0.66..., 1.0, 0.8)
-    >>> muc({1: {'A', 'B', 'C'}}, {1: {'A', 'C'}})  # doctest: +ELLIPSIS
-    (1.0, 0.5, 0.66...)
-    >>> muc({1: {'B', 'C', 'D', 'E', 'G', 'H', 'J'}},
-    ...     {1: {'A', 'B', 'C'}, 2: {'D', 'E', 'F'}, 3: {'G', 'H', 'I'}})
-    ... # doctest: +ELLIPSIS
-    (0.5, 0.5, 0.5)
-    >>> muc({1: {'A', 'B', 'C'}, 2: {'D', 'E', 'F', 'G'}},
-    ...     {1: {'A', 'B'}, 2: {'C', 'D'}, 3: {'F', 'G', 'H'}})
-    ... # doctest: +ELLIPSIS
-    (0.5, 0.4, 0.44...)
     """
     p_num, p_den = _vilain(pred, sets_to_mapping(true))
     r_num, r_den = _vilain(true, sets_to_mapping(pred))
-    return _prf(p_num, p_den, r_num, r_den)
+    return p_num, p_den, r_num, r_den
+
+
+# Configuration constants
+ALL_CMATCHES = 'all'
+MUC_CMATCHES = 'muc'
+LUO_CMATCHES = 'luo'
+CAI_STRUBE_CMATCHES = 'cai'
+TAC_CMATCHES = 'tac'
+TMP_CMATCHES = 'tmp'
+NO_CMATCHES = 'none'
+CMATCH_SETS = {
+    ALL_CMATCHES: [
+        mention_ceaf,
+        entity_ceaf,
+        b_cubed,
+        pairwise_f1,
+        muc,
+        mention_cs_ceaf,
+        entity_cs_ceaf,
+        cs_b_cubed,
+        ],
+    MUC_CMATCHES: [
+        muc,
+        ],
+    LUO_CMATCHES: [
+        muc,
+        b_cubed,
+        mention_ceaf,
+        entity_ceaf,
+        ],
+    CAI_STRUBE_CMATCHES: [
+        cs_b_cubed,
+        mention_cs_ceaf,
+    ],
+    TAC_CMATCHES: [
+        mention_ceaf,
+        b_cubed,
+        ],
+    TMP_CMATCHES: [
+        mention_ceaf,
+        entity_ceaf,
+        pairwise_f1,
+        ],
+    NO_CMATCHES: [],
+}
+DEFAULT_CMATCH_SET = ALL_CMATCHES
 
 
 
 if REFERENCE_COREF_SCORER_PATH is not None:
-    if _run_reference_coref_scorer({}, {}).get('bcub') != (0., 0., 0.):
+    if _run_reference_coref_scorer({}, {}).get('bcub') != (0., 0., 0., 0.):
         warnings.warn('Not using coreference metric debug mode:'
                       'The script is producing invalid output')
         REFERENCE_COREF_SCORER_PATH = None
@@ -373,4 +516,4 @@ if __name__ == '__main__':
     response = read_conll_coref(args.response_file)
     print('Metric', 'P', 'R', 'F1', sep='\t')
     for name, fn in sorted(METRICS.items()):
-        print(name, *('{:0.2f}'.format(100 * x) for x in fn(key, response)), sep='\t')
+        print(name, *('{:0.2f}'.format(100 * x) for x in _prf(*fn(key, response))), sep='\t')
