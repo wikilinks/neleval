@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #
 # Run analysis and save to file
+set -e
 
 usage="Usage: $0 GOLD_XML GOLD_TAB SYSTEMS_DIR OUT_DIR"
 

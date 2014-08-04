@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # 
 # Run TAC 2013 evaluation
+set -e
 
 usage="Usage: $0 GOLD_XML GOLD_TAB SYSTEMS_DIR OUT_DIR NUM_JOBS"
 
@@ -57,13 +58,13 @@ echo -e "system\tKBP2010 micro-average\tB^3 Precision\tB^3 Recall\tB^3 F1" \
 for eval in $outdir/*.evaluation
 do
     basename $eval \
-	| sed 's/\.evaluation//' \
-	| tr '\n' '\t' \
-	>> $report
+        | sed 's/\.evaluation//' \
+        | tr '\n' '\t' \
+        >> $report
     cat $eval \
-	| egrep '(strong_all_match|b_cubed)' \
-	| cut -f5,6,7,8 \
-	| tr '\n' '\t' \
-	| cut -f2,5,6,7 \
-	>> $report
+        | egrep '(strong_all_match|b_cubed)' \
+        | cut -f5,6,7,8 \
+        | tr '\n' '\t' \
+        | cut -f2,5,6,7 \
+        >> $report
 done

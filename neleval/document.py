@@ -167,7 +167,7 @@ class Document(object):
             # Unmatched in other - false positive.
             else:
                 fp.append((None, o_i))
-        fn = [(i, None) for i in sorted(index.values())]
+        fn = [(i, None) for i in index.values()]
         return tp, fp, fn
 
 
@@ -211,7 +211,7 @@ class Reader(object):
 
     def read(self):
         for groupid, annots in self.group(self.annotations()):
-            yield self.cls(groupid, sorted(annots))
+            yield self.cls(groupid, annots)
 
     def annotations(self):
         "Yield Annotation objects"
