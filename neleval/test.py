@@ -394,7 +394,7 @@ def _get_stats(gold_path, sys_path):
     stats = Evaluate(sys_path, gold=gold_path,
                      lmatches=ALL_LMATCHES,
                      cmatches=TMP_CMATCHES, # TODO add test output for all
-                     fmt='no_format')()
+                     fmt='none')()
     pprint(stats)
     return stats
 
