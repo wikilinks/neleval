@@ -215,7 +215,8 @@ def bootstrap_trials(per_doc, n_trials, metrics):
         result = sum((per_doc[i] for i in indices), Matrix()).results
         for metric in metrics:
             history[metric].append(result[metric])
-    return dict(history)
+    history.default_factory = None  # disable default
+    return history
 
 
 def _percentile(ordered, p):

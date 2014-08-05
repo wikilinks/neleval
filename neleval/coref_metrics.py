@@ -143,7 +143,8 @@ def mapping_to_sets(mapping):
     s = defaultdict(set)
     for m, k in mapping.items():
         s[k].add(m)
-    return dict(s)
+    s.default_factory = None  # disable defaulting
+    return s
 
 
 def sets_to_mapping(s):
@@ -187,7 +188,8 @@ def read_conll_coref(f):
             cid, start = list(mentions)[-1]  # keep the outermost
             res[cid].add((start, i))
 
-    return dict(res)
+    res.default_factory = None  # disable defaulting
+    return res
 
 
 def write_conll_coref(true, pred, true_file, pred_file):
