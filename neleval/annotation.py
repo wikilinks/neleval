@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 "Representation of link standoff annotation"
 
+
 class Annotation(object):
+    __slots__ = ['docid', 'start', 'end', 'candidates']
+
     def __init__(self, docid, start, end, candidates=[]):
         self.docid = docid
         self.start = start
@@ -25,9 +28,13 @@ class Annotation(object):
 
     # Getters
     @property
+    def span(self):
+        return (self.docid, self.start, self.end)
+
+    @property
     def link(self):
         "Return top candidate"
-        if len(self.candidates) > 0:
+        if self.candidates:
             return self.candidates[0]
 
     @property
@@ -65,7 +72,6 @@ class Annotation(object):
     @property
     def is_linked(self):
         return not self.is_nil
-        
 
     # Parsing methods
     @classmethod
@@ -82,7 +88,9 @@ class Annotation(object):
             candidates = sorted(Candidate.from_string(cols[3]), reverse=True)
         return Annotation(docid, start, end, candidates)
 
+
 class Candidate(object):
+    __slots__ = ['id', 'score', 'type']
     def __init__(self, id, score=None, type=None):
         self.id = id
         self.score = score

@@ -6,7 +6,7 @@ from .coref_metrics import CMATCH_SETS, DEFAULT_CMATCH_SET, _to_matrix
 from .document import Document, Reader
 from .document import LMATCH_SETS, DEFAULT_LMATCH_SET
 from .document import by_entity
-from .utils import log, bind
+from .utils import bind
 import warnings
 import json
 
@@ -140,7 +140,6 @@ class Evaluate(object):
         'json': json_format,
         'none': no_format,
     }
-
 
 
 class Matrix(object):
