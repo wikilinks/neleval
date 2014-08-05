@@ -58,8 +58,8 @@ class Annotation(object):
     @property
     def type(self):
         "Return link type or None"
-        #if self.is_linked:
-        return self.link.type
+        if self.link:
+            return self.link.type
 
     @property
     def is_nil(self):
