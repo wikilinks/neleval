@@ -7,7 +7,6 @@ import random
 import operator
 import functools
 import json
-from .utils import bind
 
 # Attempt to import joblib, but don't fail.
 try:
@@ -20,11 +19,11 @@ from document import Reader, LMATCH_SETS, DEFAULT_LMATCH_SET
 from evaluate import Evaluate, Matrix
 
 
-def json_format(data):
-    return json.dumps(data)
+def json_format(self, data):
+    return json.dumps(data, sort_keys=True, indent=4)
 
 
-def no_format(data):
+def no_format(self, data):
     return data
 
 
@@ -116,7 +115,7 @@ class Significance(object):
         self.n_jobs = n_jobs
         self.lmatches = LMATCH_SETS[lmatches]
         self.metrics = metrics
-        self.fmt = bind(self.FMTS[fmt] if fmt is not callable else fmt, self)
+        self.fmt = self.FMTS[fmt] if fmt is not callable else fmt
 
     def __call__(self):
         all_counts = defaultdict(dict)
@@ -136,7 +135,7 @@ class Significance(object):
                    for match, match_counts in sorted(all_counts.iteritems(),
                                                      key=lambda (k, v): self.lmatches.index(k))]
 
-        return self.fmt(results)
+        return self.fmt(self, results)
 
     def significance(self, (per_doc1, overall1), (per_doc2, overall2)):
         # TODO: limit to metrics
@@ -250,7 +249,7 @@ class Confidence(object):
         self.lmatches = LMATCH_SETS[lmatches]
         self.metrics = metrics
         self.percentiles = percentiles
-        self.fmt = bind(self.FMTS[fmt] if fmt is not callable else fmt, self)
+        self.fmt = self.FMTS[fmt] if fmt is not callable else fmt
 
     def intervals(self, per_doc):
         results = Parallel(n_jobs=self.n_jobs)(delayed(bootstrap_trials)(per_doc, share, self.metrics)
@@ -283,7 +282,7 @@ class Confidence(object):
         return results
 
     def __call__(self):
-        return self.fmt(self.calculate_all())
+        return self.fmt(self, self.calculate_all())
 
     def tab_format(self, data):
         # Input:
