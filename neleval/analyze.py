@@ -82,7 +82,7 @@ class Analyze(object):
         gold = list(Reader(open(self.gold), group=by_mention))
         for g, s in zip(gold, system):
             assert g.id == s.id
-            tp, fp, fn = g.strong_mention_match(s)
+            tp, fp, fn = g.get_matches(s, 'strong_mention_match')
             for g_m, s_m in tp:
                 if g_m.kbid == s_m.kbid and not self.with_correct:
                     #continue  # Correct case.

@@ -115,7 +115,7 @@ def check_correct(expected, actual):
     for k in expected:
         exp = expected[k]
         act = actual[k]
-        if hasattr(exp, '__iter__'):
+        if hasattr(exp, '__iter__') and not hasattr(exp, 'items'):
             assert_sequence_equal(exp, act, 'Different on key "{}".\nexpected\t{}\nactual\t{}'.format(k, exp, act))
         else:
             assert exp == act, 'Different on key "{}".\nexpected\t{}\nactual\t{}'.format(k, exp, act)

@@ -1,13 +1,15 @@
 #!/usr/bin/env python
 "Document - group and compare annotations"
 from .annotation import Annotation
-from collections import OrderedDict
+from collections import OrderedDict, Sequence
+import operator
 
 ALL_LMATCHES = 'all'
 CORNOLTI_WWW13_LMATCHES = 'cornolti'
 HACHEY_ACL14_LMATCHES = 'hachey'
 TAC_LMATCHES = 'tac'
 TAC14_LMATCHES = 'tac14'
+
 LMATCH_SETS = {
     ALL_LMATCHES: [
         'strong_mention_match',
@@ -45,38 +47,6 @@ TEMPLATE = u'{}\t{}\t{}\t{}\t{}'
 ENC = 'utf8'
 
 
-# Helper functions for indexing annotations
-
-def strong_key(i):
-    return (i.docid, i.start, i.end)
-
-def strong_link_key(i):
-    return (i.start, i.end, i.kbid)
-
-def strong_typed_link_key(i):
-    return (i.start, i.end, i.kbid, i.type)
-
-def entity_key(i):
-    return i
-
-def weak_key(i):
-    return list(xrange(i.start, i.end))
-
-def weak_link_key(i):
-    return [(j, i.kbid) for j in xrange(i.start, i.end)]
-
-
-# Helper function for matching annotations
-
-def weak_match(i, items, key_func):
-    matches = []
-    for i in key_func(i):
-        res = items.get(i)
-        if res is not None:
-            matches.append(i)
-    return matches
-
-
 # Document class contains methods for linking annotation
 
 class Document(object):
@@ -110,68 +80,36 @@ class Document(object):
     def iter_nils(self):
         return self._iter_mentions(link=False, nil=True)
 
-    def iter_entities(self):
-        return iter(set(l.kbid for l in self.iter_links()))
+    def count_matches(self, resp, match):
+        if not hasattr(match, 'build_index'):
+            match = LMATCH_DEFS[match]
+        gold_index = match.build_index(self.annotations)
+        resp_index = match.build_index(resp.annotations)
+        tp = len(keys(gold_index) & keys(resp_index))
+        fn = len(gold_index) - tp
+        fp = len(resp_index) - tp
+        return tp, fp, fn
 
-    # Matching mentions.
-    def strong_mention_match(self, other):
-        return self._match(other, strong_key, 'iter_mentions')
-
-    def strong_linked_mention_match(self, other):
-        return self._match(other, strong_key, 'iter_links')
-
-    def strong_link_match(self, other):
-        return self._match(other, strong_link_key, 'iter_links')
-
-    def strong_nil_match(self, other):
-        return self._match(other, strong_key, 'iter_nils')
-
-    def strong_all_match(self, other):
-        return self._match(other, strong_link_key, 'iter_mentions')
-
-    def strong_typed_all_match(self, other):
-        return self._match(other, strong_typed_link_key, 'iter_mentions')
-
-    def weak_mention_match(self, other):
-        raise NotImplementedError('See #26')
-        # TODO Weak match: calculate TP and FN based on gold mentions
-        return self._match(other, weak_key, weak_match, 'iter_mentions')
-
-    def weak_link_match(self, other):
-        raise NotImplementedError('See #26')
-        return self._match(other, weak_link_key, weak_match, 'iter_links')
-
-    def entity_match(self, other):
-        return self._match(other, entity_key, 'iter_entities')
-
-    def _match(self, other, key_func, items_func_name):
+    def get_matches(self, resp, match):
         """ Assesses the match between this and the other document.
-        * other (Document)
-        * key_func (a function that takes an item, returns a key)
-        * items_func (the name of a function that is called on Sentences)
+        * resp (response document for self being gold)
+        * match (MatchDef object or name)
 
         Returns three lists of items:
         * tp [(item, other_item), ...]
         * fp [(None, other_item), ...]
         * fn [(item, None), ...]
         """
-        assert isinstance(other, Document)
-        assert self.id == other.id, 'Must compare same document: {} vs {}'.format(self.id, other.id)
-        tp, fp = [], []
-
-        # Index document items.
-        index = {key_func(i): i for i in getattr(self, items_func_name)()}
-
-        for o_i in getattr(other, items_func_name)():
-            k = key_func(o_i)
-            i = index.pop(k, None)
-            # Matching - true positive.
-            if i is not None:
-                tp.append((i, o_i))
-            # Unmatched in other - false positive.
-            else:
-                fp.append((None, o_i))
-        fn = [(i, None) for i in index.values()]
+        if not hasattr(match, 'build_index'):
+            match = LMATCH_DEFS[match]
+        gold_index = match.build_index(self.annotations)
+        resp_index = match.build_index(resp.annotations)
+        gold_keys = keys(gold_index)
+        resp_keys = keys(resp_index)
+        shared = gold_keys & resp_keys
+        tp = [(gold_index[k], resp_index[k]) for k in shared]
+        fp = [(None, resp_index[k]) for k in resp_keys - shared]
+        fn = [(gold_index[k], None) for k in gold_keys - shared]
         return tp, fp, fn
 
 
@@ -189,7 +127,7 @@ def by_document(annotations):
 def by_entity(annotations):
     d = {}
     for a in annotations:
-        key = strong_key(a) # TODO should be strong_typed_key for tac?
+        key = a.span # TODO should be strong_typed_key for tac?
         if a.eid in d:
             d[a.eid].add(key)
         else:

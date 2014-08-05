@@ -175,8 +175,8 @@ class Matrix(object):
         gdoc - gold Document object
         match - match method on doc
         """
-        tp, fp, fn = getattr(gdoc, match)(sdoc)
-        return cls(len(tp), len(fp), len(tp), len(fn))
+        tp, fp, fn = gdoc.count_matches(sdoc, match)
+        return cls(tp, fp, tp, fn)
 
     @classmethod
     def from_clust(cls, sclust, gclust, match):
