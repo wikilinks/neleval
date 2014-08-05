@@ -299,23 +299,24 @@ class Confidence(object):
                   [u'score'] +
                   [u'){:d}%'.format(p) for p in reversed(percentiles)])
 
-        getters = ([(lambda entry, metric: entry['intervals'][metric][p][0])
-                    for p in percentiles] +
-                   [lambda entry, metric: entry['overall'][metric]] +
-                   [(lambda entry, metric: entry['intervals'][metric][p][1])
-                    for p in reversed(percentiles)])
-        rows = []
-        for entry in data:
-            for metric in self.metrics:
-                rows.append([entry['match'], metric] +
-                            [getter(entry, metric) for getter in getters])
+        # crazy formatting avoids lambda closure madness !
+        meta_format = u'{{{{[intervals][{{metric}}][{}][{}]:.3f}}}}'
+        formats = ([meta_format.format(p, 0) for p in percentiles] +
+                   [u'{{[overall][{metric}]:.3f}}'] +
+                   [meta_format.format(p, 1) for p in reversed(percentiles)])
 
         lmatch_width = max(map(len, self.lmatches))
         metric_width = max(map(len, self.metrics))
         fmt = (u'{:%ds}\t{:%ds}' % (lmatch_width, metric_width))
-        ret = (fmt + u'\t{}' * len(getters)).format(*header)
-        fmt += u''.join(u'\t{:.3f}' * len(getters))
-        ret += u''.join(u'\n' + fmt.format(*row) for row in rows)
+        rows = []
+        for entry in data:
+            for metric in self.metrics:
+                rows.append([fmt.format(entry['match'], metric)] +
+                            [cell.format(metric=metric).format(entry)
+                             for cell in formats])
+
+        ret = (fmt + u'\t{}' * len(formats)).format(*header)
+        ret += u''.join(u'\n' + u'\t'.join(row) for row in rows)
         return ret.encode('utf-8')
 
     FMTS = {'json': json_format,
