@@ -7,6 +7,7 @@ ALL_LMATCHES = 'all'
 CORNOLTI_WWW13_LMATCHES = 'cornolti'
 HACHEY_ACL14_LMATCHES = 'hachey'
 TAC_LMATCHES = 'tac'
+TAC14_LMATCHES = 'tac14'
 LMATCH_SETS = {
     ALL_LMATCHES: [
         'strong_mention_match',
@@ -31,9 +32,12 @@ LMATCH_SETS = {
     TAC_LMATCHES: [
         'strong_link_match', # recall equivalent to kb accuracy before 2014
         'strong_nil_match', # recall equivalent to nil accuracy before 2014
-        'strong_all_match', # recall equivalent to overall accuracy before 2014
-        'strong_typed_all_match',  # wikification f-score for 2014
+        'strong_all_match', # equivalent to overall accuracy before 2014
+        'strong_typed_all_match',  # wikification f-score for TAC 2014
         ],
+    TAC14_LMATCHES: [
+        'strong_typed_all_match', # wikification f-score for TAC 2014
+        ]
     }
 DEFAULT_LMATCH_SET = HACHEY_ACL14_LMATCHES
 
