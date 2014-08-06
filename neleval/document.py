@@ -1,47 +1,7 @@
 #!/usr/bin/env python
 "Document - group and compare annotations"
 from .annotation import Annotation
-from collections import OrderedDict, Sequence
-import operator
-
-ALL_LMATCHES = 'all'
-CORNOLTI_WWW13_LMATCHES = 'cornolti'
-HACHEY_ACL14_LMATCHES = 'hachey'
-TAC_LMATCHES = 'tac'
-TAC14_LMATCHES = 'tac14'
-
-LMATCH_SETS = {
-    ALL_LMATCHES: [
-        'strong_mention_match',
-        'strong_linked_mention_match',
-        'strong_link_match',
-        'strong_nil_match',
-        'strong_all_match',
-        'strong_typed_all_match',
-        'entity_match',
-        ],
-    CORNOLTI_WWW13_LMATCHES: [
-        'strong_linked_mention_match',
-        'strong_link_match',
-        'entity_match',
-        ],
-    HACHEY_ACL14_LMATCHES: [
-        'strong_mention_match', # full ner
-        'strong_linked_mention_match',
-        'strong_link_match',
-        'entity_match',
-        ],
-    TAC_LMATCHES: [
-        'strong_link_match', # recall equivalent to kb accuracy before 2014
-        'strong_nil_match', # recall equivalent to nil accuracy before 2014
-        'strong_all_match', # equivalent to overall accuracy before 2014
-        'strong_typed_all_match',  # wikification f-score for TAC 2014
-        ],
-    TAC14_LMATCHES: [
-        'strong_typed_all_match', # wikification f-score for TAC 2014
-        ]
-    }
-DEFAULT_LMATCH_SET = HACHEY_ACL14_LMATCHES
+from collections import OrderedDict
 
 TEMPLATE = u'{}\t{}\t{}\t{}\t{}'
 ENC = 'utf8'
@@ -80,38 +40,6 @@ class Document(object):
     def iter_nils(self):
         return self._iter_mentions(link=False, nil=True)
 
-    def count_matches(self, resp, match):
-        if not hasattr(match, 'build_index'):
-            match = LMATCH_DEFS[match]
-        gold_index = match.build_index(self.annotations)
-        resp_index = match.build_index(resp.annotations)
-        tp = len(keys(gold_index) & keys(resp_index))
-        fn = len(gold_index) - tp
-        fp = len(resp_index) - tp
-        return tp, fp, fn
-
-    def get_matches(self, resp, match):
-        """ Assesses the match between this and the other document.
-        * resp (response document for self being gold)
-        * match (MatchDef object or name)
-
-        Returns three lists of items:
-        * tp [(item, other_item), ...]
-        * fp [(None, other_item), ...]
-        * fn [(item, None), ...]
-        """
-        if not hasattr(match, 'build_index'):
-            match = LMATCH_DEFS[match]
-        gold_index = match.build_index(self.annotations)
-        resp_index = match.build_index(resp.annotations)
-        gold_keys = keys(gold_index)
-        resp_keys = keys(resp_index)
-        shared = gold_keys & resp_keys
-        tp = [(gold_index[k], resp_index[k]) for k in shared]
-        fp = [(None, resp_index[k]) for k in resp_keys - shared]
-        fn = [(gold_index[k], None) for k in gold_keys - shared]
-        return tp, fp, fn
-
 
 # Grouping annotations
 
@@ -122,16 +50,6 @@ def by_document(annotations):
             d[a.docid].append(a)
         else:
             d[a.docid] = [a]
-    return d.iteritems()
-
-def by_entity(annotations):
-    d = {}
-    for a in annotations:
-        key = a.span # TODO should be strong_typed_key for tac?
-        if a.eid in d:
-            d[a.eid].add(key)
-        else:
-            d[a.eid] = {key}
     return d.iteritems()
 
 def by_mention(annotations):

@@ -1,9 +1,11 @@
 #!/usr/bin/env python
-from .document import Reader as AnnotationReader, ALL_LMATCHES
+from .document import Reader as AnnotationReader
 from .data import Reader, Mention, Writer
+from .configs import CMATCH_SETS, TMP_CMATCHES, LUO_CMATCHES, CAI_STRUBE_CMATCHES, ALL_LMATCHES
 from .coref_metrics import mapping_to_sets, sets_to_mapping
-from .coref_metrics import CMATCH_SETS, TMP_CMATCHES, LUO_CMATCHES, CAI_STRUBE_CMATCHES, _prf, muc
-from .evaluate import Evaluate
+from .coref_metrics import _prf, muc
+from . import coref_metrics
+from .evaluate import Evaluate, get_matcher
 from .formats import Unstitch, Stitch
 from .tac import PrepareTac
 from .utils import normalise_link
@@ -133,7 +135,8 @@ def test_conversions():
     
 
 def _get_coref_fscore(gold, resp, cmatches):
-    for f in CMATCH_SETS[cmatches]:
+    for name in CMATCH_SETS[cmatches]:
+        f = getattr(coref_metrics, name)
         yield f.__name__, round(_prf(*f(gold, resp))[2], 3)
 
 # TC-A-* tests from https://code.google.com/p/reference-coreference-scorers
@@ -383,7 +386,7 @@ CAI10_TABLES_4_5 = [
 def test_cai_strube_twinless_adjustment():
     "Examples from Cai & Strube (SIGDIAL'10)"
     for true, pred, expected in CAI10_TABLES_4_5:
-        actual = {f.__name__: tuple(round(x, 3) for x in _prf(*f(true, pred)))
+        actual = {f: tuple(round(x, 3) for x in _prf(*getattr(coref_metrics, f)(true, pred)))
                   for f in CMATCH_SETS[CAI_STRUBE_CMATCHES]}
         check_correct(expected, actual)
 
@@ -462,13 +465,13 @@ EXPECTED_TAC_SYS = {
                   'ptp': 10.0,
                   'recall': 1.0,
                   'rtp': 10.0},
- 'pairwise_f1': {'fn': 0,
-                 'fp': 0,
-                 'fscore': 1.0,
-                 'precision': 1.0,
-                 'ptp': 19,
-                 'recall': 1.0,
-                 'rtp': 19},
+ 'pairwise': {'fn': 0,
+              'fp': 0,
+              'fscore': 1.0,
+              'precision': 1.0,
+              'ptp': 19,
+              'recall': 1.0,
+              'rtp': 19},
 }
 
 def test_tac_eval():
@@ -538,13 +541,13 @@ EXPECTED_CONLL_SELFEVAL = {
                   'ptp': 2.0,
                   'recall': 1.0,
                   'rtp': 2.0},
- 'pairwise_f1': {'fn': 0,
-                 'fp': 0,
-                 'fscore': 1.0,
-                 'precision': 1.0,
-                 'ptp': 2,
-                 'recall': 1.0,
-                 'rtp': 2},
+ 'pairwise': {'fn': 0,
+              'fp': 0,
+              'fscore': 1.0,
+              'precision': 1.0,
+              'ptp': 2,
+              'recall': 1.0,
+              'rtp': 2},
 }
 
 def test_conll_selfeval():
@@ -616,13 +619,13 @@ EXPECTED_CONLL_SYSA = {
                   'ptp': 2.0,
                   'recall': 1.0,
                   'rtp': 2.0},
- 'pairwise_f1': {'fn': 0,
-                 'fp': 0,
-                 'fscore': 1.0,
-                 'precision': 1.0,
-                 'ptp': 2,
-                 'recall': 1.0,
-                 'rtp': 2},
+ 'pairwise': {'fn': 0,
+              'fp': 0,
+              'fscore': 1.0,
+              'precision': 1.0,
+              'ptp': 2,
+              'recall': 1.0,
+              'rtp': 2},
 }
 
 def test_conll_sysa():
@@ -695,13 +698,13 @@ EXPECTED_CONLL_MULTI_SELFEVAL = {
                   'ptp': 4.0,
                   'recall': 1.0,
                   'rtp': 4.0},
- 'pairwise_f1': {'fn': 0,
-                 'fp': 0,
-                 'fscore': 1.0,
-                 'precision': 1.0,
-                 'ptp': 4,
-                 'recall': 1.0,
-                 'rtp': 4},
+ 'pairwise': {'fn': 0,
+              'fp': 0,
+              'fscore': 1.0,
+              'precision': 1.0,
+              'ptp': 4,
+              'recall': 1.0,
+              'rtp': 4},
 }
 
 def test_conll_multi_selfeval():
@@ -773,13 +776,13 @@ EXPECTED_CONLL_MULTI_SYSA = {
                   'ptp': 4.0,
                   'recall': 1.0,
                   'rtp': 4.0},
- 'pairwise_f1': {'fn': 0,
-                 'fp': 0,
-                 'fscore': 1.0,
-                 'precision': 1.0,
-                 'ptp': 4,
-                 'recall': 1.0,
-                 'rtp': 4},
+ 'pairwise': {'fn': 0,
+              'fp': 0,
+              'fscore': 1.0,
+              'precision': 1.0,
+              'ptp': 4,
+              'recall': 1.0,
+              'rtp': 4},
 }
 
 def test_conll_multi_sysa():

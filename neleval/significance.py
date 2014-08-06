@@ -15,8 +15,9 @@ except ImportError:
     Parallel = delayed = cpu_count = None
 
 #from data import MATCHES, Reader
-from document import Reader, LMATCH_SETS, DEFAULT_LMATCH_SET
-from evaluate import Evaluate, Matrix
+from .document import Reader
+from .configs import LMATCH_SETS, DEFAULT_LMATCH_SET
+from .evaluate import Evaluate, Matrix
 
 
 def json_format(self, data):

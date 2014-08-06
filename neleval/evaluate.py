@@ -2,12 +2,22 @@
 """
 Evaluate linker performance.
 """
-from .coref_metrics import CMATCH_SETS, DEFAULT_CMATCH_SET, _to_matrix
+from . import coref_metrics
+from .configs import LMATCH_SETS, DEFAULT_LMATCH_SET, CMATCH_SETS, DEFAULT_CMATCH_SET
 from .document import Document, Reader
-from .document import LMATCH_SETS, DEFAULT_LMATCH_SET
-from .document import by_entity
 import warnings
 import json
+from collections import Sequence, defaultdict
+import operator
+
+
+try:
+    keys = dict.viewkeys
+    import itertools
+    filter = itertools.ifilter
+except Exception:
+    # Py3k
+    keys = dict.keys
 
 
 class StrictMetricWarning(Warning):
@@ -23,6 +33,137 @@ METRICS = [
     'recall',
     'fscore',
 ]
+
+
+class Matcher(object):
+    __slots__ = ['key', 'filter', 'agg']
+
+    def __init__(self, key, filter=None, agg='micro'):
+        """
+        key : list of fields for mention comparison
+        filter : a function or attribute name to select evaluated annotations
+        agg : [work in progress]
+        """
+        if not isinstance(key, Sequence):
+            raise TypeError('key should be a list or tuple')
+        self.key = tuple(key)
+        if filter is not None and not callable(filter):
+            assert isinstance(filter, str)
+            filter = operator.attrgetter(filter)
+        self.filter = filter
+        self.agg = agg
+
+    NON_CLUSTERING_AGG = ('micro',)  # 'macro')
+
+    def build_index(self, annotations):
+        if isinstance(annotations, dict):
+            # assume already built
+            return annotations
+        # TODO: caching
+
+        key = self.key
+        if self.filter is not None:
+            annotations = filter(self.filter, annotations)
+        return {tuple(getattr(ann, field) for field in key): ann
+                for ann in annotations}
+
+    def build_clusters(self, annotations):
+        if isinstance(annotations, dict):
+            # assume already built
+            return annotations
+        # TODO: caching
+
+        key = self.key
+        out = defaultdict(set)
+        for ann in annotations:
+            out[ann.eid].add(tuple(getattr(ann, field) for field in key))
+        out.default_factory = None  # disable defaulting
+        return out
+
+    def count_matches(self, system, gold):
+        if self.agg not in self.NON_CLUSTERING_AGG:
+            raise ValueError('count_matches is inappropriate '
+                             'for {}'.format(self.agg))
+        gold_index = self.build_index(gold)
+        pred_index = self.build_index(system)
+        tp = len(keys(gold_index) & keys(pred_index))
+        fn = len(gold_index) - tp
+        fp = len(pred_index) - tp
+        return tp, fp, fn
+
+    def get_matches(self, system, gold):
+        """ Assesses the match between sets of annotations
+
+        Returns three lists of items:
+        * tp [(item, other_item), ...]
+        * fp [(None, other_item), ...]
+        * fn [(item, None), ...]
+        """
+        if self.agg not in self.NON_CLUSTERING_AGG:
+            raise ValueError('get_matches is inappropriate '
+                             'for {}'.format(self.agg))
+        gold_index = self.build_index(gold)
+        pred_index = self.build_index(system)
+        gold_keys = keys(gold_index)
+        pred_keys = keys(pred_index)
+        shared = gold_keys & pred_keys
+        tp = [(gold_index[k], pred_index[k]) for k in shared]
+        fp = [(None, pred_index[k]) for k in pred_keys - shared]
+        fn = [(gold_index[k], None) for k in gold_keys - shared]
+        return tp, fp, fn
+
+    def count_clustering(self, system, gold):
+        if self.agg in self.NON_CLUSTERING_AGG:
+            raise ValueError('evaluate_clustering is inappropriate '
+                             'for {}'.format(self.agg))
+        try:
+            fn = getattr(coref_metrics, self.agg)
+        except AttributeError:
+            raise ValueError('Invalid aggregation: {!r}'.format(self.agg))
+        if not callable(fn):
+            raise ValueError('Invalid aggregation: {!r}'.format(self.agg))
+        gold_clusters = self.build_clusters(gold)
+        pred_clusters = self.build_clusters(system)
+        return fn(gold_clusters, pred_clusters)
+
+    def to_matrix(self, system, gold):
+        if self.agg in self.NON_CLUSTERING_AGG:
+            tp, fp, fn = self.count_matches(system, gold)
+            return Matrix(tp, fp, tp, fn)
+        else:
+            p_num, p_den, r_num, r_den = self.count_clustering(system, gold)
+            ptp = p_num
+            fp = p_den - p_num
+            rtp = r_num
+            fn = r_den - r_num
+            return Matrix(ptp, fp, rtp, fn)
+
+    def docs_to_matrix(self, system, gold):
+        return self.to_matrix([a for doc in system for a in doc.annotations],
+                              [a for doc in gold for a in doc.annotations])
+
+
+MATCHERS = {
+    'strong_mention_match':         Matcher(['span']),
+    'strong_linked_mention_match':  Matcher(['span'], 'is_linked'),
+    'strong_link_match':            Matcher(['span', 'kbid'], 'is_linked'),
+    'strong_nil_match':             Matcher(['span'], 'is_nil'),
+    'strong_all_match':             Matcher(['span', 'kbid']),
+    'strong_typed_all_match':       Matcher(['span', 'type', 'kbid']),
+    'entity_match':                 Matcher(['span', 'kbid'], 'is_linked'),
+
+    'b_cubed_plus':                 Matcher(['span', 'kbid'], agg='b_cubed'),
+}
+
+for name in ['muc', 'b_cubed', 'entity_ceaf', 'mention_ceaf', 'pairwise',
+             'cs_b_cubed', 'entity_cs_ceaf', 'mention_cs_ceaf']:
+    MATCHERS[name] = Matcher(['span'], agg=name)
+
+
+def get_matcher(name):
+    if isinstance(name, Matcher):
+        return name
+    return MATCHERS[name]
 
 
 class Evaluate(object):
@@ -57,10 +198,10 @@ class Evaluate(object):
             yield sdoc, gdoc
 
     def __call__(self, lmatches=None, cmatches=None):
-        lmatches = lmatches or self.lmatches
-        self.results = self.link_eval(self.doc_pairs, lmatches)
-        cmatches = cmatches or self.cmatches
-        self.results.update(self.clust_eval(self.system, self.gold, cmatches))
+        matches = list(lmatches or self.lmatches) + list(cmatches or self.cmatches)
+        self.results = {match: get_matcher(match).docs_to_matrix(self.system,
+                                                                 self.gold).results
+                        for match in matches}
         return self.format(self)
 
     @classmethod
@@ -76,22 +217,6 @@ class Evaluate(object):
         return p
 
     @classmethod
-    def link_eval(cls, doc_pairs, matches):
-        results = {}
-        for match, per_doc, overall in cls.count_all(doc_pairs, matches):
-            results[match] = overall.results
-        return results
-
-    @classmethod
-    def clust_eval(cls, system, gold, matches):
-        results = {}
-        sclust = dict(by_entity((a for d in system for a in d.annotations)))
-        gclust = dict(by_entity((a for d in gold for a in d.annotations)))
-        for m in matches:
-            results[m.__name__] = Matrix.from_clust(sclust, gclust, m).results
-        return results
-
-    @classmethod
     def count_all(cls, doc_pairs, matches):
         for m in matches:
             yield (m,) + cls.count(m, doc_pairs)
@@ -99,8 +224,10 @@ class Evaluate(object):
     @classmethod
     def count(cls, match, doc_pairs):
         per_doc = []
+        matcher = get_matcher(match)
         for sdoc, gdoc in doc_pairs:
-            per_doc.append(Matrix.from_doc(sdoc, gdoc, match))
+            per_doc.append(matcher.to_matrix(sdoc.annotations,
+                                             gdoc.annotations))
         overall = sum(per_doc, Matrix())
         return per_doc, overall
 
@@ -112,7 +239,7 @@ class Evaluate(object):
             row = self.row(lmatch, self.results, num_fmt)
             lines.append(delimiter.join(row))
         for cmatch in self.cmatches:
-            row = self.row(cmatch.__name__, self.results, num_fmt)
+            row = self.row(cmatch, self.results, num_fmt)
             lines.append(delimiter.join(row))
         return '\n'.join(lines)
 
@@ -167,29 +294,6 @@ class Matrix(object):
         self.fn += other.fn
         return self
 
-    @classmethod
-    def from_doc(cls, sdoc, gdoc, match):
-        """
-        Initialise from doc.
-        sdoc - system Document object
-        gdoc - gold Document object
-        match - match method on doc
-        """
-        tp, fp, fn = gdoc.count_matches(sdoc, match)
-        return cls(tp, fp, tp, fn)
-
-    @classmethod
-    def from_clust(cls, sclust, gclust, match):
-        """
-        Initialise from clustering.
-        sclust - system clustering
-        gclust - gold clustering
-        match - coreference metric
-        """
-        # TODO remove?
-        ptp, fp, rtp, fn = _to_matrix(*match(gclust, sclust))
-        return cls(ptp, fp, rtp, fn)
-
     @property
     def results(self):
         return {
@@ -212,7 +316,8 @@ class Matrix(object):
 
     def div(self, n, d):
         if d == 0:
-            warnings.warn('Strict P/R defaulting to zero score for zero denominator',
+            warnings.warn('Strict P/R defaulting to zero score for '
+                          'zero denominator',
                           StrictMetricWarning)
             return 0.0
         else:
