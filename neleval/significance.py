@@ -1,6 +1,6 @@
 # vim: set fileencoding=utf-8 :
 
-from __future__ import division
+from __future__ import division, print_function
 from collections import defaultdict
 import itertools
 import random
@@ -17,6 +17,11 @@ except ImportError:
 #from data import MATCHES, Reader
 from document import Reader, LMATCH_SETS, DEFAULT_LMATCH_SET
 from evaluate import Evaluate, Matrix
+
+
+# 2500 bootstraps gives a robust CI lower-bound estimate to 3 significant
+# figures on a TAC 2013 response under strong_link_match
+N_TRIALS = 2500
 
 
 def json_format(self, data):
@@ -98,7 +103,7 @@ class Significance(object):
                #'bootstrap': count_bootstrap_trials,
                }
 
-    def __init__(self, systems, gold, trials=10000, method='permute',
+    def __init__(self, systems, gold, trials=N_TRIALS, method='permute',
                  n_jobs=1, metrics=['precision', 'recall', 'fscore'],
                  fmt='tab', lmatches=DEFAULT_LMATCH_SET):
         if len(systems) < 2:
@@ -158,7 +163,7 @@ class Significance(object):
     def add_arguments(cls, p):
         p.add_argument('systems', nargs='+', metavar='FILE')
         p.add_argument('-g', '--gold')
-        p.add_argument('-n', '--trials', default=10000, type=int)
+        p.add_argument('-n', '--trials', default=N_TRIALS, type=int)
         p.add_argument('--permute', dest='method', action='store_const', const='permute',
                        default='permute',
                        help='Use the approximate randomization method')
@@ -236,7 +241,7 @@ def _percentile(ordered, p):
 class Confidence(object):
     """Calculate percentile bootstrap confidence intervals for a system
     """
-    def __init__(self, system, gold, trials=10000, percentiles=(90, 95, 99),
+    def __init__(self, system, gold, trials=N_TRIALS, percentiles=(90, 95, 99),
                  n_jobs=1, metrics=['precision', 'recall', 'fscore'],
                  lmatches=DEFAULT_LMATCH_SET, fmt='tab'):
         # Check whether import worked, generate a more useful error.
@@ -247,19 +252,40 @@ class Confidence(object):
         self.gold = gold
         self.trials = trials
         self.n_jobs = n_jobs
-        self.lmatches = LMATCH_SETS[lmatches]
+        self.lmatches = LMATCH_SETS.get(lmatches, lmatches)
         self.metrics = metrics
         self.percentiles = percentiles
         self.fmt = self.FMTS[fmt] if fmt is not callable else fmt
 
-    def intervals(self, per_doc):
+    def calibrate_trials(self, trials=[100, 250, 500, 1000, 2500, 5000, 10000],
+                         max_trials=20000):
+        import numpy as np
+        tmp_trials, self.trials = self.trials, max_trials
+        matrices = self._read_to_matrices()
+        print('match', 'metric', 'pct', 'trials', 'stdev', sep='\t')
+        for match in self.lmatches:
+            history = self.run_trials(matrices[match][0])
+            for metric in self.metrics:
+                X = history[metric]
+                for p in self.percentiles:
+                    v = (100 - p) / 2
+                    for n in trials:
+                        stats = [_percentile(sorted(random.sample(X, n)), v)
+                                 for i in range(100)]
+                        print(match, metric, p, n, np.std(stats), sep='\t')
+        self.trials = tmp_trials
+
+    def run_trials(self, per_doc):
         results = Parallel(n_jobs=self.n_jobs)(delayed(bootstrap_trials)(per_doc, share, self.metrics)
                                                for share in _job_shares(self.n_jobs, self.trials))
         history = defaultdict(list)
         for res in results:
             for metric in self.metrics:
                 history[metric].extend(res[metric])
+        return history
 
+    def intervals(self, per_doc):
+        history = self.run_trials(per_doc)
         ret = {}
         for metric, values in history.items():
             values.sort()
@@ -268,13 +294,17 @@ class Confidence(object):
                            for p in self.percentiles}
         return ret
 
-    def calculate_all(self):
+    def _read_to_matrices(self):
         gold = list(Reader(open(self.gold)))
         system = list(Reader(open(self.system)))
         doc_pairs = list(Evaluate.iter_pairs(system, gold))
         counts = {}
         for match, per_doc, overall in Evaluate.count_all(doc_pairs, self.lmatches):
             counts[match] = (per_doc, overall)
+        return counts
+
+    def calculate_all(self):
+        counts = self._read_to_matrices()
         results = [{'match': match,
                     'overall': {k: v for k, v in overall.results.items() if k in self.metrics},
                     'intervals': self.intervals(per_doc)}
@@ -327,7 +357,7 @@ class Confidence(object):
     def add_arguments(cls, p):
         p.add_argument('system', metavar='FILE')
         p.add_argument('-g', '--gold')
-        p.add_argument('-n', '--trials', default=10000, type=int)
+        p.add_argument('-n', '--trials', default=N_TRIALS, type=int)
         p.add_argument('-j', '--n_jobs', default=1, type=int,
                        help='Number of parallel processes, use -1 for all CPUs')
         p.add_argument('--percentiles', default=(90, 95, 99),
