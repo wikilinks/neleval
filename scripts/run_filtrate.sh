@@ -18,7 +18,6 @@ sys=$1; shift # prepared system annotations (.combined.tsv)
 
 SCR=`dirname $0`
 
-JOBS=2 # number of jobs for parallel mode (set to number of CPUs if possible)
 FMT='tab' # format for confidence and significance output ('tab' or 'json')
 
 
@@ -41,7 +40,7 @@ out=`echo $sysf | sed 's/.combined.tsv/.evaluation/'`
 ./nel evaluate \
     -l all \
     -c all \
-    -f 'tab' \
+    -f $FMT \
     -g $goldf \
     $sysf \
     > $out
