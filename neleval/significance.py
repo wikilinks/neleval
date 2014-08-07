@@ -101,7 +101,7 @@ class Significance(object):
 
     def __init__(self, systems, gold, trials=10000, method='permute',
                  n_jobs=1, metrics=['precision', 'recall', 'fscore'],
-                 fmt='tab', matches=DEFAULT_MATCH):
+                 fmt='none', matches=DEFAULT_MATCH):
         if len(systems) < 2:
             raise ValueError('Require at least two systems to compare')
         if method not in self.METHODS:
@@ -240,7 +240,7 @@ class Confidence(object):
     """
     def __init__(self, system, gold, trials=10000, percentiles=(90, 95, 99),
                  n_jobs=1, metrics=['precision', 'recall', 'fscore'],
-                 matches=DEFAULT_MATCH, fmt='tab'):
+                 matches=DEFAULT_MATCH, fmt='none'):
         # Check whether import worked, generate a more useful error.
         if Parallel is None:
             raise ImportError('Package: "joblib" not available, please '

@@ -28,7 +28,7 @@ class Evaluate(object):
 
     def __init__(self, system, gold=None,
                  matches=DEFAULT_MATCH_SET,
-                 fmt='tab'):
+                 fmt='none'):
         """
         system - system output
         gold - gold standard
