@@ -1,42 +1,43 @@
 #!/usr/bin/env bash
+set -e
 
-usage="Usage: $0 GOLD_XML GOLD_TAB SYS_XML SYS_TAB"
+usage="Usage: $0 GOLD_XML GOLD_TAB SYSTEMS_DIR OUT_DIR NUM_JOBS"
 
-if [ "$#" -ne 4 ]; then
+if [ "$#" -ne 5 ]; then
     echo $usage
     exit 1
 fi
 
 goldx=$1; shift # gold standard queries/mentions (XML)
 goldt=$1; shift # gold standard link annotations (tab-separated)
-sysx=$1; shift  # system queries/mentions (XML)
-syst=$1; shift  # system link annotations (tab-separated)
+sysdir=$1; shift # directory containing output from systems
+outdir=$1; shift # directory to which results are written
+jobs=$1; shift # number of jobs for parallel mode
 
-outdir=tacout
-mkdir tacout # output directory
+SCR=`dirname $0`
 
 
-# STEP 1: CONVERT TO EVALUATION FORMAT
+# CONVERT GOLD TO EVALUATION FORMAT
+echo "INFO Converting gold to evaluation format.."
 gold=$outdir/gold.combined.tsv
-./nel prepare-tac -q $goldx $goldt > $gold
-sys=$outdir/sys.combined.tsv
-./nel prepare-tac -q $sysx $syst > $sys
+./nel prepare-tac -q $goldx $goldt \
+    > $gold
 
 
-# STEP 2: EVALUATE
-eval=$outdir/sys.eval
-./nel evaluate -m tac -f 'json_format' -g $gold $sys #> $eval
+# CONVERT SYSTEMS TO EVALUATION FORMAT
+echo "INFO Converting systems to evaluation format.."
+ls $sysdir/*.tab \
+    | xargs -n 1 -P $jobs $SCR/run_tac14_prepare.sh $goldx $netypes $outdir
 
 
-# STEP 3: TEST SIGNIFICANCE (TODO)
+# EVALUATE
+echo "INFO Evaluating systems.."
+ls $outdir/*.combined.tsv \
+    | grep -v "gold\.combined\.tsv$" \
+    | xargs -n 1 -P $jobs $SCR/run_evaluate.sh $gold
 
 
-# STEP 4: EVALUATE BY ENTITY TYPE (TODO)
-
-
-# STEP 5: EVALUATE BY DOCUMENT GENRE (TODO)
-
-
-# STEP 5 RUN ERROR TYPE ANALYSIS (TODO)
-
+# PREPARE REPORT CSV FILES
+echo "INFO Preparing summary report.."
+$SCR/run_tac13_report.sh $outdir
 
