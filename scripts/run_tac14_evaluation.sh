@@ -27,7 +27,7 @@ gold=$outdir/gold.combined.tsv
 # CONVERT SYSTEMS TO EVALUATION FORMAT
 echo "INFO Converting systems to evaluation format.."
 ls $sysdir/*.tab \
-    | xargs -n 1 -P $jobs $SCR/run_tac14_prepare.sh $goldx $netypes $outdir
+    | xargs -n 1 -P $jobs $SCR/run_tac14_prepare.sh $outdir
 
 
 # EVALUATE
@@ -35,9 +35,4 @@ echo "INFO Evaluating systems.."
 ls $outdir/*.combined.tsv \
     | grep -v "gold\.combined\.tsv$" \
     | xargs -n 1 -P $jobs $SCR/run_evaluate.sh $gold
-
-
-# PREPARE REPORT CSV FILES
-echo "INFO Preparing summary report.."
-$SCR/run_tac13_report.sh $outdir
 
