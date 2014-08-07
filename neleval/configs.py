@@ -139,9 +139,10 @@ def parse_matches(in_matches, incl_clustering=True):
         try:
             get_matcher(m)
         except Exception:
+            raise
             invalid.append(m)
     if invalid:
-        raise ValueError('Could not resolve matchers: {}'.format(not_found))
+        raise ValueError('Could not resolve matchers: {}'.format(sorted(not_found)))
 
     if not incl_clustering:
         matches = [m for m in matches
@@ -159,6 +160,8 @@ def parse_matches(in_matches, incl_clustering=True):
 def get_matcher(name):
     if isinstance(name, Matcher):
         return name
+    if name.count(':') == 2:
+        return Matcher.from_string(name)
     return MATCHERS[name]
 
 
@@ -212,6 +215,10 @@ class ListMetrics(object):
                      'Aggregation with sets-micro compares gold and predicted '
                      'tuple sets directly; coreference aggregates compare '
                      'tuples clustered by their assigned entity ID.')
+        ret += '\n\n'
+        ret += ('A metric may be specified explicitly. Thus:\n'
+                '  {}\nmay be entered as\n  {}'
+                ''.format(DEFAULT_MATCH, get_matcher(DEFAULT_MATCH)))
         return ret
 
     @classmethod

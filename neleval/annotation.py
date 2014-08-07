@@ -163,6 +163,15 @@ class Matcher(object):
     def __str__(self):
         return '{}:{}:{}'.format(self.agg, self.filter, '+'.join(self.key))
 
+    @classmethod
+    def from_string(cls, s):
+        if s.count(':') != 2:
+            raise ValueError('Expected 2 colons in {!r}'.format(s))
+        a, f, k = s.split(':')
+        if f in ('', 'None'):
+            f = None
+        return cls(k.split('+'), f, a)
+
     def __repr__(self):
         return ('{0.__class__.__name__}('
                 '{0.key!r}, {0.filter!r}, {0.agg!r})'.format(self))
