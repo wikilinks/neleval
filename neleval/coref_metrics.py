@@ -225,14 +225,6 @@ def _prf(p_num, p_den, r_num, r_den):
     return p, r, _f1(p, r)
 
 
-def _to_matrix(p_num, p_den, r_num, r_den):
-    ptp = p_num
-    fp = p_den - p_num
-    rtp = r_num
-    fn = r_den - r_num
-    return ptp, fp, rtp, fn
-
-
 def twinless_adjustment(true, pred):
     """Adjusts predictions for differences in mentions
 
@@ -485,18 +477,20 @@ def cs_b_cubed(true, pred):
 def _pairs(C):
     "Return pairs of instances across all clusters in C"
     return frozenset(itertools.chain(
-            *[itertools.combinations_with_replacement(c,2) for c in C]))
+        *[itertools.combinations_with_replacement(c, 2) for c in C]))
 
-def _pairwise_f1(true, pred):
+
+def _pairwise(true, pred):
     "Return numerators and denominators for precision and recall"
     p_num = r_num = len(true & pred)
     p_den = len(pred)
     r_den = len(true)
     return p_num, p_den, r_num, r_den
 
-def pairwise_f1(true, pred):
+
+def pairwise(true, pred):
     "Return p_num, p_den, r_num, r_den over item pairs."
-    return _pairwise_f1(_pairs(values(true)), _pairs(values(pred)))
+    return _pairwise(_pairs(values(true)), _pairs(values(pred)))
 
 
 def _vilain(A, B_mapping):
@@ -528,53 +522,6 @@ def muc(true, pred):
     return p_num, p_den, r_num, r_den
 
 
-# Configuration constants
-ALL_CMATCHES = 'all'
-MUC_CMATCHES = 'muc'
-LUO_CMATCHES = 'luo'
-CAI_STRUBE_CMATCHES = 'cai'
-TAC_CMATCHES = 'tac'
-TMP_CMATCHES = 'tmp'
-NO_CMATCHES = 'none'
-CMATCH_SETS = {
-    ALL_CMATCHES: [
-        mention_ceaf,
-        entity_ceaf,
-        b_cubed,
-        pairwise_f1,
-        muc,
-        mention_cs_ceaf,
-        entity_cs_ceaf,
-        cs_b_cubed,
-        ],
-    MUC_CMATCHES: [
-        muc,
-        ],
-    LUO_CMATCHES: [
-        muc,
-        b_cubed,
-        mention_ceaf,
-        entity_ceaf,
-        ],
-    CAI_STRUBE_CMATCHES: [
-        cs_b_cubed,
-        mention_cs_ceaf,
-    ],
-    TAC_CMATCHES: [
-        mention_ceaf,
-        b_cubed,
-        ],
-    TMP_CMATCHES: [
-        mention_ceaf,
-        entity_ceaf,
-        pairwise_f1,
-        ],
-    NO_CMATCHES: [],
-}
-DEFAULT_CMATCH_SET = ALL_CMATCHES
-
-
-
 if REFERENCE_COREF_SCORER_PATH is not None:
     if _run_reference_coref_scorer({}, {}).get('bcub') != (0., 0., 0., 0.):
         warnings.warn('Not using coreference metric debug mode:'
@@ -593,7 +540,7 @@ if __name__ == '__main__':
         'ceafe': entity_ceaf,
         'ceafm': mention_ceaf,
         'muc': muc,
-        'pairs': pairwise_f1,
+        'pairs': pairwise,
     }
     key = read_conll_coref(args.key_file)
     response = read_conll_coref(args.response_file)

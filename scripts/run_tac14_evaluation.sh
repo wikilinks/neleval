@@ -25,7 +25,7 @@ sys=$outdir/sys.combined.tsv
 
 # STEP 2: EVALUATE
 eval=$outdir/sys.eval
-./nel evaluate -l tac -c tac -f 'json_format' -g $gold $sys #> $eval
+./nel evaluate -m tac -f 'json_format' -g $gold $sys #> $eval
 
 
 # STEP 3: TEST SIGNIFICANCE (TODO)
