@@ -182,9 +182,12 @@ class ListMetrics(object):
                       for i in range(len(header))]
         rows.insert(1, ['=' * w for w in col_widths])
         fmt = '\t'.join('{:%ds}' % w for w in col_widths[:-1]) + '\t{}'
-        ret = '\n'.join(fmt.format(*row) for row in rows)
-        return '{}\n\nDefault evaluation group: {}'.format(ret,
-                                                           DEFAULT_MATCH_SET)
+        ret = ('The following lists possible values for --match (-m) in '
+               'evaluate, confidence, significance. The name from each row or '
+               'the name of a group may be used.\n\n')
+        ret += '\n'.join(fmt.format(*row) for row in rows)
+        ret += '\n\nDefault evaluation group: {}'.format(DEFAULT_MATCH_SET)
+        return ret
 
     @classmethod
     def add_arguments(cls, p):

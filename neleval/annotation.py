@@ -144,7 +144,7 @@ class Candidate(object):
 class Matcher(object):
     __slots__ = ['key', 'filter', 'filter_fn', 'agg']
 
-    def __init__(self, key, filter=None, agg='micro'):
+    def __init__(self, key, filter=None, agg='sets-micro'):
         """
         key : list of fields for mention comparison
         filter : a function or attribute name to select evaluated annotations
@@ -167,7 +167,7 @@ class Matcher(object):
         return ('{0.__class__.__name__}('
                 '{0.key!r}, {0.filter!r}, {0.agg!r})'.format(self))
 
-    NON_CLUSTERING_AGG = ('micro',)  # 'macro')
+    NON_CLUSTERING_AGG = ('sets-micro',)  # 'sets-macro')
 
     @property
     def is_clustering_match(self):
