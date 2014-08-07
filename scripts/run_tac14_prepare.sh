@@ -3,26 +3,29 @@
 # Convert TAC system output to evaluation format
 set -e
 
-usage="Usage: $0 GOLD_XML SYSTEMS_DIR OUT_DIR"
+usage="Usage: $0 OUT_DIR SYSTEM_TAB"
 
-if [ "$#" -ne 4 ]; then
+if [ "$#" -ne 2 ]; then
     echo $usage
     exit 1
 fi
 
-goldx=$1; shift # gold standard queries/mentions (.xml)
 outdir=$1; shift # output directory
 syst=$1; shift # system link annotations (tab-separated)
+               # mentions file must have same path but with .xml extension
 
-sys=`basename $syst`
-stab=$outdir/$sys.tab
-cat $syst \
-    | awk 'BEGIN{OFS="\t"} {print $1,$2,"NA",$3}' \
-    > $stab
-#rm $stab
-out=$outdir/$sys.combined.tsv
-./nel prepare-tac -q $goldx $stab \
-    | sort \
-    | cut -f1,2,3,4,5 \
-    | paste - $netypes \
+
+# FIND SYSTEM XML CORRESPONDING TO GIVEN TAB FILE
+pre=`echo $syst | sed 's/\.tab//'`
+sysx=$pre.xml
+if [ ! -e $sysx ]
+then
+    echo "ERROR could not find xml for $syst"
+    exit 1
+fi
+
+
+# RUN PREPARE SCRIPT
+out=$outdir/`basename $pre`.combined.tsv
+./nel prepare-tac -q $sysx $syst \
     > $out
