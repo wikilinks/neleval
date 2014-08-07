@@ -27,19 +27,19 @@ cat $goldt \
     > $gtab
 #rm $gtab
 gold=$outdir/gold.combined.tsv
-./nel prepare-tac \
-    -q $goldx \
-    $gtab \
+./nel prepare-tac -q $goldx $gtab \
+    | sort \
     > $gold
+netypes=$outdir/netypes.txt
+cat $gold \
+    | cut -f6 \
+    > $netypes
 
 
 # CONVERT SYSTEMS TO EVALUATION FORMAT
 echo "INFO Converting systems to evaluation format.."
 ls $sysdir/* \
-    | xargs -n 1 -P $jobs $SCR/run_tac13_prepare.sh $goldx $outdir
-
-
-# TODO filter (e.g., to evaluate on PER or news only)!!!
+    | xargs -n 1 -P $jobs $SCR/run_tac13_prepare.sh $goldx $netypes $outdir
 
 
 # EVALUATE
@@ -50,21 +50,6 @@ ls $outdir/*.combined.tsv \
 
 
 # PREPARE REPORT CSV FILES
-# TODO add B^3+
 echo "INFO Preparing summary report.."
-report=$outdir/00report.tab
-echo -e "system\tKBP2010 micro-average\tB^3 Precision\tB^3 Recall\tB^3 F1" \
-    > $report
-for eval in $outdir/*.evaluation
-do
-    basename $eval \
-        | sed 's/\.evaluation//' \
-        | tr '\n' '\t' \
-        >> $report
-    cat $eval \
-        | egrep '(strong_all_match|b_cubed)' \
-        | cut -f5,6,7,8 \
-        | tr '\n' '\t' \
-        | cut -f2,5,6,7 \
-        >> $report
-done
+$SCR/run_tac13_report.sh $outdir
+

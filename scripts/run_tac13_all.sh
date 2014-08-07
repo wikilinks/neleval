@@ -17,46 +17,61 @@ outdir=$1; shift # directory to which results are written
 
 SCR=`dirname $0`
 
-TRIALS=10000 # number of trials for significance (10000 or smaller for testing)
-JOBS=16 # number of jobs for parallel mode
-FMT='tab' # format for significance output ('tab' or 'json')
+JOBS=8 # number of jobs for parallel mode (set to number of CPUs if possible)
+FMT='tab' # format for confidence and significance output ('tab' or 'json')
 
 
 # CALCULATE SCORES
 $SCR/run_tac13_evaluation.sh $goldx $goldt $sysdir $outdir $JOBS
+
+
+# GET GOLD STANDARD PATH
 gold=$outdir/gold.combined.tsv
 if [ ! -e $gold ]
 then
     echo "ERROR $gold does not exist"
-    exit
+    exit 1
 fi
+
+
+# GET LIST OF SYSTEM OUTPUT PATHS
 systems=(`ls $outdir/*.combined.tsv | grep -v "gold\.combined\.tsv$"`)
 if [ ${#systems[*]} == 0 ]
 then
     echo "ERROR did not find any system output"
+    exit 1
 fi
 
 
 # CALCULATE ALL PAIRWISE SIGNIFICANCE TESTS (NOTE: THIS TAKES A LITTLE WHILE)
-echo "INFO Calculating significance.."
-sign=$outdir/00report.significance.$FMT
-./nel significance \
-    -g $gold \
-    -n $TRIALS \
-    --permute \
-    -j $JOBS \
-    -f $FMT \
-    ${systems[@]} \
-    > $sign
+echo "INFO Calculating confidence intervals.."
+for sys in ${systems[@]}
+do
+    conf=`echo $sys | sed 's/\.combined.tsv/.confidence/'`
+    ./nel confidence \
+	-l link \
+	-f tab \
+	-g $gold \
+	-j $JOBS \
+	$sys \
+	> $conf
+done
+
+
+# CALCULATE ALL PAIRWISE SIGNIFICANCE TESTS (NOTE: THIS TAKES A LITTLE WHILE)
+#echo "INFO Calculating significance.."
+#sign=$outdir/00report.significance.$FMT
+#./nel significance \
+#    -g $gold \
+#    --permute \
+#    -j $JOBS \
+#    -f $FMT \
+#    ${systems[@]} \
+#    > $sign
 
 
 # RUN ERROR ANALYSIS
 echo "INFO Preparing error report.."
 printf "%s\n" "${systems[@]}" \
     | xargs -n 1 -P $JOBS $SCR/run_analysis.sh $gold
-
-
-# TODO EVALUATE BY ENTITY TYPE
-# TODO EVALUATE BY DOCUMENT GENRE
-# TODO EVALUATE BY DOCUMENT GENRE AND ENTITY TYPE
 

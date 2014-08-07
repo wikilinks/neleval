@@ -3,14 +3,15 @@
 # Convert TAC system output to evaluation format
 set -e
 
-usage="Usage: $0 GOLD_XML GOLD_TAB SYSTEMS_DIR OUT_DIR"
+usage="Usage: $0 GOLD_XML NE_TYPES SYSTEMS_DIR OUT_DIR"
 
-if [ "$#" -ne 3 ]; then
+if [ "$#" -ne 4 ]; then
     echo $usage
     exit 1
 fi
 
-goldx=$1; shift # gold standard queries/mentions (XML)
+goldx=$1; shift # gold standard queries/mentions (.xml)
+netypes=$1; shift # gold ne types for analysis
 outdir=$1; shift # output directory
 syst=$1; shift # system link annotations (tab-separated)
 
@@ -21,7 +22,8 @@ cat $syst \
     > $stab
 #rm $stab
 out=$outdir/$sys.combined.tsv
-./nel prepare-tac \
-    -q $goldx \
-    $stab \
+./nel prepare-tac -q $goldx $stab \
+    | sort \
+    | cut -f1,2,3,4,5 \
+    | paste - $netypes \
     > $out
