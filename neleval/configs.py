@@ -21,7 +21,8 @@ MATCHERS = {
 }
 
 for name in ['muc', 'b_cubed', 'entity_ceaf', 'mention_ceaf', 'pairwise',
-             'cs_b_cubed', 'entity_cs_ceaf', 'mention_cs_ceaf']:
+             #'cs_b_cubed', 'entity_cs_ceaf', 'mention_cs_ceaf']:
+             ]:
     MATCHERS[name] = Matcher(['span'], agg=name)
 
 
@@ -80,10 +81,11 @@ MATCH_SETS = {
         'mention_ceaf',
         'entity_ceaf',
         ],
-    CAI_STRUBE_MATCHES: [
-        'cs_b_cubed',
-        'mention_cs_ceaf',
-    ],
+    #CAI_STRUBE_MATCHES: [
+    #    'cs_b_cubed',
+    #    'entity_cs_ceaf',
+    #    'mention_cs_ceaf',
+    #],
     TAC_MATCHES: [
         'strong_link_match',  # recall equivalent to kb accuracy before 2014
         'strong_nil_match',  # recall equivalent to nil accuracy before 2014
