@@ -169,7 +169,7 @@ class Significance(object):
         p.add_argument('-j', '--n_jobs', default=1, type=int,
                        help='Number of parallel processes, use -1 for all CPUs')
         p.add_argument('-f', '--fmt', default='tab', choices=cls.FMTS.keys())
-        p.add_argument('-m', '--matches', action='append',
+        p.add_argument('-m', '--match', dest='matches', action='append',
                        choices=get_match_choices())
         p.add_argument('--metrics', default='precision recall fscore'.split(),
                        type=lambda x: x.split(','), help='Test significance for which metrics (default: precision,recall,fscore)')
@@ -338,7 +338,7 @@ class Confidence(object):
         p.add_argument('--metrics', default='precision recall fscore'.split(),
                        type=lambda x: x.split(','),
                        help='Calculate CIs for which metrics (default: precision,recall,fscore)')
-        p.add_argument('-m', '--matches', default='strong_link_match', action='append',
+        p.add_argument('-m', '--match', dest='matches', default='strong_link_match', action='append',
                        choices=get_match_choices())
         p.add_argument('-f', '--fmt', default='tab', choices=cls.FMTS.keys())
         p.set_defaults(cls=cls)

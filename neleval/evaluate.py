@@ -62,7 +62,7 @@ class Evaluate(object):
         p.add_argument('system', metavar='FILE')
         p.add_argument('-g', '--gold')
         p.add_argument('-f', '--fmt', default='tab', choices=cls.FMTS.keys())
-        p.add_argument('-m', '--matches', action='append', choices=get_match_choices())
+        p.add_argument('-m', '--match', dest='matches', action='append', choices=get_match_choices())
         p.set_defaults(cls=cls)
         return p
 
