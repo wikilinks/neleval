@@ -15,7 +15,7 @@ MATCHERS = {
     'strong_nil_match':             Matcher(['span'], 'is_nil'),
     'strong_all_match':             Matcher(['span', 'kbid']),
     'strong_typed_all_match':       Matcher(['span', 'type', 'kbid']),
-    'entity_match':                 Matcher(['span', 'kbid'], 'is_linked'),
+    'entity_match':                 Matcher(['docid', 'kbid'], 'is_linked'),
 
     'b_cubed_plus':                 Matcher(['span', 'kbid'], agg='b_cubed'),
 }
