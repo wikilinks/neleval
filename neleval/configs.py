@@ -1,3 +1,4 @@
+import textwrap
 from collections import defaultdict
 from .annotation import Matcher
 
@@ -130,9 +131,16 @@ def parse_matches(in_matches, incl_clustering=True):
     seen = set()
     matches = [seen.add(m) or m
                for m in matches if m not in seen]
+
     # TODO: make sure resolve to valid matchers
     not_found = set(matches) - keys(MATCHERS)
-    if not_found:
+    invalid = []
+    for m in not_found:
+        try:
+            get_matcher(m)
+        except Exception:
+            invalid.append(m)
+    if invalid:
         raise ValueError('Could not resolve matchers: {}'.format(not_found))
 
     if not incl_clustering:
@@ -162,6 +170,10 @@ MATCH_HELP = ('Which metrics to use: specify a name (or group name) from the '
               'list-metrics command. This flag may be repeated.')
 
 
+def _wrap(text):
+    return '\n'.join(textwrap.wrap(text))
+
+
 class ListMetrics(object):
     """List matching schemes available for evaluation"""
 
@@ -170,7 +182,7 @@ class ListMetrics(object):
 
     def __call__(self):
         matches = parse_matches(self.matches or get_match_choices())
-        header = ['Name', 'Aggregate', 'Filter', 'Key fields', 'In groups']
+        header = ['Name', 'Aggregate', 'Filter', 'Key Fields', 'In groups']
         rows = [header]
 
         set_membership = defaultdict(list)
@@ -188,11 +200,18 @@ class ListMetrics(object):
                       for i in range(len(header))]
         rows.insert(1, ['=' * w for w in col_widths])
         fmt = '\t'.join('{:%ds}' % w for w in col_widths[:-1]) + '\t{}'
-        ret = ('The following lists possible values for --match (-m) in '
-               'evaluate, confidence, significance. The name from each row or '
-               'the name of a group may be used.\n\n')
+        ret = _wrap('The following lists possible values for --match (-m) in '
+                    'evaluate, confidence and significance. The name from '
+                    'each row or the name of a group may be used. ') + '\n\n'
+        ret = '\n'.join(textwrap.wrap(ret)) + '\n\n'
         ret += '\n'.join(fmt.format(*row) for row in rows)
         ret += '\n\nDefault evaluation group: {}'.format(DEFAULT_MATCH_SET)
+        ret += '\n\n'
+        ret += _wrap('In all metrics, a set of tuples corresponding to Key '
+                     'Fields is produced from annotations matching Filter. '
+                     'Aggregation with sets-micro compares gold and predicted '
+                     'tuple sets directly; coreference aggregates compare '
+                     'tuples clustered by their assigned entity ID.')
         return ret
 
     @classmethod

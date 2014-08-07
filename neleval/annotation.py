@@ -190,6 +190,7 @@ class Matcher(object):
             # assume already built
             return annotations
         # TODO: caching
+        # TODO: can reuse build_index for small efficiency loss
 
         key = self.key
         out = defaultdict(set)
