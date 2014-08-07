@@ -8,6 +8,9 @@ CORNOLTI_WWW13_LMATCHES = 'cornolti'
 HACHEY_ACL14_LMATCHES = 'hachey'
 TAC_LMATCHES = 'tac'
 TAC14_LMATCHES = 'tac14'
+MENTION = 'mention'
+LINK = 'link'
+TAG = 'tag'
 LMATCH_SETS = {
     ALL_LMATCHES: [
         'strong_mention_match',
@@ -37,7 +40,16 @@ LMATCH_SETS = {
         ],
     TAC14_LMATCHES: [
         'strong_typed_all_match', # wikification f-score for TAC 2014
-        ]
+        ],
+    MENTION: [
+        'strong_mention_match'
+        ],
+    LINK: [
+        'strong_link_match'
+        ],
+    TAG: [
+        'entity_match'
+        ],
     }
 DEFAULT_LMATCH_SET = HACHEY_ACL14_LMATCHES
 

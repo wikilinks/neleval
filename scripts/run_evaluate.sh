@@ -17,7 +17,7 @@ out=`echo $sys | sed 's/.combined.tsv/.evaluation/'`
 ./nel evaluate \
     -l all \
     -c all \
-    -f 'tab_format' \
+    -f 'tab' \
     -g $gold \
     $sys \
     > $out
