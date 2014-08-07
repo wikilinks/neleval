@@ -6,7 +6,6 @@ from .coref_metrics import CMATCH_SETS, DEFAULT_CMATCH_SET, _to_matrix
 from .document import Document, Reader
 from .document import LMATCH_SETS, DEFAULT_LMATCH_SET
 from .document import by_entity
-from .utils import bind
 import warnings
 import json
 
@@ -44,7 +43,7 @@ class Evaluate(object):
         self.gold = list(Reader(open(gold)))
         self.lmatches = LMATCH_SETS[lmatches]
         self.cmatches = CMATCH_SETS[cmatches]
-        self.format = bind(self.FMTS[fmt] if fmt is not callable else fmt, self)
+        self.format = self.FMTS[fmt] if fmt is not callable else fmt
         if len(self.lmatches) > 0:  # clust eval only
             self.doc_pairs = list(self.iter_pairs(self.system, self.gold))
 
@@ -62,7 +61,7 @@ class Evaluate(object):
         self.results = self.link_eval(self.doc_pairs, lmatches)
         cmatches = cmatches or self.cmatches
         self.results.update(self.clust_eval(self.system, self.gold, cmatches))
-        return self.format()
+        return self.format(self)
 
     @classmethod
     def add_arguments(cls, p):

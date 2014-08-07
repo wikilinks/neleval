@@ -7,7 +7,6 @@ import random
 import operator
 import functools
 import json
-from .utils import bind
 
 # Attempt to import joblib, but don't fail.
 try:
@@ -20,11 +19,11 @@ from document import Reader, LMATCH_SETS, DEFAULT_LMATCH_SET
 from evaluate import Evaluate, Matrix
 
 
-def json_format(data):
-    return json.dumps(data)
+def json_format(self, data):
+    return json.dumps(data, sort_keys=True, indent=4)
 
 
-def no_format(data):
+def no_format(self, data):
     return data
 
 
@@ -116,7 +115,7 @@ class Significance(object):
         self.n_jobs = n_jobs
         self.lmatches = LMATCH_SETS[lmatches]
         self.metrics = metrics
-        self.fmt = bind(self.FMTS[fmt] if fmt is not callable else fmt, self)
+        self.fmt = self.FMTS[fmt] if fmt is not callable else fmt
 
     def __call__(self):
         all_counts = defaultdict(dict)
@@ -136,7 +135,7 @@ class Significance(object):
                    for match, match_counts in sorted(all_counts.iteritems(),
                                                      key=lambda (k, v): self.lmatches.index(k))]
 
-        return self.fmt(results)
+        return self.fmt(self, results)
 
     def significance(self, (per_doc1, overall1), (per_doc2, overall2)):
         # TODO: limit to metrics
@@ -250,7 +249,7 @@ class Confidence(object):
         self.lmatches = LMATCH_SETS[lmatches]
         self.metrics = metrics
         self.percentiles = percentiles
-        self.fmt = bind(self.FMTS[fmt] if fmt is not callable else fmt, self)
+        self.fmt = self.FMTS[fmt] if fmt is not callable else fmt
 
     def intervals(self, per_doc):
         results = Parallel(n_jobs=self.n_jobs)(delayed(bootstrap_trials)(per_doc, share, self.metrics)
@@ -283,7 +282,7 @@ class Confidence(object):
         return results
 
     def __call__(self):
-        return self.fmt(self.calculate_all())
+        return self.fmt(self, self.calculate_all())
 
     def tab_format(self, data):
         # Input:
@@ -299,23 +298,24 @@ class Confidence(object):
                   [u'score'] +
                   [u'){:d}%'.format(p) for p in reversed(percentiles)])
 
-        getters = ([(lambda entry, metric: entry['intervals'][metric][p][0])
-                    for p in percentiles] +
-                   [lambda entry, metric: entry['overall'][metric]] +
-                   [(lambda entry, metric: entry['intervals'][metric][p][1])
-                    for p in reversed(percentiles)])
-        rows = []
-        for entry in data:
-            for metric in self.metrics:
-                rows.append([entry['match'], metric] +
-                            [getter(entry, metric) for getter in getters])
+        # crazy formatting avoids lambda closure madness !
+        meta_format = u'{{{{[intervals][{{metric}}][{}][{}]:.3f}}}}'
+        formats = ([meta_format.format(p, 0) for p in percentiles] +
+                   [u'{{[overall][{metric}]:.3f}}'] +
+                   [meta_format.format(p, 1) for p in reversed(percentiles)])
 
         lmatch_width = max(map(len, self.lmatches))
         metric_width = max(map(len, self.metrics))
         fmt = (u'{:%ds}\t{:%ds}' % (lmatch_width, metric_width))
-        ret = (fmt + u'\t{}' * len(getters)).format(*header)
-        fmt += u''.join(u'\t{:.3f}' * len(getters))
-        ret += u''.join(u'\n' + fmt.format(*row) for row in rows)
+        rows = []
+        for entry in data:
+            for metric in self.metrics:
+                rows.append([fmt.format(entry['match'], metric)] +
+                            [cell.format(metric=metric).format(entry)
+                             for cell in formats])
+
+        ret = (fmt + u'\t{}' * len(formats)).format(*header)
+        ret += u''.join(u'\n' + u'\t'.join(row) for row in rows)
         return ret.encode('utf-8')
 
     FMTS = {'json': json_format,

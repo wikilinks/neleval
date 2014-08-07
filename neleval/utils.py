@@ -13,10 +13,3 @@ def normalise_link(l):
     * replaces spaces with underscores.
     """
     return WIKI_PREFIX.sub('', l).replace(' ', '_')
-
-
-def bind(method, obj):
-    """Bind method to obj if method is unbound"""
-    if hasattr(method, '__get__'):
-        return method.__get__(obj, obj.__class__)
-    return method
