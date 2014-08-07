@@ -369,7 +369,7 @@ class Confidence(object):
         p.add_argument('--metrics', default='precision recall fscore'.split(),
                        type=lambda x: x.split(','),
                        help='Calculate CIs for which metrics (default: precision,recall,fscore)')
-        p.add_argument('-m', '--match', dest='matches', default='strong_link_match', action='append',
+        p.add_argument('-m', '--match', dest='matches', action='append',
                        choices=get_match_choices())
         p.add_argument('-f', '--fmt', default='tab', choices=cls.FMTS.keys())
         p.set_defaults(cls=cls)
