@@ -1,3 +1,4 @@
+from collections import defaultdict
 from .annotation import Matcher
 
 try:
@@ -152,3 +153,40 @@ def get_matcher(name):
 
 def get_match_choices():
     return sorted(MATCH_SETS.keys()) + sorted(MATCHERS.keys())
+
+
+class ListMetrics(object):
+    """List matching schemes available for evaluation"""
+
+    def __init__(self, matches=None):
+        self.matches = matches
+
+    def __call__(self):
+        matches = parse_matches(self.matches or get_match_choices())
+        header = ['Name', 'Aggregate', 'Filter', 'Key fields', 'In groups']
+        rows = [header]
+
+        set_membership = defaultdict(list)
+        for set_name, match_set in sorted(MATCH_SETS.items()):
+            for name in parse_matches(match_set):
+                set_membership[name].append(set_name)
+
+        for name in sorted(matches):
+            matcher = get_matcher(name)
+            rows.append((name, matcher.agg, str(matcher.filter),
+                         '+'.join(matcher.key),
+                         ', '.join(set_membership[name])))
+
+        col_widths = [max(len(row[i]) for row in rows)
+                      for i in range(len(header))]
+        rows.insert(1, ['=' * w for w in col_widths])
+        fmt = '\t'.join('{:%ds}' % w for w in col_widths[:-1]) + '\t{}'
+        ret = '\n'.join(fmt.format(*row) for row in rows)
+        return '{}\n\nDefault evaluation group: {}'.format(ret,
+                                                           DEFAULT_MATCH_SET)
+
+    @classmethod
+    def add_arguments(cls, p):
+        p.add_argument('-m', '--match', dest='matches', action='append', choices=get_match_choices())
+        p.set_defaults(cls=cls)
+        return p

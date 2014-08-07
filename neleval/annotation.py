@@ -142,7 +142,7 @@ class Candidate(object):
 
 
 class Matcher(object):
-    __slots__ = ['key', 'filter', 'agg']
+    __slots__ = ['key', 'filter', 'filter_fn', 'agg']
 
     def __init__(self, key, filter=None, agg='micro'):
         """
@@ -153,10 +153,11 @@ class Matcher(object):
         if not isinstance(key, Sequence):
             raise TypeError('key should be a list or tuple')
         self.key = tuple(key)
+        self.filter = filter
         if filter is not None and not callable(filter):
             assert isinstance(filter, str)
             filter = operator.attrgetter(filter)
-        self.filter = filter
+        self.filter_fn = filter
         self.agg = agg
 
     def __str__(self):
@@ -180,7 +181,7 @@ class Matcher(object):
 
         key = self.key
         if self.filter is not None:
-            annotations = filter(self.filter, annotations)
+            annotations = filter(self.filter_fn, annotations)
         return {tuple(getattr(ann, field) for field in key): ann
                 for ann in annotations}
 
