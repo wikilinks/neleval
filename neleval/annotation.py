@@ -15,7 +15,7 @@ except Exception:
 
 
 class Annotation(object):
-    __slots__ = ['docid', 'start', 'end', 'candidates']
+    __slots__ = ['docid', 'start', 'end', 'candidates', 'is_first']
 
     def __init__(self, docid, start, end, candidates=[]):
         self.docid = docid

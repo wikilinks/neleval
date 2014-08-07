@@ -13,6 +13,15 @@ class Document(object):
     def __init__(self, id, annotations):
         self.id = id
         self.annotations = annotations
+        self._set_fields()
+
+    def _set_fields(self):
+        """Set fields on annotations that are relative to document"""
+        seen = set()
+        for a in self.annotations:
+            eid = a.eid
+            a.is_first = eid not in seen
+            seen.add(eid)
 
     def __str__(self):
         return unicode(self)
