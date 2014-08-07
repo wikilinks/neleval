@@ -188,9 +188,9 @@ class Matcher(object):
             return annotations
         # TODO: caching
 
-        key = self.key
         if self.filter is not None:
             annotations = filter(self.filter_fn, annotations)
+        key = self.key
         return {tuple(getattr(ann, field) for field in key): ann
                 for ann in annotations}
 
@@ -201,6 +201,8 @@ class Matcher(object):
         # TODO: caching
         # TODO: can reuse build_index for small efficiency loss
 
+        if self.filter is not None:
+            annotations = filter(self.filter_fn, annotations)
         key = self.key
         out = defaultdict(set)
         for ann in annotations:
