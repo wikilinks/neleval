@@ -15,9 +15,11 @@ from .fetch_map import FetchMapping
 from .filter import FilterMentions
 from .rcv import ReutersCodes
 from .tac import PrepareTac
+from .configs import ListMetrics
 
 APPS = [
     Evaluate,
+    ListMetrics,
     Analyze,
     Significance,
     Confidence,

@@ -49,7 +49,7 @@ for sys in ${systems[@]}
 do
     conf=`echo $sys | sed 's/\.combined.tsv/.confidence/'`
     ./nel confidence \
-	-l link \
+	-m strong_link_match \
 	-f tab \
 	-g $gold \
 	-j $JOBS \

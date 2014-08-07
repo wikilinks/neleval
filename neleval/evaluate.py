@@ -2,10 +2,8 @@
 """
 Evaluate linker performance.
 """
-from .coref_metrics import CMATCH_SETS, DEFAULT_CMATCH_SET, _to_matrix
+from .configs import DEFAULT_MATCH_SET, parse_matches, get_match_choices, get_matcher
 from .document import Document, Reader
-from .document import LMATCH_SETS, DEFAULT_LMATCH_SET
-from .document import by_entity
 import warnings
 import json
 
@@ -29,23 +27,19 @@ class Evaluate(object):
     'Evaluate system output'
 
     def __init__(self, system, gold=None,
-                 lmatches=DEFAULT_LMATCH_SET,
-                 cmatches=DEFAULT_CMATCH_SET,
-                 fmt='tab'):
+                 matches=DEFAULT_MATCH_SET,
+                 fmt='none'):
         """
         system - system output
         gold - gold standard
-        lmatches - link match definitions to use
-        cmatches - cluster match definitions to use
+        matches - match definitions to use
         fmt - output format
         """
         self.system = list(Reader(open(system)))
         self.gold = list(Reader(open(gold)))
-        self.lmatches = LMATCH_SETS[lmatches]
-        self.cmatches = CMATCH_SETS[cmatches]
+        self.matches = parse_matches(matches or DEFAULT_MATCH_SET)
         self.format = self.FMTS[fmt] if fmt is not callable else fmt
-        if len(self.lmatches) > 0:  # clust eval only
-            self.doc_pairs = list(self.iter_pairs(self.system, self.gold))
+        self.doc_pairs = list(self.iter_pairs(self.system, self.gold))
 
     @classmethod
     def iter_pairs(self, system, gold):
@@ -56,11 +50,11 @@ class Evaluate(object):
             gdoc = gdocs.get(docid) or Document(docid, [])
             yield sdoc, gdoc
 
-    def __call__(self, lmatches=None, cmatches=None):
-        lmatches = lmatches or self.lmatches
-        self.results = self.link_eval(self.doc_pairs, lmatches)
-        cmatches = cmatches or self.cmatches
-        self.results.update(self.clust_eval(self.system, self.gold, cmatches))
+    def __call__(self, matches=None):
+        matches = parse_matches(matches) if matches is not None else self.matches
+        self.results = {match: Matrix(*get_matcher(match).docs_to_contingency(self.system,
+                                                                              self.gold)).results
+                        for match in matches}
         return self.format(self)
 
     @classmethod
@@ -68,28 +62,9 @@ class Evaluate(object):
         p.add_argument('system', metavar='FILE')
         p.add_argument('-g', '--gold')
         p.add_argument('-f', '--fmt', default='tab', choices=cls.FMTS.keys())
-        p.add_argument('-l', '--lmatches', default=DEFAULT_LMATCH_SET,
-                       choices=LMATCH_SETS.keys())
-        p.add_argument('-c', '--cmatches', default=DEFAULT_CMATCH_SET,
-                       choices=CMATCH_SETS.keys())
+        p.add_argument('-m', '--match', dest='matches', action='append', choices=get_match_choices())
         p.set_defaults(cls=cls)
         return p
-
-    @classmethod
-    def link_eval(cls, doc_pairs, matches):
-        results = {}
-        for match, per_doc, overall in cls.count_all(doc_pairs, matches):
-            results[match] = overall.results
-        return results
-
-    @classmethod
-    def clust_eval(cls, system, gold, matches):
-        results = {}
-        sclust = dict(by_entity((a for d in system for a in d.annotations)))
-        gclust = dict(by_entity((a for d in gold for a in d.annotations)))
-        for m in matches:
-            results[m.__name__] = Matrix.from_clust(sclust, gclust, m).results
-        return results
 
     @classmethod
     def count_all(cls, doc_pairs, matches):
@@ -99,8 +74,10 @@ class Evaluate(object):
     @classmethod
     def count(cls, match, doc_pairs):
         per_doc = []
+        matcher = get_matcher(match)
         for sdoc, gdoc in doc_pairs:
-            per_doc.append(Matrix.from_doc(sdoc, gdoc, match))
+            per_doc.append(Matrix(*matcher.contingency(sdoc.annotations,
+                                                       gdoc.annotations)))
         overall = sum(per_doc, Matrix())
         return per_doc, overall
 
@@ -108,11 +85,8 @@ class Evaluate(object):
 
     def tab_format(self, num_fmt='{:.3f}', delimiter='\t'):
         lines = [delimiter.join([i[:6] for i in METRICS] + ['match'])]
-        for lmatch in self.lmatches:
-            row = self.row(lmatch, self.results, num_fmt)
-            lines.append(delimiter.join(row))
-        for cmatch in self.cmatches:
-            row = self.row(cmatch.__name__, self.results, num_fmt)
+        for match in self.matches:
+            row = self.row(match, self.results, num_fmt)
             lines.append(delimiter.join(row))
         return '\n'.join(lines)
 
@@ -167,29 +141,6 @@ class Matrix(object):
         self.fn += other.fn
         return self
 
-    @classmethod
-    def from_doc(cls, sdoc, gdoc, match):
-        """
-        Initialise from doc.
-        sdoc - system Document object
-        gdoc - gold Document object
-        match - match method on doc
-        """
-        tp, fp, fn = getattr(gdoc, match)(sdoc)
-        return cls(len(tp), len(fp), len(tp), len(fn))
-
-    @classmethod
-    def from_clust(cls, sclust, gclust, match):
-        """
-        Initialise from clustering.
-        sclust - system clustering
-        gclust - gold clustering
-        match - coreference metric
-        """
-        # TODO remove?
-        ptp, fp, rtp, fn = _to_matrix(*match(gclust, sclust))
-        return cls(ptp, fp, rtp, fn)
-
     @property
     def results(self):
         return {
@@ -212,7 +163,8 @@ class Matrix(object):
 
     def div(self, n, d):
         if d == 0:
-            warnings.warn('Strict P/R defaulting to zero score for zero denominator',
+            warnings.warn('Strict P/R defaulting to zero score for '
+                          'zero denominator',
                           StrictMetricWarning)
             return 0.0
         else:

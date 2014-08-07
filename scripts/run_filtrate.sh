@@ -38,8 +38,7 @@ cat $sys \
 # EVALUATE ON FILTERED SUBSET
 out=`echo $sysf | sed 's/.combined.tsv/.evaluation/'`
 ./nel evaluate \
-    -l all \
-    -c all \
+    -m all \
     -f $FMT \
     -g $goldf \
     $sysf \
