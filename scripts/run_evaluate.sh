@@ -15,8 +15,7 @@ sys=$1; shift # prepared system annotations (.combined.tsv)
 
 out=`echo $sys | sed 's/.combined.tsv/.evaluation/'`
 ./nel evaluate \
-    -l all \
-    -c all \
+    -m all \
     -f 'tab_format' \
     -g $gold \
     $sys \

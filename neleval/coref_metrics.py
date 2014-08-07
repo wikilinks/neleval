@@ -225,14 +225,6 @@ def _prf(p_num, p_den, r_num, r_den):
     return p, r, _f1(p, r)
 
 
-def _to_matrix(p_num, p_den, r_num, r_den):
-    ptp = p_num
-    fp = p_den - p_num
-    rtp = r_num
-    fn = r_den - r_num
-    return ptp, fp, rtp, fn
-
-
 def twinless_adjustment(true, pred):
     """Adjusts predictions for differences in mentions
 
