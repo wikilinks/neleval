@@ -16,7 +16,7 @@ except ImportError:
 
 #from data import MATCHES, Reader
 from .document import Reader
-from .configs import DEFAULT_MATCH, parse_matches, get_match_choices
+from .configs import DEFAULT_MATCH, parse_matches, MATCH_HELP
 from .evaluate import Evaluate, Matrix
 
 
@@ -175,7 +175,7 @@ class Significance(object):
                        help='Number of parallel processes, use -1 for all CPUs')
         p.add_argument('-f', '--fmt', default='tab', choices=cls.FMTS.keys())
         p.add_argument('-m', '--match', dest='matches', action='append',
-                       choices=get_match_choices())
+                       metavar='NAME', help=MATCH_HELP)
         p.add_argument('--metrics', default='precision recall fscore'.split(),
                        type=lambda x: x.split(','), help='Test significance for which metrics (default: precision,recall,fscore)')
         p.set_defaults(cls=cls)
@@ -370,7 +370,7 @@ class Confidence(object):
                        type=lambda x: x.split(','),
                        help='Calculate CIs for which metrics (default: precision,recall,fscore)')
         p.add_argument('-m', '--match', dest='matches', action='append',
-                       choices=get_match_choices())
+                       metavar='NAME', help=MATCH_HELP)
         p.add_argument('-f', '--fmt', default='tab', choices=cls.FMTS.keys())
         p.set_defaults(cls=cls)
         return p

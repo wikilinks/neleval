@@ -2,7 +2,7 @@
 """
 Evaluate linker performance.
 """
-from .configs import DEFAULT_MATCH_SET, parse_matches, get_match_choices, get_matcher
+from .configs import DEFAULT_MATCH_SET, parse_matches, MATCH_HELP, get_matcher
 from .document import Document, Reader
 import warnings
 import json
@@ -62,7 +62,8 @@ class Evaluate(object):
         p.add_argument('system', metavar='FILE')
         p.add_argument('-g', '--gold')
         p.add_argument('-f', '--fmt', default='tab', choices=cls.FMTS.keys())
-        p.add_argument('-m', '--match', dest='matches', action='append', choices=get_match_choices())
+        p.add_argument('-m', '--match', dest='matches', action='append',
+                       metavar='NAME', help=MATCH_HELP)
         p.set_defaults(cls=cls)
         return p
 

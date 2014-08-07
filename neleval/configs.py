@@ -158,6 +158,10 @@ def get_match_choices():
     return sorted(MATCH_SETS.keys()) + sorted(MATCHERS.keys())
 
 
+MATCH_HELP = ('Which metrics to use: specify a name (or group name) from the '
+              'list-metrics command. This flag may be repeated.')
+
+
 class ListMetrics(object):
     """List matching schemes available for evaluation"""
 
@@ -193,6 +197,7 @@ class ListMetrics(object):
 
     @classmethod
     def add_arguments(cls, p):
-        p.add_argument('-m', '--match', dest='matches', action='append', choices=get_match_choices())
+        p.add_argument('-m', '--match', dest='matches', action='append',
+                       metavar='NAME', help=MATCH_HELP)
         p.set_defaults(cls=cls)
         return p
