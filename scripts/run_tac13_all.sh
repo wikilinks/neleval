@@ -19,6 +19,12 @@ SCR=`dirname $0`
 
 JOBS=8 # number of jobs for parallel mode (set to number of CPUs if possible)
 FMT='tab' # format for confidence and significance output ('tab' or 'json')
+CONFIDENCE_MEASURES=(
+    strong_link_match
+    strong_nil_match
+    strong_all_match
+    strong_typed_all_match
+)
 
 
 # CALCULATE SCORES
@@ -43,22 +49,26 @@ then
 fi
 
 
-# CALCULATE ALL PAIRWISE SIGNIFICANCE TESTS (NOTE: THIS TAKES A LITTLE WHILE)
+# CALCULATE CONFIDENCE INTERVALS
 echo "INFO Calculating confidence intervals.."
 for sys in ${systems[@]}
 do
     conf=`echo $sys | sed 's/\.combined.tsv/.confidence/'`
     ./nel confidence \
-	-m strong_link_match \
-	-f tab \
-	-g $gold \
-	-j $JOBS \
-	$sys \
-	> $conf
+        -m tac \
+        -f tab \
+        -g $gold \
+        -j $JOBS \
+        $sys \
+        > $conf
 done
 
 
-# CALCULATE ALL PAIRWISE SIGNIFICANCE TESTS (NOTE: THIS TAKES A LITTLE WHILE)
+# PREPARE SUMMARY CONFIDENCE INTERVAL REPORTS
+$SCR/run_report_confidence $outdir ${CONFIDENCE_MEASURES[@]}
+
+
+## CALCULATE ALL PAIRWISE SIGNIFICANCE TESTS (NOTE: THIS TAKES A LITTLE WHILE)
 #echo "INFO Calculating significance.."
 #sign=$outdir/00report.significance.$FMT
 #./nel significance \
