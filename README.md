@@ -1,7 +1,7 @@
 Entity linking evaluation
 =========================
 
-Python evaluation scripts for [TAC](http://www.nist.gov/tac/) and [CoNLL-YAGO](http://www.mpi-inf.mpg.de/departments/databases-and-information-systems/research/yago-naga/aida/downloads/) entity linking data, and related wikification, named entity disambiguation and cross-document coreference tasks.
+Python evaluation scripts for [TAC](http://www.nist.gov/tac/) entity linking (and related wikification, named entity disambiguation and cross-document coreference tasks).
 
 TAC13 quickstart
 ================
