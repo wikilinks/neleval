@@ -15,11 +15,11 @@ from .significance import Significance, Confidence
 #from .filter import FilterMentions
 #from .rcv import ReutersCodes
 from .tac import PrepareTac
-from .configs import ListMetrics
+from .configs import ListMeasures
 
 APPS = [
     Evaluate,
-    ListMetrics,
+    ListMeasures,
     Analyze,
     Significance,
     Confidence,
