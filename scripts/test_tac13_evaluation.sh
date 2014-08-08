@@ -38,12 +38,10 @@ official=$outdir/00official.tab
 cat $scores \
     | egrep -v '^[0-9]* queries' \
     | head -1 \
-    | cut -f1,2,3,4,5 \
     > $official
 cat $scores \
     | egrep -v '^[0-9]* queries' \
-    | awk '{if (NR>1) print}' \
-    | cut -f1,2,3,4,5 \
+    | tail -n +2 \
     | sort \
     >> $official
 
@@ -54,7 +52,7 @@ if [ "" != "`diff $official $report`" ]
 then
     difff=$outdir/00diff.txt
     diff -y $official $report \
-	> $difff
+        > $difff
     echo "FAIL see $difff"
 else
     echo "PASS"

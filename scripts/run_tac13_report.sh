@@ -14,21 +14,32 @@ outdir=$1; shift # directory to which results are written
 
 # INITIALISE REPORT HEADER
 report=$outdir/00report.tab
-echo -e "system\tKBP2010 micro-average\tB^3 Precision\tB^3 Recall\tB^3 F1" \
-    > $report
+(
+    echo -en "system"                                # run name
+    echo -en "\tKBP2010 micro-average"               # overall linking score
+    echo -en "\tB^3 Precision\tB^3 Recall\tB^3 F1"   # B^3 clustering scores
+    echo -e "\tB^3+ Precision\tB^3+ Recall\tB^3+ F1" # B^3+ clustering scores
+) > $report
 
 # ADD SYSTEM SCORES
-# TODO add B^3+
-for eval in $outdir/*.evaluation
+for sys_eval in $outdir/*.evaluation
 do
-    basename $eval \
+    basename $sys_eval \
         | sed 's/\.evaluation//' \
         | tr '\n' '\t' \
         >> $report
-    cat $eval \
-        | egrep '(strong_all_match|b_cubed)' \
-        | cut -f5,6,7,8 \
+    cat $sys_eval \
+        | grep -P '\tstrong_all_match$' \
+        | cut -f 7 \
         | tr '\n' '\t' \
-        | cut -f2,5,6,7 \
+        >> $report
+    cat $sys_eval \
+        | grep -P '\tb_cubed$' \
+        | cut -f 5,6,7 \
+        | tr '\n' '\t' \
+        >> $report
+    cat $sys_eval \
+        | grep -P '\tb_cubed_plus$' \
+        | cut -f 5,6,7 \
         >> $report
 done
