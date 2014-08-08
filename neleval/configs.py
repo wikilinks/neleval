@@ -54,7 +54,6 @@ MATCH_SETS = {
         'entity_match',
     },
     ALL_COREF: {
-        'entity_match',
         'mention_ceaf',
         'entity_ceaf',
         'b_cubed',
