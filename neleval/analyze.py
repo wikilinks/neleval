@@ -1,7 +1,7 @@
 from .document import ENC
 from .document import Reader
 from .document import by_mention
-from .evaluate import get_matcher
+from .evaluate import get_measure
 from collections import Counter
 from collections import namedtuple
 
@@ -81,10 +81,10 @@ class Analyze(object):
     def iter_errors(self):
         system = list(Reader(open(self.system), group=by_mention))
         gold = list(Reader(open(self.gold), group=by_mention))
-        matcher = get_matcher('strong_mention_match')
+        measure = get_measure('strong_mention_match')
         for g, s in zip(gold, system):
             assert g.id == s.id
-            tp, fp, fn = matcher.get_matches(g.annotations, s.annotations)
+            tp, fp, fn = measure.get_matches(g.annotations, s.annotations)
             for g_m, s_m in tp:
                 if g_m.kbid == s_m.kbid and not self.with_correct:
                     #continue  # Correct case.

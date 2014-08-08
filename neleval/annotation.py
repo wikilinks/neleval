@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"Representation of link standoff annotation and matching over it"
+"Representation of link standoff annotation and measures over it"
 
 from collections import Sequence, defaultdict
 import operator
@@ -141,7 +141,7 @@ class Candidate(object):
             raise SyntaxError('Need id, score and type when >1 candidates')
 
 
-class Matcher(object):
+class Measure(object):
     __slots__ = ['key', 'filter', 'filter_fn', 'agg']
 
     def __init__(self, key, filter=None, agg='sets-micro'):
@@ -179,7 +179,7 @@ class Matcher(object):
     NON_CLUSTERING_AGG = ('sets-micro',)  # 'sets-macro')
 
     @property
-    def is_clustering_match(self):
+    def is_clustering(self):
         return self.agg not in self.NON_CLUSTERING_AGG
 
     def build_index(self, annotations):
@@ -211,7 +211,7 @@ class Matcher(object):
         return out
 
     def count_matches(self, system, gold):
-        if self.is_clustering_match:
+        if self.is_clustering:
             raise ValueError('count_matches is inappropriate '
                              'for {}'.format(self.agg))
         gold_index = self.build_index(gold)
@@ -229,7 +229,7 @@ class Matcher(object):
         * fp [(None, other_item), ...]
         * fn [(item, None), ...]
         """
-        if self.is_clustering_match:
+        if self.is_clustering:
             raise ValueError('get_matches is inappropriate '
                              'for {}'.format(self.agg))
         gold_index = self.build_index(gold)
@@ -244,7 +244,7 @@ class Matcher(object):
 
     def count_clustering(self, system, gold):
         from . import coref_metrics
-        if not self.is_clustering_match:
+        if not self.is_clustering:
             raise ValueError('evaluate_clustering is inappropriate '
                              'for {}'.format(self.agg))
         try:
@@ -258,7 +258,7 @@ class Matcher(object):
         return fn(gold_clusters, pred_clusters)
 
     def contingency(self, system, gold):
-        if self.is_clustering_match:
+        if self.is_clustering:
             p_num, p_den, r_num, r_den = self.count_clustering(system, gold)
             ptp = p_num
             fp = p_den - p_num

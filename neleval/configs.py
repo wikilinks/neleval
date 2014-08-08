@@ -1,6 +1,6 @@
 import textwrap
 from collections import defaultdict
-from .annotation import Matcher
+from .annotation import Measure
 
 try:
     keys = dict.viewkeys
@@ -9,38 +9,38 @@ except Exception:
     keys = dict.keys
 
 
-MATCHERS = {
-    'strong_mention_match':         Matcher(['span']),
-    'strong_linked_mention_match':  Matcher(['span'], 'is_linked'),
-    'strong_link_match':            Matcher(['span', 'kbid'], 'is_linked'),
-    'strong_nil_match':             Matcher(['span'], 'is_nil'),
-    'strong_all_match':             Matcher(['span', 'kbid']),
-    'strong_typed_all_match':       Matcher(['span', 'type', 'kbid']),
-    'entity_match':                 Matcher(['docid', 'kbid'], 'is_linked'),
+MEASURES = {
+    'strong_mention_match':         Measure(['span']),
+    'strong_linked_mention_match':  Measure(['span'], 'is_linked'),
+    'strong_link_match':            Measure(['span', 'kbid'], 'is_linked'),
+    'strong_nil_match':             Measure(['span'], 'is_nil'),
+    'strong_all_match':             Measure(['span', 'kbid']),
+    'strong_typed_all_match':       Measure(['span', 'type', 'kbid']),
+    'entity_match':                 Measure(['docid', 'kbid'], 'is_linked'),
 
-    'b_cubed_plus':                 Matcher(['span', 'kbid'], agg='b_cubed'),
+    'b_cubed_plus':                 Measure(['span', 'kbid'], agg='b_cubed'),
 }
 
 for name in ['muc', 'b_cubed', 'entity_ceaf', 'mention_ceaf', 'pairwise',
              #'cs_b_cubed', 'entity_cs_ceaf', 'mention_cs_ceaf']:
              ]:
-    MATCHERS[name] = Matcher(['span'], agg=name)
+    MEASURES[name] = Measure(['span'], agg=name)
 
 
 # Configuration constants
-ALL_MATCHES = 'all'
+ALL_MEASURES = 'all'
 ALL_TAGGING = 'all-tagging'
 ALL_COREF = 'all-coref'
-TAC_MATCHES = 'tac'
-TAC14_MATCHES = 'tac14'
-TMP_MATCHES = 'tmp'
-CORNOLTI_WWW13_MATCHES = 'cornolti'
-HACHEY_ACL14_MATCHES = 'hachey'
-LUO_MATCHES = 'luo'
-CAI_STRUBE_MATCHES = 'cai'
+TAC_MEASURES = 'tac'
+TAC14_MEASURES = 'tac14'
+TMP_MEASURES = 'tmp'
+CORNOLTI_WWW13_MEASURES = 'cornolti'
+HACHEY_ACL14_MEASURES = 'hachey'
+LUO_MEASURES = 'luo'
+CAI_STRUBE_MEASURES = 'cai'
 
-MATCH_SETS = {
-    ALL_MATCHES: [
+MEASURE_SETS = {
+    ALL_MEASURES: [
         'all-tagging',
         'all-coref',
         ],
@@ -64,29 +64,29 @@ MATCH_SETS = {
         #'cs_b_cubed',
         'b_cubed_plus',
     },
-    CORNOLTI_WWW13_MATCHES: [
+    CORNOLTI_WWW13_MEASURES: [
         'strong_linked_mention_match',
         'strong_link_match',
         'entity_match',
         ],
-    HACHEY_ACL14_MATCHES: [
+    HACHEY_ACL14_MEASURES: [
         'strong_mention_match',  # full ner
         'strong_linked_mention_match',
         'strong_link_match',
         'entity_match',
         ],
-    LUO_MATCHES: [
+    LUO_MEASURES: [
         'muc',
         'b_cubed',
         'mention_ceaf',
         'entity_ceaf',
         ],
-    #CAI_STRUBE_MATCHES: [
+    #CAI_STRUBE_MEASURES: [
     #    'cs_b_cubed',
     #    'entity_cs_ceaf',
     #    'mention_cs_ceaf',
     #],
-    TAC_MATCHES: [
+    TAC_MEASURES: [
         'strong_link_match',  # recall equivalent to kb accuracy before 2014
         'strong_nil_match',  # recall equivalent to nil accuracy before 2014
         'strong_all_match',  # equivalent to overall accuracy before 2014
@@ -96,80 +96,81 @@ MATCH_SETS = {
         'b_cubed',
         'b_cubed_plus',
         ],
-    TAC14_MATCHES: [
+    TAC14_MEASURES: [
         'strong_typed_all_match',  # wikification f-score for TAC 2014
     ],
-    TMP_MATCHES: [
+    TMP_MEASURES: [
         'mention_ceaf',
         'entity_ceaf',
         'pairwise',
         ],
 }
 
-DEFAULT_MATCH_SET = ALL_MATCHES
-DEFAULT_MATCH = 'strong_all_match'
+DEFAULT_MEASURE_SET = ALL_MEASURES
+DEFAULT_MEASURE = 'strong_all_match'
 
 
-def _expand(matches):
-    if isinstance(matches, str):
-        if matches in MATCH_SETS:
-            matches = MATCH_SETS[matches]
+def _expand(measures):
+    if isinstance(measures, str):
+        if measures in MEASURE_SETS:
+            measures = MEASURE_SETS[measures]
         else:
-            return [matches]
-    if isinstance(matches, Matcher):
-        return [Matcher]
-    if len(matches) == 1:
-        return _expand(matches[0])
-    return [m for group in matches for m in _expand(group)]
+            return [measures]
+    if isinstance(measures, Measure):
+        return [measures]
+    if len(measures) == 1:
+        return _expand(measures[0])
+    return [m for group in measures for m in _expand(group)]
 
 
-def parse_matches(in_matches, incl_clustering=True):
+def parse_measures(in_measures, incl_clustering=True):
     # flatten nested sequences and expand group names
-    matches = _expand(in_matches)
+    measures = _expand(in_measures)
     # remove duplicates while maintaining order
     seen = set()
-    matches = [seen.add(m) or m
-               for m in matches if m not in seen]
+    measures = [seen.add(m) or m
+                for m in measures if m not in seen]
 
-    # TODO: make sure resolve to valid matchers
-    not_found = set(matches) - keys(MATCHERS)
+    # TODO: make sure resolve to valid measures
+    not_found = set(measures) - keys(MEASURES)
     invalid = []
     for m in not_found:
         try:
-            get_matcher(m)
+            get_measure(m)
         except Exception:
             raise
             invalid.append(m)
     if invalid:
-        raise ValueError('Could not resolve matchers: {}'.format(sorted(not_found)))
+        raise ValueError('Could not resolve measures: '
+                         '{}'.format(sorted(not_found)))
 
     if not incl_clustering:
-        matches = [m for m in matches
-                   if not get_matcher(m).is_clustering_match]
+        measures = [m for m in measures
+                    if not get_measure(m).is_clustering]
     # TODO: remove clustering metrics given flag
     # raise error if empty
-    if not matches:
-        msg = 'Could not resolve {!r} to any matches.'.format(in_matches)
+    if not measures:
+        msg = 'Could not resolve {!r} to any measures.'.format(in_measures)
         if not incl_clustering:
             msg += ' Clustering measures have been excluded.'
         raise ValueError(msg)
-    return matches
+    return measures
 
 
-def get_matcher(name):
-    if isinstance(name, Matcher):
+def get_measure(name):
+    if isinstance(name, Measure):
         return name
     if name.count(':') == 2:
-        return Matcher.from_string(name)
-    return MATCHERS[name]
+        return Measure.from_string(name)
+    return MEASURES[name]
 
 
-def get_match_choices():
-    return sorted(MATCH_SETS.keys()) + sorted(MATCHERS.keys())
+def get_measure_choices():
+    return sorted(MEASURE_SETS.keys()) + sorted(MEASURES.keys())
 
 
-MATCH_HELP = ('Which metrics to use: specify a name (or group name) from the '
-              'list-metrics command. This flag may be repeated.')
+MEASURE_HELP = ('Which measures to use: specify a name (or group name) from '
+                'the list-measures command. This flag may be repeated.')
 
 
 def _wrap(text):
@@ -177,37 +178,37 @@ def _wrap(text):
 
 
 class ListMeasures(object):
-    """List matching schemes available for evaluation"""
+    """List measures schemes available for evaluation"""
 
-    def __init__(self, matches=None):
-        self.matches = matches
+    def __init__(self, measures=None):
+        self.measures = measures
 
     def __call__(self):
-        matches = parse_matches(self.matches or get_match_choices())
+        measures = parse_measures(self.measures or get_measure_choices())
         header = ['Name', 'Aggregate', 'Filter', 'Key Fields', 'In groups']
         rows = [header]
 
         set_membership = defaultdict(list)
-        for set_name, match_set in sorted(MATCH_SETS.items()):
-            for name in parse_matches(match_set):
+        for set_name, measure_set in sorted(MEASURE_SETS.items()):
+            for name in parse_measures(measure_set):
                 set_membership[name].append(set_name)
 
-        for name in sorted(matches):
-            matcher = get_matcher(name)
-            rows.append((name, matcher.agg, str(matcher.filter),
-                         '+'.join(matcher.key),
+        for name in sorted(measures):
+            measure = get_measure(name)
+            rows.append((name, measure.agg, str(measure.filter),
+                         '+'.join(measure.key),
                          ', '.join(set_membership[name])))
 
         col_widths = [max(len(row[i]) for row in rows)
                       for i in range(len(header))]
         rows.insert(1, ['=' * w for w in col_widths])
         fmt = '\t'.join('{:%ds}' % w for w in col_widths[:-1]) + '\t{}'
-        ret = _wrap('The following lists possible values for --match (-m) in '
-                    'evaluate, confidence and significance. The name from '
+        ret = _wrap('The following lists possible values for --measure (-m) '
+                    'in evaluate, confidence and significance. The name from '
                     'each row or the name of a group may be used. ') + '\n\n'
         ret = '\n'.join(textwrap.wrap(ret)) + '\n\n'
         ret += '\n'.join(fmt.format(*row) for row in rows)
-        ret += '\n\nDefault evaluation group: {}'.format(DEFAULT_MATCH_SET)
+        ret += '\n\nDefault evaluation group: {}'.format(DEFAULT_MEASURE_SET)
         ret += '\n\n'
         ret += _wrap('In all measures, a set of tuples corresponding to Key '
                      'Fields is produced from annotations matching Filter. '
@@ -217,12 +218,12 @@ class ListMeasures(object):
         ret += '\n\n'
         ret += ('A measure may be specified explicitly. Thus:\n'
                 '  {}\nmay be entered as\n  {}'
-                ''.format(DEFAULT_MATCH, get_matcher(DEFAULT_MATCH)))
+                ''.format(DEFAULT_MEASURE, get_measure(DEFAULT_MEASURE)))
         return ret
 
     @classmethod
     def add_arguments(cls, p):
-        p.add_argument('-m', '--match', dest='matches', action='append',
-                       metavar='NAME', help=MATCH_HELP)
+        p.add_argument('-m', '--measure', dest='measures', action='append',
+                       metavar='NAME', help=MEASURE_HELP)
         p.set_defaults(cls=cls)
         return p

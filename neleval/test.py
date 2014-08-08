@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from .document import Reader as AnnotationReader
 from .data import Reader, Mention, Writer
-from .configs import MATCH_SETS, TMP_MATCHES, LUO_MATCHES, CAI_STRUBE_MATCHES, ALL_MATCHES, parse_matches
+from .configs import MEASURE_SETS, TMP_MEASURES, LUO_MEASURES, CAI_STRUBE_MEASURES, ALL_MEASURES, parse_measures
 from .coref_metrics import mapping_to_sets, sets_to_mapping
 from .coref_metrics import _prf, muc
 from . import coref_metrics
@@ -134,8 +134,8 @@ def test_conversions():
     assert mapping_to_sets(sets_to_mapping(SETS)) == SETS
     
 
-def _get_coref_fscore(gold, resp, matches):
-    for name in parse_matches(matches):
+def _get_coref_fscore(gold, resp, measures):
+    for name in parse_measures(measures):
         f = getattr(coref_metrics, name)
         yield f.__name__, round(_prf(*f(gold, resp))[2], 3)
 
@@ -184,7 +184,7 @@ RCS14_TCA_RESPS = [
 def test_rcs_tca_ceaf():
     "Examples from Luo (2005)"
     for system, response, expected in RCS14_TCA_RESPS:
-        actual = dict(_get_coref_fscore(RCS14_TCA_GOLD, response, LUO_MATCHES))
+        actual = dict(_get_coref_fscore(RCS14_TCA_GOLD, response, LUO_MEASURES))
         check_correct(expected, actual)
 
 ## TC-B test from https://code.google.com/p/reference-coreference-scorers
@@ -200,7 +200,7 @@ def test_rcs_tca_ceaf():
 #def test_rcs_tcb_ceaf():
 #    "Examples from Luo (2005)"
 #    for system, response, expected in RCS14_TCB_RESPS:
-#        actual = dict(_get_coref_fscore(RCS14_TCB_GOLD, response, LUO_MATCHES))
+#        actual = dict(_get_coref_fscore(RCS14_TCB_GOLD, response, LUO_MEASURES))
 #        check_correct(expected, actual)
 
 ## TC-C test from https://code.google.com/p/reference-coreference-scorers
@@ -216,7 +216,7 @@ def test_rcs_tca_ceaf():
 #def test_rcs_tcc_ceaf():
 #    "Examples from Luo (2005)"
 #    for system, response, expected in RCS14_TCC_RESPS:
-#        actual = dict(_get_coref_fscore(RCS14_TCC_GOLD, response, LUO_MATCHES))
+#        actual = dict(_get_coref_fscore(RCS14_TCC_GOLD, response, LUO_MEASURES))
 #        check_correct(expected, actual)
 
 # TC-M test from https://code.google.com/p/reference-coreference-scorers
@@ -256,7 +256,7 @@ RCS14_TCM_RESPS = [
 def test_rcs_tcc_ceaf():
     "Examples from Luo (2005)"
     for system, response, expected in RCS14_TCM_RESPS:
-        actual = dict(_get_coref_fscore(RCS14_TCM_GOLD, response, LUO_MATCHES))
+        actual = dict(_get_coref_fscore(RCS14_TCM_GOLD, response, LUO_MEASURES))
         check_correct(expected, actual)
 
 ## TC-N test from https://code.google.com/p/reference-coreference-scorers
@@ -296,7 +296,7 @@ def test_rcs_tcc_ceaf():
 #def test_rcs_tcc_ceaf():
 #    "Examples from Luo (2005)"
 #    for system, response, expected in RCS14_TCN_RESPS:
-#        actual = dict(_get_coref_fscore(RCS14_TCN_GOLD, response, LUO_MATCHES))
+#        actual = dict(_get_coref_fscore(RCS14_TCN_GOLD, response, LUO_MEASURES))
 #        check_correct(expected, actual)
 
 LUO05_GOLD = {'A': {1,2,3,4,5}, 'B': {6,7}, 'C': {8,9,10,11,12}}
@@ -321,7 +321,7 @@ LUO05_RESPS = [
 def test_luo_ceaf():
     "Examples from Luo (2005)"
     for system, response, expected in LUO05_RESPS:
-        actual = dict(_get_coref_fscore(LUO05_GOLD, response, LUO_MATCHES))
+        actual = dict(_get_coref_fscore(LUO05_GOLD, response, LUO_MEASURES))
         check_correct(expected, actual)
 
 def _get_muc_prf(gold, resp):
@@ -387,7 +387,7 @@ CAI10_TABLES_4_5 = [
 ###    "Examples from Cai & Strube (SIGDIAL'10)"
 ###    for true, pred, expected in CAI10_TABLES_4_5:
 ###        actual = {f: tuple(round(x, 3) for x in _prf(*getattr(coref_metrics, f)(true, pred)))
-###                  for f in parse_matches(CAI_STRUBE_MATCHES)}
+###                  for f in parse_measures(CAI_STRUBE_MEASURES)}
 ###        check_correct(expected, actual)
 
 
@@ -395,7 +395,7 @@ CAI10_TABLES_4_5 = [
 
 def _get_stats(gold_path, sys_path):
     stats = Evaluate(sys_path, gold=gold_path,
-                     matches=ALL_MATCHES,  # TODO add test output for all
+                     measures=ALL_MEASURES,  # TODO add test output for all
                      fmt='none')()
     pprint(stats)
     return stats
