@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 
-# Prepare score summary in TAC 2013 format
+# Prepare score summary in TAC 2014 format
 set -e
 
 usage="Usage: $0 OUT_DIR"
