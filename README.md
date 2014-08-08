@@ -19,4 +19,4 @@ Assumes that `python` (2.7, with Py3k support soon) is installed on your system 
 
 Each file in in the system output directory is scored against gold.tab.
 
-See [the project wiki](../wiki) for more details.
+See [the project wiki](../../wiki) for more details.
