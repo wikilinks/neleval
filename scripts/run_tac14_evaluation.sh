@@ -36,3 +36,8 @@ ls $outdir/*.combined.tsv \
     | grep -v "gold\.combined\.tsv$" \
     | xargs -n 1 -P $jobs $SCR/run_evaluate.sh $gold
 
+
+## PREPARE SUMMARY REPORT
+#echo "INFO Preparing summary report.."
+#$SCR/run_tac13_report.sh $outdir
+
