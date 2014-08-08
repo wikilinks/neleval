@@ -151,7 +151,7 @@ def parse_matches(in_matches, incl_clustering=True):
     if not matches:
         msg = 'Could not resolve {!r} to any matches.'.format(in_matches)
         if not incl_clustering:
-            msg += ' Clustering metrics have been excluded.'
+            msg += ' Clustering measures have been excluded.'
         raise ValueError(msg)
     return matches
 
@@ -176,7 +176,7 @@ def _wrap(text):
     return '\n'.join(textwrap.wrap(text))
 
 
-class ListMetrics(object):
+class ListMeasures(object):
     """List matching schemes available for evaluation"""
 
     def __init__(self, matches=None):
@@ -209,13 +209,13 @@ class ListMetrics(object):
         ret += '\n'.join(fmt.format(*row) for row in rows)
         ret += '\n\nDefault evaluation group: {}'.format(DEFAULT_MATCH_SET)
         ret += '\n\n'
-        ret += _wrap('In all metrics, a set of tuples corresponding to Key '
+        ret += _wrap('In all measures, a set of tuples corresponding to Key '
                      'Fields is produced from annotations matching Filter. '
                      'Aggregation with sets-micro compares gold and predicted '
                      'tuple sets directly; coreference aggregates compare '
                      'tuples clustered by their assigned entity ID.')
         ret += '\n\n'
-        ret += ('A metric may be specified explicitly. Thus:\n'
+        ret += ('A measure may be specified explicitly. Thus:\n'
                 '  {}\nmay be entered as\n  {}'
                 ''.format(DEFAULT_MATCH, get_matcher(DEFAULT_MATCH)))
         return ret
