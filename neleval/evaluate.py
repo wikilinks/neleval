@@ -2,7 +2,8 @@
 """
 Evaluate linker performance.
 """
-from .configs import DEFAULT_MATCH_SET, parse_matches, MATCH_HELP, get_matcher
+from .configs import (DEFAULT_MEASURE_SET, parse_measures,
+                      MEASURE_HELP, get_measure)
 from .document import Document, Reader
 import warnings
 import json
@@ -27,17 +28,17 @@ class Evaluate(object):
     'Evaluate system output'
 
     def __init__(self, system, gold=None,
-                 matches=DEFAULT_MATCH_SET,
+                 measures=DEFAULT_MEASURE_SET,
                  fmt='none'):
         """
         system - system output
         gold - gold standard
-        matches - match definitions to use
+        measures - measure definitions to use
         fmt - output format
         """
         self.system = list(Reader(open(system)))
         self.gold = list(Reader(open(gold)))
-        self.matches = parse_matches(matches or DEFAULT_MATCH_SET)
+        self.measures = parse_measures(measures or DEFAULT_MEASURE_SET)
         self.format = self.FMTS[fmt] if fmt is not callable else fmt
         self.doc_pairs = list(self.iter_pairs(self.system, self.gold))
 
@@ -50,11 +51,14 @@ class Evaluate(object):
             gdoc = gdocs.get(docid) or Document(docid, [])
             yield sdoc, gdoc
 
-    def __call__(self, matches=None):
-        matches = parse_matches(matches) if matches is not None else self.matches
-        self.results = {match: Matrix(*get_matcher(match).docs_to_contingency(self.system,
-                                                                              self.gold)).results
-                        for match in matches}
+    def __call__(self, measures=None):
+        measures = (parse_measures(measures)
+                    if measures is not None
+                    else self.measures)
+        self.results = {measure: Matrix(*get_measure(measure).
+                                        docs_to_contingency(self.system,
+                                                            self.gold)).results
+                        for measure in measures}
         return self.format(self)
 
     @classmethod
@@ -62,22 +66,22 @@ class Evaluate(object):
         p.add_argument('system', metavar='FILE')
         p.add_argument('-g', '--gold')
         p.add_argument('-f', '--fmt', default='tab', choices=cls.FMTS.keys())
-        p.add_argument('-m', '--match', dest='matches', action='append',
-                       metavar='NAME', help=MATCH_HELP)
+        p.add_argument('-m', '--measure', dest='measures', action='append',
+                       metavar='NAME', help=MEASURE_HELP)
         p.set_defaults(cls=cls)
         return p
 
     @classmethod
-    def count_all(cls, doc_pairs, matches):
-        for m in matches:
+    def count_all(cls, doc_pairs, measures):
+        for m in measures:
             yield (m,) + cls.count(m, doc_pairs)
 
     @classmethod
-    def count(cls, match, doc_pairs):
+    def count(cls, measure, doc_pairs):
         per_doc = []
-        matcher = get_matcher(match)
+        measure = get_measure(measure)
         for sdoc, gdoc in doc_pairs:
-            per_doc.append(Matrix(*matcher.contingency(sdoc.annotations,
+            per_doc.append(Matrix(*measure.contingency(sdoc.annotations,
                                                        gdoc.annotations)))
         overall = sum(per_doc, Matrix())
         return per_doc, overall
@@ -85,22 +89,22 @@ class Evaluate(object):
     # formatters
 
     def tab_format(self, num_fmt='{:.3f}', delimiter='\t'):
-        lines = [delimiter.join([i[:6] for i in METRICS] + ['match'])]
-        for match in self.matches:
-            row = self.row(match, self.results, num_fmt)
+        lines = [delimiter.join([i[:6] for i in METRICS] + ['measure'])]
+        for measure in self.measures:
+            row = self.row(measure, self.results, num_fmt)
             lines.append(delimiter.join(row))
         return '\n'.join(lines)
 
-    def row(self, match_str, results, num_fmt):
+    def row(self, measure_str, results, num_fmt):
         row = []
-        match_results = self.results.get(match_str, {})
+        measure_results = self.results.get(measure_str, {})
         for metric in METRICS:
-            val = match_results.get(metric, 0)
+            val = measure_results.get(metric, 0)
             if isinstance(val, float):
                 row.append(num_fmt.format(val))
             else:
                 row.append(str(val))
-        row.append(match_str)
+        row.append(measure_str)
         return row
 
     def json_format(self):

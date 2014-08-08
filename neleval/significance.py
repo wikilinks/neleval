@@ -14,14 +14,14 @@ try:
 except ImportError:
     Parallel = delayed = cpu_count = None
 
-#from data import MATCHES, Reader
+#from data import measures, Reader
 from .document import Reader
-from .configs import DEFAULT_MATCH, parse_matches, MATCH_HELP
+from .configs import DEFAULT_MEASURE, parse_measures, MEASURE_HELP
 from .evaluate import Evaluate, Matrix
 
 
 # 2500 bootstraps gives a robust CI lower-bound estimate to 3 significant
-# figures on a TAC 2013 response under strong_link_match
+# figures on a TAC 2013 response under strong_link_measure
 N_TRIALS = 2500
 
 
@@ -106,7 +106,7 @@ class Significance(object):
 
     def __init__(self, systems, gold, trials=N_TRIALS, method='permute',
                  n_jobs=1, metrics=['precision', 'recall', 'fscore'],
-                 fmt='none', matches=DEFAULT_MATCH):
+                 fmt='none', measures=DEFAULT_MEASURE):
         if len(systems) < 2:
             raise ValueError('Require at least two systems to compare')
         if method not in self.METHODS:
@@ -119,8 +119,7 @@ class Significance(object):
         self.method = method
         self.trials = trials
         self.n_jobs = n_jobs
-        self.matches = parse_matches(matches or DEFAULT_MATCH, incl_clustering=False)
-        # TODO: warn or error if clustering matches included
+        self.measures = parse_measures(measures or DEFAULT_MEASURE, incl_clustering=False)
         self.metrics = metrics
         self.fmt = self.FMTS[fmt] if fmt is not callable else fmt
 
@@ -132,15 +131,15 @@ class Significance(object):
             #system = sorted(Reader(open(path)))
             system = list(Reader(open(path)))
             doc_pairs = list(Evaluate.iter_pairs(system, gold))
-            for match, per_doc, overall in Evaluate.count_all(doc_pairs, self.matches):
-                all_counts[match][path] = (per_doc, overall)
+            for measure, per_doc, overall in Evaluate.count_all(doc_pairs, self.measures):
+                all_counts[measure][path] = (per_doc, overall)
 
         results = [{'sys1': sys1, 'sys2': sys2,
-                    'match': match,
-                    'stats': self.significance(match_counts[sys1], match_counts[sys2])}
+                    'measure': measure,
+                    'stats': self.significance(measure_counts[sys1], measure_counts[sys2])}
                    for sys1, sys2 in itertools.combinations(self.systems, 2)
-                   for match, match_counts in sorted(all_counts.iteritems(),
-                                                     key=lambda (k, v): self.matches.index(k))]
+                   for measure, measure_counts in sorted(all_counts.iteritems(),
+                                                     key=lambda (k, v): self.measures.index(k))]
 
         return self.fmt(self, results)
 
@@ -174,8 +173,8 @@ class Significance(object):
         p.add_argument('-j', '--n_jobs', default=1, type=int,
                        help='Number of parallel processes, use -1 for all CPUs')
         p.add_argument('-f', '--fmt', default='tab', choices=cls.FMTS.keys())
-        p.add_argument('-m', '--match', dest='matches', action='append',
-                       metavar='NAME', help=MATCH_HELP)
+        p.add_argument('-m', '--measure', dest='measures', action='append',
+                       metavar='NAME', help=MEASURE_HELP)
         p.add_argument('--metrics', default='precision recall fscore'.split(),
                        type=lambda x: x.split(','), help='Test significance for which metrics (default: precision,recall,fscore)')
         p.set_defaults(cls=cls)
@@ -186,19 +185,19 @@ class Significance(object):
         rows = []
         for row in data:
             stats = row['stats']
-            rows.append([row['sys1'], row['sys2'], row['match']]
+            rows.append([row['sys1'], row['sys2'], row['measure']]
                         + sum(([stats[metric]['diff'], stats[metric]['p']]
                                for metric in metrics), []))
-        header = (['sys1', 'sys2', 'match'] +
+        header = (['sys1', 'sys2', 'measure'] +
                   sum(([u'Δ-' + metric[:6], 'p-' + metric[:6]]
                        for metric in metrics), []))
 
         sys_width = max(len(col) for row in rows for col in row[:2])
         sys_width = max(sys_width, 4)
-        match_width = max(len(row[2]) for row in rows)
-        match_width = max(match_width, 5)
+        measure_width = max(len(row[2]) for row in rows)
+        measure_width = max(measure_width, 5)
 
-        fmt = (u'{:%ds}\t{:%ds}\t{:%ds}' % (sys_width, sys_width, match_width))
+        fmt = (u'{:%ds}\t{:%ds}\t{:%ds}' % (sys_width, sys_width, measure_width))
         ret = (fmt + u'\t{}' * len(metrics) * 2).format(*header)
         fmt += u''.join(u'\t{:+8.3f}\t{:8.3f}' for metric in metrics)
         ret += u''.join(u'\n' + fmt.format(*row) for row in rows)
@@ -245,7 +244,7 @@ class Confidence(object):
     """
     def __init__(self, system, gold, trials=N_TRIALS, percentiles=(90, 95, 99),
                  n_jobs=1, metrics=['precision', 'recall', 'fscore'],
-                 matches=DEFAULT_MATCH, fmt='none'):
+                 measures=DEFAULT_MEASURE, fmt='none'):
         # Check whether import worked, generate a more useful error.
         if Parallel is None:
             raise ImportError('Package: "joblib" not available, please '
@@ -254,7 +253,7 @@ class Confidence(object):
         self.gold = gold
         self.trials = trials
         self.n_jobs = n_jobs
-        self.matches = parse_matches(matches or DEFAULT_MATCH,
+        self.measures = parse_measures(measures or DEFAULT_MEASURE,
                                      incl_clustering=False)
         self.metrics = metrics
         self.percentiles = percentiles
@@ -265,9 +264,9 @@ class Confidence(object):
         import numpy as np
         tmp_trials, self.trials = self.trials, max_trials
         matrices = self._read_to_matrices()
-        print('match', 'metric', 'pct', 'trials', 'stdev', sep='\t')
-        for match in self.lmatches:
-            history = self.run_trials(matrices[match][0])
+        print('measure', 'metric', 'pct', 'trials', 'stdev', sep='\t')
+        for measure in self.measures:
+            history = self.run_trials(matrices[measure][0])
             for metric in self.metrics:
                 X = history[metric]
                 for p in self.percentiles:
@@ -275,7 +274,7 @@ class Confidence(object):
                     for n in trials:
                         stats = [_percentile(sorted(random.sample(X, n)), v)
                                  for i in range(100)]
-                        print(match, metric, p, n, np.std(stats), sep='\t')
+                        print(measure, metric, p, n, np.std(stats), sep='\t')
         self.trials = tmp_trials
 
     def run_trials(self, per_doc):
@@ -302,17 +301,17 @@ class Confidence(object):
         system = list(Reader(open(self.system)))
         doc_pairs = list(Evaluate.iter_pairs(system, gold))
         counts = {}
-        for match, per_doc, overall in Evaluate.count_all(doc_pairs, self.matches):
-            counts[match] = (per_doc, overall)
+        for measure, per_doc, overall in Evaluate.count_all(doc_pairs, self.measures):
+            counts[measure] = (per_doc, overall)
         return counts
 
     def calculate_all(self):
         counts = self._read_to_matrices()
-        results = [{'match': match,
+        results = [{'measure': measure,
                     'overall': {k: v for k, v in overall.results.items() if k in self.metrics},
                     'intervals': self.intervals(per_doc)}
-                   for match, (per_doc, overall) in sorted(counts.iteritems(),
-                                                           key=lambda (k, v): self.matches.index(k))]
+                   for measure, (per_doc, overall) in sorted(counts.iteritems(),
+                                                             key=lambda (k, v): self.measures.index(k))]
         return results
 
     def __call__(self):
@@ -320,14 +319,14 @@ class Confidence(object):
 
     def tab_format(self, data):
         # Input:
-        # [{'match': 'strong_mention_match',
+        # [{'measure': 'strong_mention_measure',
         #   'overall': {'precision': xx, 'recall': xx, 'fscore': xx},
         #   'intervals': {'precision': {90: [lo, hi]},
         #                 'recall': {90: [lo, hi]},
         #                 'fscore': {90: [lo, hi]}}},
         # ]
         percentiles = sorted(self.percentiles)
-        header = ([u'match', u'metric'] +
+        header = ([u'measure', u'metric'] +
                   [u'{:d}%('.format(p) for p in percentiles] +
                   [u'score'] +
                   [u'){:d}%'.format(p) for p in reversed(percentiles)])
@@ -338,13 +337,13 @@ class Confidence(object):
                    [u'{{[overall][{metric}]:.3f}}'] +
                    [meta_format.format(p, 1) for p in reversed(percentiles)])
 
-        match_width = max(map(len, self.matches))
+        measure_width = max(map(len, self.measures))
         metric_width = max(map(len, self.metrics))
-        fmt = (u'{:%ds}\t{:%ds}' % (match_width, metric_width))
+        fmt = (u'{:%ds}\t{:%ds}' % (measure_width, metric_width))
         rows = []
         for entry in data:
             for metric in self.metrics:
-                rows.append([fmt.format(entry['match'], metric)] +
+                rows.append([fmt.format(entry['measure'], metric)] +
                             [cell.format(metric=metric).format(entry)
                              for cell in formats])
 
@@ -369,8 +368,8 @@ class Confidence(object):
         p.add_argument('--metrics', default='precision recall fscore'.split(),
                        type=lambda x: x.split(','),
                        help='Calculate CIs for which metrics (default: precision,recall,fscore)')
-        p.add_argument('-m', '--match', dest='matches', action='append',
-                       metavar='NAME', help=MATCH_HELP)
+        p.add_argument('-m', '--measure', dest='measures', action='append',
+                       metavar='NAME', help=MEASURE_HELP)
         p.add_argument('-f', '--fmt', default='tab', choices=cls.FMTS.keys())
         p.set_defaults(cls=cls)
         return p
