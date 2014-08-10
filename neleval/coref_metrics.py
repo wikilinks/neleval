@@ -27,9 +27,11 @@ except ImportError:
 try:   # Py3k
     range = xrange
     zip = itertools.izip
-    values = dict.itervalues
+    values = dict.viewvalues
+    keys = dict.viewkeys
 except NameError:
     values = dict.values
+    keys = dict.keys
 
 
 # TODO: Blanc and standard clustering metrics (e.g. http://scikit-learn.org/stable/modules/clustering.html)
@@ -474,14 +476,21 @@ def cs_b_cubed(true, pred):
     return p_num, p_den, r_num, r_den
 
 
-def _pairs(C):
+def _positive_pairs(C):
     "Return pairs of instances across all clusters in C"
     return frozenset(itertools.chain(
-        *[itertools.combinations_with_replacement(c, 2) for c in C]))
+        *[itertools.combinations(sorted(c), 2) for c in C]))
+
+
+def _negative_pairs(C):
+    return frozenset(tuple(sorted(item_pair))
+                     for cluster_pair in itertools.combinations(C, 2)
+                     for item_pair in itertools.product(*cluster_pair))
 
 
 def _pairwise(true, pred):
-    "Return numerators and denominators for precision and recall"
+    """Return numerators and denominators for precision and recall,
+    as well as size of symmetric difference, used in negative pairwise."""
     p_num = r_num = len(true & pred)
     p_den = len(pred)
     r_den = len(true)
@@ -489,8 +498,57 @@ def _pairwise(true, pred):
 
 
 def pairwise(true, pred):
-    "Return p_num, p_den, r_num, r_den over item pairs."
-    return _pairwise(_pairs(values(true)), _pairs(values(pred)))
+    """Return p_num, p_den, r_num, r_den over item pairs
+
+    As used in calcualting BLANC (see Luo, Pradhan, Recasens and Hovy (2014).
+
+    >>> pairwise({1: {'a', 'b', 'c'}, 2: {'d'}},
+    ...         {1: {'b', 'c'}, 2: {'d', 'e'}})
+    (1, 2, 1, 3)
+    """
+    return _pairwise(_positive_pairs(values(true)),
+                     _positive_pairs(values(pred)))
+
+
+def _triangle(n):
+    return n * (n - 1) // 2
+
+
+def pairwise_negative(true, pred):
+    """Return p_num, p_den, r_num, r_den over noncoreferent item pairs
+
+    As used in calcualting BLANC (see Luo, Pradhan, Recasens and Hovy (2014).
+
+    >>> pairwise_negative({1: {'a', 'b', 'c'}, 2: {'d'}},
+    ...                   {1: {'b', 'c'}, 2: {'d', 'e'}})
+    (2, 4, 2, 3)
+    """
+    true_pairs = _positive_pairs(values(true))
+    pred_pairs = _positive_pairs(values(pred))
+    n_pos_agreements = len(true_pairs & pred_pairs)
+
+    true_mapping = sets_to_mapping(true)
+    pred_mapping = sets_to_mapping(pred)
+    extra_mentions = keys(true_mapping) ^ keys(pred_mapping)
+    disagreements = {p for p in true_pairs ^ pred_pairs
+                     if p[0] not in extra_mentions
+                     and p[1] not in extra_mentions}
+
+    n_common_mentions = len(keys(true_mapping) & keys(pred_mapping))
+    n_neg_agreements = (_triangle(n_common_mentions) - n_pos_agreements -
+                        len(disagreements))
+
+    # Total number of negatives in each of pred and true:
+    p_den = _triangle(len(pred_mapping)) - len(pred_pairs)
+    r_den = _triangle(len(true_mapping)) - len(true_pairs)
+
+    return n_neg_agreements, p_den, n_neg_agreements, r_den
+
+
+def _slow_pairwise_negative(true, pred):
+    """For testing comparison"""
+    return _pairwise(_negative_pairs(values(true)),
+                     _negative_pairs(values(pred)))
 
 
 def _vilain(A, B_mapping):
