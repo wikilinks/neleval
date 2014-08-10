@@ -30,14 +30,14 @@ gold=$outdir/gold.combined.tsv
 ./nel prepare-tac -q $goldx $gtab \
     | sort \
     > $gold
-netypes=$outdir/netypes.txt
-cat $gold \
-    | cut -f6 \
-    > $netypes
 
 
 # CONVERT SYSTEMS TO EVALUATION FORMAT
 echo "INFO Converting systems to evaluation format.."
+netypes=$outdir/netypes.txt
+cat $gold \
+    | cut -f6 \
+    > $netypes
 ls $sysdir/* \
     | xargs -n 1 -P $jobs $SCR/run_tac13_prepare.sh $goldx $netypes $outdir
 
