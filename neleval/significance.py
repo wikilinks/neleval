@@ -327,15 +327,15 @@ class Confidence(object):
         # ]
         percentiles = sorted(self.percentiles)
         header = ([u'measure', u'metric'] +
-                  [u'{:d}%('.format(p) for p in percentiles] +
+                  [u'{:d}%('.format(p) for p in reversed(percentiles)] +
                   [u'score'] +
-                  [u'){:d}%'.format(p) for p in reversed(percentiles)])
+                  [u'){:d}%'.format(p) for p in percentiles])
 
         # crazy formatting avoids lambda closure madness !
         meta_format = u'{{{{[intervals][{{metric}}][{}][{}]:.3f}}}}'
-        formats = ([meta_format.format(p, 0) for p in percentiles] +
+        formats = ([meta_format.format(p, 0) for p in reversed(percentiles)] +
                    [u'{{[overall][{metric}]:.3f}}'] +
-                   [meta_format.format(p, 1) for p in reversed(percentiles)])
+                   [meta_format.format(p, 1) for p in percentiles])
 
         measure_width = max(map(len, self.measures))
         metric_width = max(map(len, self.metrics))
@@ -362,7 +362,7 @@ class Confidence(object):
         p.add_argument('-n', '--trials', default=N_TRIALS, type=int)
         p.add_argument('-j', '--n_jobs', default=1, type=int,
                        help='Number of parallel processes, use -1 for all CPUs')
-        p.add_argument('--percentiles', default=(90, 95, 99),
+        p.add_argument('-p', '--percentiles', default=(90, 95, 99),
                        type=lambda x: map(int, x.split(',')),
                        help='Output confidence intervals at these percentiles (default: 90,95,99)')
         p.add_argument('--metrics', default='precision recall fscore'.split(),

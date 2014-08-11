@@ -18,7 +18,7 @@ do
 
     # INITIALISE REPORT HEADER
     report=$outdir/00report.$measure
-    echo -e "90%(\t95%(\t99%(\tscore\t)99%\t)95%\t)90%\tsystem" \
+    echo -e "99%(\t95%(\t90%(\tscore\t)90%\t)95%\t)99%\tsystem" \
         > $report
 
     # ADD SYSTEM SCORES
