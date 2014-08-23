@@ -354,6 +354,7 @@ class OptionalDependencyWarning(Warning):
 
 
 def _disjoint_max_assignment(similarities):
+    global sparse
     if sparse is None:
         start = time.time()
         indices = linear_assignment(-similarities)
@@ -370,7 +371,15 @@ def _disjoint_max_assignment(similarities):
     n = sum(similarities.shape)
     A = sparse.coo_matrix((np.ones(len(where_true)), (where_true, where_pred)),
                           shape=(n, n))
-    n_components, components = sparse.csgraph.connected_components(A, directed=False)
+    try:
+        n_components, components = sparse.csgraph.connected_components(A, directed=False)
+    except (AttributeError, TypeError):
+        warnings.warn('Could not use scipy.sparse.csgraph.connected_components.'
+                      'Please update your scipy installation. '
+                      'Calculating max-score assignment the slow way.')
+        # HACK!
+        sparse = None
+        return _disjoint_max_assignment(similarities)
 
     if hasattr(similarities, 'toarray'):
         # faster to work in dense
