@@ -276,15 +276,15 @@ def sets_to_matrices(true, pred):
     if sparse is None:
         raise RuntimeError('Cannot vectorize without scipy')
     # TODO: perhaps cache vectorized `true`
-    vocabulary = []
-    true_indptr = array.array('i', [0])
-    for true_cluster in values(true):
-        vocabulary.extend(true_cluster)
-        true_indptr.append(len(vocabulary))
-    n_true = true_indptr[-1]
-
-    vocabulary = defaultdict(None, zip(vocabulary, range(n_true)))
+    vocabulary = defaultdict(None)
     vocabulary.default_factory = vocabulary.__len__
+    true_indptr = array.array('i', [0])
+    true_indices = array.array('i')
+    for true_cluster in values(true):
+        for item in true_cluster:
+            true_indices.append(vocabulary[item])
+        true_indptr.append(len(vocabulary))
+
     pred_indptr = array.array('i', [0])
     pred_indices = array.array('i')
     for pred_cluster in values(pred):
@@ -292,13 +292,14 @@ def sets_to_matrices(true, pred):
             pred_indices.append(vocabulary[item])
         pred_indptr.append(len(pred_indices))
 
-    true_indices = np.arange(n_true)
-    true_data = np.ones(n_true, dtype=int)
+    true_data = np.ones(len(true_indices), dtype=int)
     true_matrix = sparse.csr_matrix((true_data, true_indices, true_indptr),
                                     shape=(len(true), len(vocabulary)))
     pred_data = np.ones(len(pred_indices), dtype=int)
     pred_matrix = sparse.csr_matrix((pred_data, pred_indices, pred_indptr),
                                     shape=(len(pred), len(vocabulary)))
+    #true_matrix.check_format(full_check=True)
+    #pred_matrix.check_format(full_check=True)
     return true_matrix, pred_matrix, vocabulary
 
 
