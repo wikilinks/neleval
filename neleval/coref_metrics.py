@@ -357,6 +357,9 @@ class OptionalDependencyWarning(Warning):
 def _disjoint_max_assignment(similarities):
     global sparse
     if sparse is None:
+        if hasattr(similarities, 'toarray'):
+            # Due to supporting scipy without connected_components
+            similarities = similarities.toarray()
         start = time.time()
         indices = linear_assignment(-similarities)
         runtime = time.time() - start
