@@ -21,12 +21,12 @@ echo -e "WikiF1\tCEAFmP\tCEAFmR\tCEAFmF1\tSystem" \
 for eval in $outdir/*.evaluation
 do
     cat $eval \
-        | grep -P '\tstrong_typed_all_match$' \
+        | awk '{if ($8 == "strong_typed_all_match") print}' \
         | cut -f7 \
         | tr '\n' '\t' \
         >> $report
     cat $eval \
-        | grep -P '\tmention_ceaf$' \
+        | awk '{if ($8 == "mention_ceaf") print}' \
         | cut -f5,6,7 \
         | tr '\n' '\t' \
         >> $report

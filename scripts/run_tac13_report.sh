@@ -29,17 +29,17 @@ do
         | tr '\n' '\t' \
         >> $report
     cat $sys_eval \
-        | grep -P '\tstrong_all_match$' \
+        | awk '{if ($8 == "strong_all_match") print}' \
         | cut -f 7 \
         | tr '\n' '\t' \
         >> $report
     cat $sys_eval \
-        | grep -P '\tb_cubed$' \
+        | awk '{if ($8 == "b_cubed") print}' \
         | cut -f 5,6,7 \
         | tr '\n' '\t' \
         >> $report
     cat $sys_eval \
-        | grep -P '\tb_cubed_plus$' \
+        | awk '{if ($8 == "b_cubed_plus") print}' \
         | cut -f 5,6,7 \
         >> $report
 done
