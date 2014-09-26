@@ -23,7 +23,7 @@ CONFIDENCE_MEASURES=(
     strong_link_match
     strong_nil_match
     strong_all_match
-    strong_typed_all_match
+    strong_typed_link_match
 )
 
 

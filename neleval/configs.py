@@ -15,6 +15,8 @@ MEASURES = {
     'strong_link_match':            Measure(['span', 'kbid'], 'is_linked'),
     'strong_nil_match':             Measure(['span'], 'is_nil'),
     'strong_all_match':             Measure(['span', 'kbid']),
+    'strong_typed_link_match':      Measure(['span', 'type', 'kbid'],
+                                            'is_linked'),
     'strong_typed_all_match':       Measure(['span', 'type', 'kbid']),
     'entity_match':                 Measure(['docid', 'kbid'], 'is_linked'),
 
@@ -50,7 +52,7 @@ MEASURE_SETS = {
         'strong_link_match',
         'strong_nil_match',
         'strong_all_match',
-        'strong_typed_all_match',
+        'strong_typed_link_match',
         'entity_match',
     },
     ALL_COREF: {
@@ -90,14 +92,14 @@ MEASURE_SETS = {
         'strong_link_match',  # recall equivalent to kb accuracy before 2014
         'strong_nil_match',  # recall equivalent to nil accuracy before 2014
         'strong_all_match',  # equivalent to overall accuracy before 2014
-        'strong_typed_all_match',  # wikification f-score for TAC 2014
+        'strong_typed_link_match',  # wikification f-score for TAC 2014
 
         'mention_ceaf',
         'b_cubed',
         'b_cubed_plus',
         ],
     TAC14_MEASURES: [
-        'strong_typed_all_match',  # wikification f-score for TAC 2014
+        'strong_typed_link_match',  # wikification f-score for TAC 2014
     ],
     TMP_MEASURES: [
         'mention_ceaf',
