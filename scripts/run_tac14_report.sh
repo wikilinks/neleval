@@ -21,7 +21,7 @@ echo -e "WikiF1\tCEAFmP\tCEAFmR\tCEAFmF1\tSystem" \
 for eval in $outdir/*.evaluation
 do
     cat $eval \
-        | awk '{if ($8 == "strong_typed_all_match") print}' \
+        | awk '{if ($8 == "strong_typed_link_match") print}' \
         | cut -f7 \
         | tr '\n' '\t' \
         >> $report
