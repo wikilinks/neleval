@@ -11,6 +11,7 @@ except Exception:
 
 MEASURES = {
     'strong_mention_match':         Measure(['span']),
+    'strong_typed_mention_match':         Measure(['span', 'type']),
     'strong_linked_mention_match':  Measure(['span'], 'is_linked'),
     'strong_link_match':            Measure(['span', 'kbid'], 'is_linked'),
     'strong_nil_match':             Measure(['span'], 'is_nil'),
@@ -48,6 +49,7 @@ MEASURE_SETS = {
         ],
     ALL_TAGGING: {
         'strong_mention_match',
+        'strong_typed_mention_match',
         'strong_linked_mention_match',
         'strong_link_match',
         'strong_nil_match',
