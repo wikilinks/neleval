@@ -3,7 +3,7 @@
 # Run analysis and save to file
 set -e
 
-usage="Usage: $0 GOLD_XML GOLD_TAB SYSTEMS_DIR OUT_DIR"
+usage="Usage: $0 GOLD SYSTEM"
 
 if [ "$#" -ne 2 ]; then
     echo $usage
