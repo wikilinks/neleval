@@ -1,7 +1,7 @@
 from .document import ENC
 from .document import Reader
 from .document import by_mention
-from .evaluate import get_measure
+from .evaluate import get_measure, Evaluate
 from collections import Counter
 from collections import namedtuple
 
@@ -53,11 +53,12 @@ class LinkingError(namedtuple('Error', 'doc_id gold system')):
 class Analyze(object):
     """Analyze errors"""
     def __init__(self, system, gold=None, unique=False, summary=False, with_correct=False):
-        self.system = system
-        self.gold = gold
+        self.system = list(Reader(open(system)))
+        self.gold = list(Reader(open(gold)))
         self.unique = unique
         self.summary = summary
         self.with_correct = with_correct
+        self.measure = get_measure('strong_mention_match')
 
     def __call__(self):
         if self.unique:
@@ -79,12 +80,9 @@ class Analyze(object):
             return u'\n'.join(unicode(error) for error in _data()).encode(ENC)
 
     def iter_errors(self):
-        system = list(Reader(open(self.system), group=by_mention))
-        gold = list(Reader(open(self.gold), group=by_mention))
-        measure = get_measure('strong_mention_match')
-        for g, s in zip(gold, system):
+        for s, g in Evaluate.iter_pairs(self.system, self.gold):
             assert g.id == s.id
-            tp, fp, fn = measure.get_matches(g.annotations, s.annotations)
+            tp, fp, fn = self.measure.get_matches(g.annotations, s.annotations)
             for g_m, s_m in tp:
                 if g_m.kbid == s_m.kbid and not self.with_correct:
                     #continue  # Correct case.
