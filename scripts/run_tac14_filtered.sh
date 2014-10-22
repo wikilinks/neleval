@@ -75,13 +75,26 @@ do
     subdir=$outdir/00filtered/$subset
     mkdir -p $subdir
 
-    # FILTER AND EVALUATE
-    echo "INFO Evaluating on $subset subset.."
-    printf "%s\n" "${systems[@]}" \
-        | xargs -n 1 -P $JOBS $SCR/run_filtrate.sh $subdir "$regex" $gold
+    # FILTER GOLD STANDARD
+    goldf=$subdir/`basename $gold`
+    cat $gold \
+        | egrep "$regex" \
+        > $goldf
 
-    # PREPARE SUMMARY REPORT
-    echo "INFO Preparing summary report.."
-    $SCR/run_tac14_report.sh $subdir
+    if [ -s $goldf ]
+    then
+
+        # FILTER AND EVALUATE SYSTEMS
+        echo "INFO Evaluating on $subset subset.."
+        printf "%s\n" "${systems[@]}" \
+            | xargs -n 1 -P $JOBS $SCR/run_filtrate.sh $subdir "$regex" $goldf
+
+        # PREPARE SUMMARY REPORT
+        echo "INFO Preparing summary report.."
+        $SCR/run_tac14_report.sh $subdir
+
+    else
+        echo "WARN Ignoring filter '$regex' - no gold mentions"
+    fi
 
 done
