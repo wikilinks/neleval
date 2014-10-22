@@ -19,8 +19,12 @@ SCR=`dirname $0`
 
 # CONVERT GOLD TO EVALUATION FORMAT
 echo "INFO Converting gold to evaluation format.."
+gtab=$outdir/gold.tab
+cat $goldt \
+    | awk 'BEGIN{OFS="\t"}{print $1,$2,$3,"1.0"}' \
+    > $gtab
 gold=$outdir/gold.combined.tsv
-./nel prepare-tac -q $goldx $goldt \
+./nel prepare-tac -q $goldx $gtab \
     > $gold
 
 

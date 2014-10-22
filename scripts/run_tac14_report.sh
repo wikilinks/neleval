@@ -14,15 +14,20 @@ outdir=$1; shift # directory to which results are written
 
 # INITIALISE REPORT HEADER
 report=$outdir/00report.tab
-echo -e "WikiF1\tCEAFmP\tCEAFmR\tCEAFmF1\tSystem" \
+echo -e "DiscP\tDiscR\tDiscF\tLinkP\tLinkR\tLinkF\tCEAFmP\tCEAFmR\tCEAFmF\tSystem" \
     > $report
 
 # ADD SYSTEM SCORES
 for eval in $outdir/*.evaluation
 do
     cat $eval \
-        | awk '{if ($8 == "strong_typed_link_match") print}' \
-        | cut -f7 \
+        | awk '{if ($8 == "strong_typed_mention_match") print}' \
+        | cut -f5,6,7 \
+        | tr '\n' '\t' \
+        >> $report
+    cat $eval \
+        | awk '{if ($8 == "strong_all_match") print}' \
+        | cut -f5,6,7 \
         | tr '\n' '\t' \
         >> $report
     cat $eval \

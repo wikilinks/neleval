@@ -10,32 +10,41 @@ except Exception:
 
 
 MEASURES = {
+    # Mention evaluation measures
     'strong_mention_match':         Measure(['span']),
-    'strong_typed_mention_match':         Measure(['span', 'type']),
+    'strong_typed_mention_match':   Measure(['span', 'type']),
     'strong_linked_mention_match':  Measure(['span'], 'is_linked'),
+    # Linking evaluation measures
     'strong_link_match':            Measure(['span', 'kbid'], 'is_linked'),
     'strong_nil_match':             Measure(['span'], 'is_nil'),
     'strong_all_match':             Measure(['span', 'kbid']),
     'strong_typed_link_match':      Measure(['span', 'type', 'kbid'],
                                             'is_linked'),
+    'strong_typed_nil_match':       Measure(['span', 'type'], 'is_nil'),
     'strong_typed_all_match':       Measure(['span', 'type', 'kbid']),
+    # Document-level tagging evaluation measures
     'entity_match':                 Measure(['docid', 'kbid'], 'is_linked'),
-
+    # Clustering evaluation measures
+    'muc':                          Measure(['span'], agg='muc'),
+    'b_cubed':                      Measure(['span'], agg='b_cubed'),
     'b_cubed_plus':                 Measure(['span', 'kbid'], agg='b_cubed'),
+    'entity_ceaf':                  Measure(['span'], agg='entity_ceaf'),
+    'mention_ceaf':                 Measure(['span'], agg='mention_ceaf'),
+    'pairwise':                     Measure(['span'], agg='pairwise'),
+    # Cai & Strube (2010) evaluation measures
+    #'cs_b_cubed':                   Measure(['span'], agg='cs_b_cubed'),
+    #'entity_cs_ceaf':               Measure(['span'], agg='entity_cs_ceaf'),
+    #'mention_cs_ceaf':              Measure(['span'], agg='mention_cs_ceaf'),
 }
-
-for name in ['muc', 'b_cubed', 'entity_ceaf', 'mention_ceaf', 'pairwise',
-             #'cs_b_cubed', 'entity_cs_ceaf', 'mention_cs_ceaf']:
-             ]:
-    MEASURES[name] = Measure(['span'], agg=name)
 
 
 # Configuration constants
 ALL_MEASURES = 'all'
 ALL_TAGGING = 'all-tagging'
 ALL_COREF = 'all-coref'
-TAC_MEASURES = 'tac'
-TAC14_MEASURES = 'tac14'
+TAC09_MEASURES = 'tac09'   # used 2009-2010
+TAC11_MEASURES = 'tac11'   # used 2011-2013
+TAC14_MEASURES = 'tac14'   # used 2014-
 TMP_MEASURES = 'tmp'
 CORNOLTI_WWW13_MEASURES = 'cornolti'
 HACHEY_ACL14_MEASURES = 'hachey'
@@ -44,8 +53,8 @@ CAI_STRUBE_MEASURES = 'cai'
 
 MEASURE_SETS = {
     ALL_MEASURES: [
-        'all-tagging',
-        'all-coref',
+        ALL_TAGGING,
+        ALL_COREF,
         ],
     ALL_TAGGING: {
         'strong_mention_match',
@@ -55,6 +64,8 @@ MEASURE_SETS = {
         'strong_nil_match',
         'strong_all_match',
         'strong_typed_link_match',
+        'strong_typed_nil_match',
+        'strong_typed_all_match',
         'entity_match',
     },
     ALL_COREF: {
@@ -90,18 +101,25 @@ MEASURE_SETS = {
     #    'entity_cs_ceaf',
     #    'mention_cs_ceaf',
     #],
-    TAC_MEASURES: [
-        'strong_link_match',  # recall equivalent to kb accuracy before 2014
-        'strong_nil_match',  # recall equivalent to nil accuracy before 2014
-        'strong_all_match',  # equivalent to overall accuracy before 2014
-        'strong_typed_link_match',  # wikification f-score for TAC 2014
-
-        'mention_ceaf',
-        'b_cubed',
-        'b_cubed_plus',
+    TAC09_MEASURES: [
+        'strong_link_match',  # recall equivalent to kb accuracy
+        'strong_nil_match',  # recall equivalent to nil accuracy
+        'strong_all_match',  # equivalent to overall accuracy
+        ],
+    TAC11_MEASURES: [
+        TAC09_MEASURES,
+        'b_cubed', # standard b-cubed
+        'b_cubed_plus', # also requires correct resolution
         ],
     TAC14_MEASURES: [
-        'strong_typed_link_match',  # wikification f-score for TAC 2014
+        TAC11_MEASURES,
+        # Assess mention recognition in TAC 2014 end-to-end task
+        'strong_mention_match', # span must match
+        'strong_typed_mention_match', # span and type must match
+        # Assess recognition and disambiguation in TAC 2014 end-to-end task
+        'strong_typed_all_match',  # span, type and resolution/nil must match
+        # Assess recognition and clustering in TAC 2014 end-to-end task
+        'mention_ceaf', # prf based on cluster alignment
     ],
     TMP_MEASURES: [
         'mention_ceaf',
