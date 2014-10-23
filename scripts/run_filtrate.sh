@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
-
 #
 # Run TAC13 filtered evaluation and analysis
-set -e
 
 usage="Usage: $0 OUTDIR REGEX GOLD SYSTEM"
 
@@ -29,8 +27,9 @@ cat $sys \
 
 
 # EVALUATE ON FILTERED SUBSET
-out=`echo $sysf | sed 's/.combined.tsv/.evaluation/'`
-if [ -s $sysf ]; then
+if [ -s $sysf ]
+then
+    out=`echo $sysf | sed 's/.combined.tsv/.evaluation/'`
     ./nel evaluate \
         -m all \
         -f $FMT \
