@@ -27,16 +27,10 @@ cat $sys \
 
 
 # EVALUATE ON FILTERED SUBSET
-if [ -s $sysf ]
-then
-    out=`echo $sysf | sed 's/.combined.tsv/.evaluation/'`
-    ./nel evaluate \
-        -m all \
-        -f $FMT \
-        -g $goldf \
-        $sysf \
-        > $out
-else
-    sysname=`echo $sysf | sed 's/.*\///' | sed 's/\.combined\.tsv$//'`
-    echo "WARN Ignoring $sysname for filter '$regex' - no mentions"
-fi
+out=`echo $sysf | sed 's/.combined.tsv/.evaluation/'`
+./nel evaluate \
+    -m all \
+    -f $FMT \
+    -g $goldf \
+    $sysf \
+    > $out
