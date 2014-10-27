@@ -16,6 +16,7 @@ from .significance import Significance, Confidence
 #from .rcv import ReutersCodes
 from .tac import PrepareTac
 from .configs import ListMeasures
+from .research import CompareMeasures
 
 APPS = [
     Evaluate,
@@ -31,6 +32,7 @@ APPS = [
     #FetchMapping,
     #ReutersCodes,
     PrepareTac,
+    CompareMeasures,
 ]
 
 

@@ -163,7 +163,7 @@ class Significance(object):
     @classmethod
     def add_arguments(cls, p):
         p.add_argument('systems', nargs='+', metavar='FILE')
-        p.add_argument('-g', '--gold')
+        p.add_argument('-g', '--gold', required=True)
         p.add_argument('-n', '--trials', default=N_TRIALS, type=int)
         p.add_argument('--permute', dest='method', action='store_const', const='permute',
                        default='permute',
@@ -358,7 +358,7 @@ class Confidence(object):
     @classmethod
     def add_arguments(cls, p):
         p.add_argument('system', metavar='FILE')
-        p.add_argument('-g', '--gold')
+        p.add_argument('-g', '--gold', required=True)
         p.add_argument('-n', '--trials', default=N_TRIALS, type=int)
         p.add_argument('-j', '--n_jobs', default=1, type=int,
                        help='Number of parallel processes, use -1 for all CPUs')
