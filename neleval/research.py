@@ -15,7 +15,7 @@ try:
 except ImportError:
     stats = None
 
-DEFAULT_OUT_PREFIX = '.' + os.path.sep
+DEFAULT_OUT_FMT = '.%s{}.pdf' % os.path.sep
 
 def _pairs(items):
     return itertools.combinations(items, 2)
@@ -26,8 +26,8 @@ class CompareMeasures(object):
     """
     def __init__(self, systems, gold=None, evaluation_files=False,
                  measures=DEFAULT_MEASURE_SET,
-                 fmt='none', out_prefix=DEFAULT_OUT_PREFIX,
-                 sort_measures=True):
+                 fmt='none', out_fmt=DEFAULT_OUT_FMT,
+                 sort_by='none'):
         """
         system - system output
         gold - gold standard
@@ -44,10 +44,9 @@ class CompareMeasures(object):
             self.gold = None
 
         self.measures = parse_measures(measures or DEFAULT_MEASURE_SET)
-        if sort_measures:
-            self.measures.sort()
         self.format = self.FMTS[fmt] if fmt is not callable else fmt
-        self.out_prefix = out_prefix
+        self.out_fmt = out_fmt
+        self.sort_by = sort_by
 
     def __call__(self):
         all_results = np.empty((len(self.systems), len(self.measures)))
@@ -58,7 +57,9 @@ class CompareMeasures(object):
             else:
                 result_dict = Evaluate(system, self.gold, measures=self.measures, fmt='none')()
             sys_results[...] = [result_dict[measure]['fscore'] for measure in self.measures]
+
         self.all_results = all_results
+
         correlations = {}
         scores_by_measure = zip(self.measures, all_results.T)
         for (measure_i, scores_i), (measure_j, scores_j) in _pairs(scores_by_measure):
@@ -99,15 +100,40 @@ class CompareMeasures(object):
         import matplotlib.pyplot as plt
         from matplotlib import cm
         correlations = results['correlations']
-        n_measures = len(self.measures)
+
+        measures = self.measures
+        all_results = self.all_results
+
+        # Order measures cleverly
+        if self.sort_by == 'name':
+            order = np.argsort(measures)
+        elif self.sort_by == 'eigen':
+            from matplotlib.mlab import PCA
+            order = np.argsort(PCA(all_results).s)
+        elif self.sort_by == 'mds':
+            from sklearn.manifold import MDS
+            order = np.argsort(MDS(n_components=1, n_init=20, random_state=0).fit_transform(all_results.T), axis=None)
+        else:
+            order = None
+        if order is not None:
+            measures = np.take(measures, order)
+            all_results = np.take(all_results, order, axis=1)
+
+        n_measures = len(measures)
         pearson = np.ma.masked_all((n_measures, n_measures), dtype=float)
         spearman = np.ma.masked_all((n_measures, n_measures), dtype=float)
-        for (i, measure_i), (j, measure_j) in _pairs(enumerate(self.measures)):
-            cell = (i, j)
-            pearson[cell] = correlations[measure_i, measure_j]['pearson'][0]
-            spearman[cell] = correlations[measure_i, measure_j]['spearman'][0]
+        for (i, measure_i), (j, measure_j) in _pairs(enumerate(measures)):
+            try:
+                pair_corr = correlations[measure_i, measure_j]
+            except KeyError:
+                pair_corr = correlations[measure_j, measure_i]
+            pearson[i, j] = pearson[j, i] = pair_corr['pearson'][0]
+            spearman[i, j] = spearman[j, i] = pair_corr['spearman'][0]
 
-        ticks = (np.arange(len(self.measures)), self.measures)
+        for i in range(n_measures):
+            pearson[i, i] = spearman[i, i] = 1
+
+        ticks = (np.arange(len(measures)), measures)
 
         cmap = cm.get_cmap('jet')  # or RdBu?
         cmap.set_bad('white')
@@ -117,7 +143,7 @@ class CompareMeasures(object):
         plt.xticks(*ticks, rotation='vertical')
         plt.yticks(*ticks)
         plt.tight_layout()
-        plt.savefig(self.out_prefix + 'pearson.pdf')
+        plt.savefig(self.out_fmt.format('pearson'))
 
         fig, ax = plt.subplots()
         im = ax.imshow(spearman, interpolation='nearest', cmap=cmap)
@@ -125,14 +151,14 @@ class CompareMeasures(object):
         plt.xticks(*ticks, rotation='vertical')
         plt.yticks(*ticks)
         plt.tight_layout()
-        plt.savefig(self.out_prefix + 'spearman.pdf')
+        plt.savefig(self.out_fmt.format('spearman'))
 
         fig, ax = plt.subplots()
-        ax.boxplot(self.all_results[:, ::-1], 0, 'rs', 0, labels=self.measures[::-1])
+        ax.boxplot(all_results[:, ::-1], 0, 'rs', 0, labels=measures[::-1])
         plt.tight_layout()
-        plt.savefig(self.out_prefix + 'spread.pdf')
+        plt.savefig(self.out_fmt.format('spread'))
 
-        return 'Saved to %s{pearson,spearman,spread}.pdf' % self.out_prefix
+        return 'Saved to %s' % self.out_fmt.format('{pearson,spearman,spread}')
 
 
     FMTS = {
@@ -152,12 +178,12 @@ class CompareMeasures(object):
                               'of the evaluate command, rather than '
                               'system outputs')
         p.add_argument('-f', '--fmt', default='tab', choices=cls.FMTS.keys())
-        p.add_argument('-o', '--out-prefix', default=DEFAULT_OUT_PREFIX,
-                       help='Prefix for saving plots with --fmt=plot (default: %(default)s))')
+        p.add_argument('-o', '--out-fmt', default=DEFAULT_OUT_FMT,
+                       help='Path template for saving plots with --fmt=plot (default: %(default)s))')
         p.add_argument('-m', '--measure', dest='measures', action='append',
                        metavar='NAME', help=MEASURE_HELP)
-        p.add_argument('--no-sort', dest='sort_measures', default=True,
-                       action='store_false',
-                       help='Do not sort measures alphabetically')
+        p.add_argument('-s', '--sort-by', choices=['none', 'name', 'eigen', 'mds'],
+                       help='For plot, sort by name, eigenvalue, or '
+                            'multidimensional scaling (requires scikit-learn)')
         p.set_defaults(cls=cls)
         return p

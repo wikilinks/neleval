@@ -54,7 +54,7 @@ fi
 if [ ${#systems[*]} != 1 ]
 then
 	echo "INFO calculating measure correlations"
-	./nel compare-measures -e -m tac14 -f plot --out-prefix $outdir/00measure- $outdir/*.evaluation
+	./nel compare-measures -e -m tac14 -f plot -s eigen --out-fmt $outdir/00measure-{}.pdf $outdir/*.evaluation
 fi
 
 # CALCULATE CONFIDENCE INTERVALS
