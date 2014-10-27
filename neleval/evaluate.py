@@ -36,8 +36,12 @@ class Evaluate(object):
         measures - measure definitions to use
         fmt - output format
         """
-        self.system = list(Reader(open(system)))
-        self.gold = list(Reader(open(gold)))
+        if not isinstance(system, list):
+            system = list(Reader(open(system)))
+        if not isinstance(gold, list):
+            gold = list(Reader(open(gold)))
+        self.system = system
+        self.gold = gold
         self.measures = parse_measures(measures or DEFAULT_MEASURE_SET)
         self.format = self.FMTS[fmt] if fmt is not callable else fmt
         self.doc_pairs = list(self.iter_pairs(self.system, self.gold))
@@ -59,12 +63,12 @@ class Evaluate(object):
                                         docs_to_contingency(self.system,
                                                             self.gold)).results
                         for measure in measures}
-        return self.format(self)
+        return self.format(self, self.results)
 
     @classmethod
     def add_arguments(cls, p):
         p.add_argument('system', metavar='FILE')
-        p.add_argument('-g', '--gold')
+        p.add_argument('-g', '--gold', required=True)
         p.add_argument('-f', '--fmt', default='tab', choices=cls.FMTS.keys())
         p.add_argument('-m', '--measure', dest='measures', action='append',
                        metavar='NAME', help=MEASURE_HELP)
@@ -88,16 +92,20 @@ class Evaluate(object):
 
     # formatters
 
-    def tab_format(self, num_fmt='{:.3f}', delimiter='\t'):
-        lines = [delimiter.join([i[:6] for i in METRICS] + ['measure'])]
+    def tab_format(self, results, num_fmt='{:.3f}', delimiter='\t'):
+        lines = [self._header(delimiter)]
         for measure in self.measures:
-            row = self.row(measure, self.results, num_fmt)
+            row = self.row(results, measure, num_fmt)
             lines.append(delimiter.join(row))
         return '\n'.join(lines)
 
-    def row(self, measure_str, results, num_fmt):
+    @staticmethod
+    def _header(delimiter='\t'):
+        return delimiter.join([i[:6] for i in METRICS] + ['measure'])
+
+    def row(self, results, measure_str, num_fmt):
         row = []
-        measure_results = self.results.get(measure_str, {})
+        measure_results = results.get(measure_str, {})
         for metric in METRICS:
             val = measure_results.get(metric, 0)
             if isinstance(val, float):
@@ -107,11 +115,23 @@ class Evaluate(object):
         row.append(measure_str)
         return row
 
-    def json_format(self):
-        return json.dumps(self.results, sort_keys=True, indent=4)
+    @classmethod
+    def read_tab_format(cls, file):
+        header = next(file)
+        assert header.rstrip() == cls._header()
+        results = {}
+        for l in file:
+            row = l.rstrip().split('\t')
+            measure = row.pop()
+            row = map(float, row)
+            results[measure] = dict(zip(METRICS, row))
+        return results
 
-    def no_format(self):
-        return self.results
+    def json_format(self, results):
+        return json.dumps(results, sort_keys=True, indent=4)
+
+    def no_format(self, results):
+        return results
 
     FMTS = {
         'tab': tab_format,

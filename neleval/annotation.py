@@ -91,7 +91,7 @@ class Annotation(object):
         docid, start, end, candidates = None, None, None, []
         cols = s.rstrip('\n\t').split('\t', 3)
         if len(cols) < 3:
-            raise SyntaxError('Annotation must have at least 3 columns')
+            raise SyntaxError('Annotation must have at least 3 columns. Got {!r}'.format(s))
         if len(cols) >= 3:
             docid = cols[0]
             start = int(cols[1])

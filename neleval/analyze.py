@@ -97,7 +97,7 @@ class Analyze(object):
     @classmethod
     def add_arguments(cls, p):
         p.add_argument('system', metavar='FILE')
-        p.add_argument('-g', '--gold')
+        p.add_argument('-g', '--gold', required=True)
         p.add_argument('-u', '--unique', action='store_true', default=False,
                        help='Only consider unique errors')
         p.add_argument('-s', '--summary', action='store_true', default=False,
