@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 
 # Prepare score summary in TAC 2013 format
-set -e
+source $(dirname $0)/_common.sh
 
 usage="Usage: $0 OUT_DIR"
 
@@ -28,18 +28,7 @@ do
         | sed 's/\.evaluation//' \
         | tr '\n' '\t' \
         >> $report
-    cat $sys_eval \
-        | awk '{if ($8 == "strong_all_match") print}' \
-        | cut -f 7 \
-        | tr '\n' '\t' \
-        >> $report
-    cat $sys_eval \
-        | awk '{if ($8 == "b_cubed") print}' \
-        | cut -f 5,6,7 \
-        | tr '\n' '\t' \
-        >> $report
-    cat $sys_eval \
-        | awk '{if ($8 == "b_cubed_plus") print}' \
-        | cut -f 5,6,7 \
-        >> $report
+    cat $sys_eval | get_eval_prf strong_all_match >> $report
+    cat $sys_eval | get_eval_prf b_cubed >> $report
+    cat $sys_eval | get_eval_prf b_cubed_plus >> $report
 done
