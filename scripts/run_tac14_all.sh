@@ -50,6 +50,13 @@ then
 fi
 
 
+# CALCULATE METRIC CORRELATIONS
+if [ ${#systems[*]} != 1 ]
+then
+	echo "INFO calculating measure correlations"
+	./nel compare-measures -e -m tac14 -f plot --out-prefix $outdir/00measure- $outdir/*.evaluation
+fi
+
 # CALCULATE CONFIDENCE INTERVALS
 echo "INFO Calculating confidence intervals.."
 for sys in ${systems[@]}

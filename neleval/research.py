@@ -147,7 +147,7 @@ class CompareMeasures(object):
         p.add_argument('systems', nargs='+', metavar='FILE')
         meg = p.add_mutually_exclusive_group(required=True)
         meg.add_argument('-g', '--gold')
-        meg.add_argument('-e', '--evaluation-files',
+        meg.add_argument('-e', '--evaluation-files', action='store_true', default=False,
                          help='System paths are the tab-formatted outputs '
                               'of the evaluate command, rather than '
                               'system outputs')
