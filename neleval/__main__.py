@@ -37,8 +37,10 @@ APPS = [
 
 
 def main(args=sys.argv[1:]):
-    p = argparse.ArgumentParser(description='Evaluation tools for Named Entity Linking output.')
+    p = argparse.ArgumentParser(prog='neleval',
+                                description='Evaluation tools for Named Entity Linking output.')
     sp = p.add_subparsers()
+    subparsers = {}
     for cls in APPS:
         hyphened_name = re.sub('([A-Z])', r'-\1', cls.__name__).lstrip('-').lower()
         help_text = cls.__doc__.split('\n')[0]
@@ -49,13 +51,14 @@ def main(args=sys.argv[1:]):
                             description=desc,
                             formatter_class=argparse.RawDescriptionHelpFormatter)
         cls.add_arguments(csp)
+        subparsers[cls] = csp
 
     namespace = vars(p.parse_args(args))
     cls = namespace.pop('cls')
     try:
         obj = cls(**namespace)
     except ValueError as e:
-        p.error(e.message)
+        subparsers[cls].error(e.message)
     print(obj())
 
 if __name__ == '__main__':
