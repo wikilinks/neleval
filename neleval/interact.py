@@ -1,4 +1,4 @@
-def run_ipython(self, local):
+def run_ipython(local):
     try:
         from IPython.frontend.terminal.embed import TerminalInteractiveShell
         shell = TerminalInteractiveShell(user_ns=local)
@@ -12,12 +12,12 @@ def run_ipython(self, local):
         shell.mainloop()
 
 
-def run_bpython(self, local):
+def run_bpython(local):
     import bpython
     bpython.embed(locals_=local)
 
 
-def run_python(self, local):
+def run_python(local):
     import code
     try:
         import readline
@@ -34,6 +34,7 @@ def embed_shell(local):
     for fn in [run_ipython, run_bpython, run_python]:
         try:
             fn(local)
+            return
         except ImportError as e:
             pass
     raise e
