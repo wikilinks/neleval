@@ -275,7 +275,9 @@ class PlotSystems(object):
                     raise ValueError('Unexpected secondary: {!r}'.format(self.secondary))
             plt.tight_layout()  # would break axis resizing for markers layout
 
-            plt.grid()
+            # With CIs, non-score axis is clear enough
+            plt.grid(axis='both' if self.confidence is None
+                     else ('x' if self.secondary == 'rows' else 'y'))
             plt.savefig(self.out_fmt.format(figure_name))
             plt.close(fig)
 
