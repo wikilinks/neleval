@@ -277,14 +277,15 @@ class PlotSystems(object):
                     plt.yticks(ticks[::-1], secondary_names, fontproperties=small_font)
                     plt.axis((0, 1, -.5, n_secondary - .5))
                 elif self.secondary == 'columns':
-                    self._plot(ax, ordinate, scores, marker='.')
                     plt.xticks(ticks, secondary_names, rotation=XTICK_ROTATION, fontproperties=small_font)
                     plt.axis((-.5, n_secondary - .5, 0, 1))
                 else:
                     raise ValueError('Unexpected secondary: {!r}'.format(self.secondary))
             plt.tight_layout()  # would break axis resizing for markers layout
 
-            plt.grid()
+            # With CIs, non-score axis is clear enough
+            plt.grid(axis='both' if self.confidence is None
+                     else ('x' if self.secondary == 'rows' else 'y'))
             if self.interactive:
                 figures[figure_name] = fig
             else:
