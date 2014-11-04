@@ -57,6 +57,9 @@ class _Result(namedtuple('Result', 'system measure data group')):
         return super(_Result, cls).__new__(cls, system, measure, data, group)
 
 
+XTICK_ROTATION = 45
+
+
 class PlotSystems(object):
     """Summarise system results as scatter plots"""
 
@@ -248,7 +251,7 @@ class PlotSystems(object):
                     plt.axis((0, 1, -.5, n_secondary - .5))
                 elif self.secondary == 'columns':
                     self._plot(ax, ordinate, scores, marker='.')
-                    plt.xticks(ticks, secondary_names, rotation='vertical', fontproperties=small_font)
+                    plt.xticks(ticks, secondary_names, rotation=XTICK_ROTATION, fontproperties=small_font)
                     plt.ylabel('fscore')
                     plt.axis((-.5, n_secondary - .5, 0, 1))
                 else:
@@ -427,7 +430,7 @@ class CompareMeasures(object):
         fig, ax = plt.subplots()
         im = ax.imshow(pearson, interpolation='nearest', cmap=cmap)
         plt.colorbar(im)
-        plt.xticks(*ticks, rotation='vertical', fontproperties=small_font)
+        plt.xticks(*ticks, rotation=XTICK_ROTATION, fontproperties=small_font)
         plt.yticks(*ticks, fontproperties=small_font)
         plt.tight_layout()
         plt.savefig(self.out_fmt.format('pearson'))
@@ -436,7 +439,7 @@ class CompareMeasures(object):
         fig, ax = plt.subplots()
         im = ax.imshow(spearman, interpolation='nearest', cmap=cmap)
         plt.colorbar(im)
-        plt.xticks(*ticks, rotation='vertical', fontproperties=small_font)
+        plt.xticks(*ticks, rotation=XTICK_ROTATION, fontproperties=small_font)
         plt.yticks(*ticks, fontproperties=small_font)
         plt.tight_layout()
         plt.savefig(self.out_fmt.format('spearman'))
