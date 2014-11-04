@@ -269,7 +269,6 @@ class PlotSystems(object):
                     plt.yticks(ticks[::-1], secondary_names, fontproperties=small_font)
                     plt.axis((0, 1, -.5, n_secondary - .5))
                 elif self.secondary == 'columns':
-                    self._plot(ax, ordinate, scores, marker='.')
                     plt.xticks(ticks, secondary_names, rotation=XTICK_ROTATION, fontproperties=small_font)
                     plt.axis((-.5, n_secondary - .5, 0, 1))
                 else:
