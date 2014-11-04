@@ -34,6 +34,7 @@ from .configs import DEFAULT_MEASURE_SET, MEASURE_HELP, parse_measures
 from .document import Reader
 from .evaluate import Evaluate
 from .significance import Confidence
+from .interact import embed_shell
 
 DEFAULT_OUT_FMT = '.%s{}.pdf' % os.path.sep
 MAX_LEGEND_PER_COL = 20
@@ -67,7 +68,8 @@ class PlotSystems(object):
                  measures=DEFAULT_MEASURE_SET,
                  figures_by='measure', secondary='markers', prec_and_rec=False,
                  confidence=None, group_re=None, best_in_group=False,
-                 out_fmt=DEFAULT_OUT_FMT, sort_by=None):
+                 out_fmt=DEFAULT_OUT_FMT, sort_by=None,
+                 interactive=False):
         if plt is None:
             raise ImportError('PlotSystems requires matplotlib to be installed')
         self.systems = systems
@@ -80,7 +82,9 @@ class PlotSystems(object):
         self.secondary = secondary or 'markers'
         self.prec_and_rec = prec_and_rec
 
+        self.interactive = interactive
         self.out_fmt = out_fmt
+
         self.group_re = group_re
         self.best_in_group = best_in_group
         if self.best_in_group and \
@@ -242,12 +246,16 @@ class PlotSystems(object):
 
         n_secondary = len({get_secondary(res) for res in all_results})
 
+        if self.interactive:
+            figures = {}
+
         small_font = make_small_font()
         colors = plt.get_cmap('jet')(np.linspace(0, 1.0, n_secondary))
         for figure_name, figure_data in self._regroup(all_results, **primary_regroup):
             figure_data = self._regroup(figure_data, **secondary_regroup)  # TODO: sort
             markers = itertools.cycle(('+', '.', 'o', 's', '*', '^', 'v', 'p'))
-            fig, ax = plt.subplots()
+            fig = plt.figure(figure_name)
+            ax = fig.add_subplot(1, 1, 1)
             if self.secondary == 'markers':
                 patches = []
                 for (secondary_name, results), color, marker in zip(figure_data, colors, markers):
@@ -277,14 +285,17 @@ class PlotSystems(object):
             plt.tight_layout()  # would break axis resizing for markers layout
 
             plt.grid()
-            plt.savefig(self.out_fmt.format(figure_name))
-            plt.close(fig)
+            if self.interactive:
+                figures[figure_name] = fig
+            else:
+                plt.savefig(self.out_fmt.format(figure_name))
+                plt.close(fig)
 
         figure_names = sorted({get_primary(result) for result in all_results})
 
         if self.secondary == 'markers' and n_secondary > 1:
             # XXX: this uses `ax` defined above
-            fig = plt.figure()
+            fig = figures['_legend_'] = plt.figure()
             legend = plt.figlegend(*ax.get_legend_handles_labels(), loc='center',
                                    ncol=int(np.ceil(n_secondary / MAX_LEGEND_PER_COL)),
                                    prop=small_font)
@@ -294,7 +305,10 @@ class PlotSystems(object):
             plt.savefig(self.out_fmt.format('_legend_'), bbox_inches=bbox)
             figure_names.append('_legend_')
 
-        return 'Saved to %s' % self.out_fmt.format('{%s}' % ','.join(figure_names))
+        if self.interactive:
+            embed_shell({'figures': figures})
+        else:
+            return 'Saved to %s' % self.out_fmt.format('{%s}' % ','.join(figure_names))
 
     @classmethod
     def add_arguments(cls, p):
@@ -318,11 +332,15 @@ class PlotSystems(object):
 
         p.add_argument('-i', '--input-type', choices=['evaluate', 'confidence'], default='evaluate',
                        help='Whether input was produced by the evaluate (default) or confidence command')
-        p.add_argument('-o', '--out-fmt', default=DEFAULT_OUT_FMT,
+
+        meg = p.add_mutually_exclusive_group()
+        meg.add_argument('-o', '--out-fmt', default=DEFAULT_OUT_FMT,
                        help='Path template for saving plots with --fmt=plot (default: %(default)s))')
+        meg.add_argument('--interactive', action='store_true', default=False,
+                         help='Open an interactive shell with `figures` available instead of saving images to file')
+
         p.add_argument('-m', '--measure', dest='measures', action='append',
                        metavar='NAME', help=MEASURE_HELP)
-
         p.add_argument('--ci', dest='confidence', type=int,
                        help='The percentile confidence interval to display as error bars '
                             '(requires --input-type=confidence')
@@ -333,6 +351,7 @@ class PlotSystems(object):
                        help='Only show best system per group')
         p.add_argument('-s', '--sort-by',
                        help='Sort each plot, options include "none", "name", "score", or the name of a measure.')
+
         p.set_defaults(cls=cls)
         return p
 
