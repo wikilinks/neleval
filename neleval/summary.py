@@ -65,7 +65,7 @@ class PlotSystems(object):
 
     def __init__(self, systems, input_type='evaluate',
                  measures=DEFAULT_MEASURE_SET,
-                 figures_by='measure', secondary='markers',
+                 figures_by='measure', secondary='markers', prec_and_rec=False,
                  confidence=None, group_re=None, best_in_group=False,
                  out_fmt=DEFAULT_OUT_FMT, sort_by=None):
         if plt is None:
@@ -78,6 +78,8 @@ class PlotSystems(object):
         if confidence is not None and input_type != 'confidence':
             raise ValueError('--input-type=confidence required')
         self.secondary = secondary or 'markers'
+        self.prec_and_rec = prec_and_rec
+
         self.out_fmt = out_fmt
         self.group_re = group_re
         self.best_in_group = best_in_group
@@ -121,6 +123,26 @@ class PlotSystems(object):
             y = y['score']
 
         return fn(x, y, *args, **kwargs)
+
+    def _plot1d(self, ax, all_scores, group_sizes):
+        ordinate = np.repeat(np.arange(len(group_sizes)), group_sizes)
+        if self.prec_and_rec:
+            data = zip(['b', 'r'], ['precision', 'recall'], [all_scores[..., 0], all_scores[..., 1]])
+            axis_label = 'precision/recall'
+        else:
+            data = zip(['k'], ['fscore'], [all_scores[..., 2]])
+            axis_label = 'fscore'
+        for color, label, scores in data:
+            if self.secondary == 'rows':
+                self._plot(ax, scores, ordinate[::-1], marker='.', color=color, label=label)
+            else:
+                self._plot(ax, ordinate, scores, marker='.', color=color, label=label)
+
+        if self.secondary == 'rows':
+            plt.xlabel(axis_label)
+        else:
+            plt.ylabel(axis_label)
+        plt.legend()
 
     def _regroup(self, iterable, key, best_system=False, sort_by='name'):
         iterable = list(iterable)
@@ -241,18 +263,14 @@ class PlotSystems(object):
                 secondary_names, figure_data = zip(*figure_data)
 
                 ticks = np.arange(n_secondary)
-                ordinate = np.repeat(ticks, [len(group) for group in figure_data])
-                scores = np.array([result.data for results in figure_data for result in results])[..., 2]
-                # TODO: sort
+                scores = np.array([result.data for results in figure_data for result in results])
+                self._plot1d(ax, scores, [len(group) for group in figure_data])
                 if self.secondary == 'rows':
-                    self._plot(ax, scores, ordinate[::-1], marker='.')
                     plt.yticks(ticks[::-1], secondary_names, fontproperties=small_font)
-                    plt.xlabel('fscore')
                     plt.axis((0, 1, -.5, n_secondary - .5))
                 elif self.secondary == 'columns':
                     self._plot(ax, ordinate, scores, marker='.')
                     plt.xticks(ticks, secondary_names, rotation=XTICK_ROTATION, fontproperties=small_font)
-                    plt.ylabel('fscore')
                     plt.axis((-.5, n_secondary - .5, 0, 1))
                 else:
                     raise ValueError('Unexpected secondary: {!r}'.format(self.secondary))
@@ -288,12 +306,15 @@ class PlotSystems(object):
                          help='Each measure in its own figure (default)')
 
         meg = p.add_mutually_exclusive_group()
-        meg.add_argument('--pr', dest='secondary', action='store_const', const='markers', default='markers',
-                         help='Plot precision and recall with different markers as needed (default)')
+        meg.add_argument('--2d', dest='secondary', action='store_const', const='markers', default='markers',
+                         help='Plot precision and recall as separate axes with different markers as needed (default)')
         meg.add_argument('--rows', dest='secondary', action='store_const', const='rows',
                          help='Show rows of fscore plots')
         meg.add_argument('--columns', dest='secondary', action='store_const', const='columns',
                          help='Show columns of fscore plots')
+
+        p.add_argument('--pr', dest='prec_and_rec', action='store_true', default=False,
+                       help='In rows or columns mode, plot both precision and recall, rather than F1')
 
         p.add_argument('-i', '--input-type', choices=['evaluate', 'confidence'], default='evaluate',
                        help='Whether input was produced by the evaluate (default) or confidence command')
