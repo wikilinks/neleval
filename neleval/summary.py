@@ -51,6 +51,13 @@ def make_small_font():
     return font
 
 
+def _parse_figsize(figsize):
+    if figsize.count(',') != 1:
+        raise ValueError('Expected a single comma in figure size, got {!r}'.format(figsize))
+    width, _, height = figsize.partition(',')
+    return int(width), int(height)
+
+
 class _Result(namedtuple('Result', 'system measure data group')):
     def __new__(cls, system, measure, data, group=None):
         if group is None:
@@ -68,8 +75,8 @@ class PlotSystems(object):
                  measures=DEFAULT_MEASURE_SET,
                  figures_by='measure', secondary='markers', prec_and_rec=False,
                  confidence=None, group_re=None, best_in_group=False,
-                 out_fmt=DEFAULT_OUT_FMT, sort_by=None,
-                 interactive=False):
+                 sort_by=None,
+                 out_fmt=DEFAULT_OUT_FMT, figsize=(8, 6), interactive=False):
         if plt is None:
             raise ImportError('PlotSystems requires matplotlib to be installed')
         self.systems = systems
@@ -84,6 +91,7 @@ class PlotSystems(object):
 
         self.interactive = interactive
         self.out_fmt = out_fmt
+        self.figsize = figsize
 
         self.group_re = group_re
         self.best_in_group = best_in_group
@@ -254,7 +262,7 @@ class PlotSystems(object):
         for figure_name, figure_data in self._regroup(all_results, **primary_regroup):
             figure_data = self._regroup(figure_data, **secondary_regroup)  # TODO: sort
             markers = itertools.cycle(('+', '.', 'o', 's', '*', '^', 'v', 'p'))
-            fig = plt.figure(figure_name)
+            fig = plt.figure(figure_name, figsize=self.figsize)
             ax = fig.add_subplot(1, 1, 1)
             if self.secondary == 'markers':
                 patches = []
@@ -340,6 +348,9 @@ class PlotSystems(object):
         meg.add_argument('--interactive', action='store_true', default=False,
                          help='Open an interactive shell with `figures` available instead of saving images to file')
 
+        p.add_argument('--figsize', default=(8, 6), type=_parse_figsize,
+                       help='The width,height of a figure in inches (default 8,6)')
+
         p.add_argument('-m', '--measure', dest='measures', action='append',
                        metavar='NAME', help=MEASURE_HELP)
         p.add_argument('--ci', dest='confidence', type=int,
@@ -362,7 +373,7 @@ class CompareMeasures(object):
     """
     def __init__(self, systems, gold=None, evaluation_files=False,
                  measures=DEFAULT_MEASURE_SET,
-                 fmt='none', out_fmt=DEFAULT_OUT_FMT,
+                 fmt='none', out_fmt=DEFAULT_OUT_FMT, figsize=(8, 6),
                  sort_by='none'):
         if stats is None:
             raise ImportError('CompareMeasures requires scipy to be installed')
@@ -376,6 +387,7 @@ class CompareMeasures(object):
         self.measures = parse_measures(measures or DEFAULT_MEASURE_SET)
         self.format = self.FMTS[fmt] if fmt is not callable else fmt
         self.out_fmt = out_fmt
+        self.figsize = figsize
         self.sort_by = sort_by
 
     def __call__(self):
@@ -468,7 +480,7 @@ class CompareMeasures(object):
 
         cmap = cm.get_cmap('jet')  # or RdBu?
         cmap.set_bad('white')
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=self.figsize)
         im = ax.imshow(pearson, interpolation='nearest', cmap=cmap)
         plt.colorbar(im)
         plt.xticks(*ticks, rotation=XTICK_ROTATION, fontproperties=small_font)
@@ -477,7 +489,7 @@ class CompareMeasures(object):
         plt.savefig(self.out_fmt.format('pearson'))
         plt.close(fig)
 
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=self.figsize)
         im = ax.imshow(spearman, interpolation='nearest', cmap=cmap)
         plt.colorbar(im)
         plt.xticks(*ticks, rotation=XTICK_ROTATION, fontproperties=small_font)
@@ -485,7 +497,7 @@ class CompareMeasures(object):
         plt.tight_layout()
         plt.savefig(self.out_fmt.format('spearman'))
 
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=self.figsize)
         ax.boxplot(all_results[:, ::-1], 0, 'rs', 0, labels=measures[::-1])
         plt.yticks(fontproperties=small_font)
         plt.tight_layout()
@@ -513,6 +525,9 @@ class CompareMeasures(object):
         p.add_argument('-f', '--fmt', default='tab', choices=cls.FMTS.keys())
         p.add_argument('-o', '--out-fmt', default=DEFAULT_OUT_FMT,
                        help='Path template for saving plots with --fmt=plot (default: %(default)s))')
+        p.add_argument('--figsize', default=(8, 6), type=_parse_figsize,
+                       help='The width,height of a figure in inches (default 8,6)')
+
         p.add_argument('-m', '--measure', dest='measures', action='append',
                        metavar='NAME', help=MEASURE_HELP)
         p.add_argument('-s', '--sort-by', choices=['none', 'name', 'eigen', 'mds'],
