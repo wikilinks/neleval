@@ -276,6 +276,7 @@ class PlotSystems(object):
                 yield plot
 
     def _heatmap(self, all_results, primary_regroup, secondary_regroup):
+        # FIXME: sort_by only currently applied to columns!
         figure = plt.figure('heatmap', figsize=self.figsize)
         ax = figure.add_subplot(1, 1, 1)
 
