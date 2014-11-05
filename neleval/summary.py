@@ -38,6 +38,7 @@ from .interact import embed_shell
 
 DEFAULT_OUT_FMT = '.%s{}.pdf' % os.path.sep
 MAX_LEGEND_PER_COL = 20
+CMAP = 'jet'
 
 
 def _pairs(items):
@@ -65,7 +66,7 @@ class _Result(namedtuple('Result', 'system measure data group')):
         return super(_Result, cls).__new__(cls, system, measure, data, group)
 
 
-XTICK_ROTATION = 45
+XTICK_ROTATION = 'vertical'
 
 
 class PlotSystems(object):
@@ -100,18 +101,15 @@ class PlotSystems(object):
            self.secondary == 'markers' and \
            len(self.measures) > 1:
             raise ValueError('best-in-group not supported with shared legend')
-        if self.best_in_group and \
-           self.figures_by == 'system' and \
-           len(self.measures) > 1:
-            raise ValueError('best-in-group cannot be evaluated with multiple measures per figure')
-
         self.sort_by = sort_by or 'none'
         if self.sort_by not in ('none', 'name', 'score') and \
            self.sort_by not in self.measures:
             raise ValueError('Acceptable values for sort-by are ("none", "name", "score", {})'.format(', '.join(map(repr, self.measures))))
-        if self.sort_by == 'score' and \
-           self.figures_by == 'system' and \
-           len(self.measures) > 1:
+
+        multiple_measures_per_figure = (secondary == 'heatmap') or (self.figures_by == 'system' and len(self.measures) > 1)
+        if self.best_in_group and multiple_measures_per_figure:
+            raise ValueError('best-in-group cannot be evaluated with multiple measures per figure')
+        if self.sort_by == 'score' and multiple_measures_per_figure:
             raise ValueError('Cannot sort by score with multiple measures per figure. You could instead specify a measure name.')
 
     def _plot(self, ax, x, y, *args, **kwargs):
@@ -185,7 +183,7 @@ class PlotSystems(object):
                  self.group_re.search(system).group() if self.group_re else None)
                 for system in systems]
 
-    def __call__(self):
+    def _load_data(self):
         # XXX: this needs a refactor/cleanup!!! Maybe just use more struct arrays rather than namedtuple
         if self.input_type == 'confidence':
             """
@@ -223,7 +221,10 @@ class PlotSystems(object):
         for (system_name, group), sys_results in zip(self._get_system_names(self.systems), all_results):
             all_results_tmp.extend(_Result(system=system_name, measure=measure, group=group, data=measure_results)
                                    for measure, measure_results in zip(self.measures, sys_results))
-        all_results = all_results_tmp
+        return all_results_tmp
+
+    def __call__(self):
+        all_results = self._load_data()
 
         if self.sort_by in self.measures:
             by_measure = sorted((result for result in all_results if result.measure == self.sort_by), key=lambda result: -result.data[2]['score'])
@@ -249,22 +250,63 @@ class PlotSystems(object):
                                  'sort_by': sort_by,}
         else:
             raise ValueError('Unexpected figures_by: {!r}'.format(self.figures_by))
-        get_primary = primary_regroup['key']
-        get_secondary = secondary_regroup['key']
-
-        n_secondary = len({get_secondary(res) for res in all_results})
 
         if self.interactive:
             figures = {}
+        else:
+            figure_names = []
+        for name, figure, save_kwargs in self._generate_figures(all_results, primary_regroup, secondary_regroup):
+            if self.interactive:
+                figures[name] = figure
+            else:
+                figure_names.append(name)
+                figure.savefig(self.out_fmt.format(name), **save_kwargs)
+                plt.close(figure)
 
+        if self.interactive:
+            embed_shell({'figures': figures})
+        else:
+            return 'Saved to %s' % self.out_fmt.format('{%s}' % ','.join(figure_names))
+
+    def _generate_figures(self, *args):
+        if self.secondary == 'heatmap':
+            yield self._heatmap(*args)
+        else:
+            for plot in self._generate_plots(*args):
+                yield plot
+
+    def _heatmap(self, all_results, primary_regroup, secondary_regroup):
+        figure = plt.figure('heatmap', figsize=self.figsize)
+        ax = figure.add_subplot(1, 1, 1)
+
+        matrix = []
+        row_names = []
+        for row_name, row in self._regroup(all_results, **primary_regroup):
+            column_names, row = zip(*self._regroup(row, **secondary_regroup))
+            matrix.append([cell.data[2]['score'] for (cell,) in row])
+            row_names.append(row_name)
+
+        im = ax.imshow(matrix, interpolation='nearest',
+                       cmap=plt.get_cmap(CMAP), vmin=0, vmax=1)
         small_font = make_small_font()
-        colors = plt.get_cmap('jet')(np.linspace(0, 1.0, n_secondary))
+        plt.yticks(np.arange(len(row_names)), row_names,
+                   fontproperties=small_font)
+        plt.xticks(np.arange(len(column_names)), column_names,
+                   rotation=XTICK_ROTATION, fontproperties=small_font)
+        figure.colorbar(im)
+        figure.tight_layout()
+        return 'heatmap', figure, {}
+
+    def _generate_plots(self, all_results, primary_regroup, secondary_regroup):
+        small_font = make_small_font()
         for figure_name, figure_data in self._regroup(all_results, **primary_regroup):
-            figure_data = self._regroup(figure_data, **secondary_regroup)  # TODO: sort
-            markers = itertools.cycle(('+', '.', 'o', 's', '*', '^', 'v', 'p'))
+            figure_data = self._regroup(figure_data, **secondary_regroup)
+            n_secondary = len(figure_data)
+            colors = plt.get_cmap(CMAP)(np.linspace(0, 1.0, n_secondary))
             fig = plt.figure(figure_name, figsize=self.figsize)
             ax = fig.add_subplot(1, 1, 1)
             if self.secondary == 'markers':
+                markers = itertools.cycle(('+', '.', 'o', 's', '*', '^', 'v', 'p'))
                 patches = []
                 for (secondary_name, results), color, marker in zip(figure_data, colors, markers):
                     # recall-precision
@@ -289,44 +331,32 @@ class PlotSystems(object):
                     plt.axis((-.5, n_secondary - .5, 0, 1))
                 else:
                     raise ValueError('Unexpected secondary: {!r}'.format(self.secondary))
-            plt.tight_layout()  # would break axis resizing for markers layout
+            fig.tight_layout()  # would break axis resizing for markers layout
 
             # With CIs, non-score axis is clear enough
-            plt.grid(axis='both' if self.confidence is None
-                     else ('x' if self.secondary == 'rows' else 'y'))
-            if self.interactive:
-                figures[figure_name] = fig
-            else:
-                plt.savefig(self.out_fmt.format(figure_name))
-                plt.close(fig)
-
-        figure_names = sorted({get_primary(result) for result in all_results})
+            ax.grid(axis='both' if self.confidence is None
+                    else ('x' if self.secondary == 'rows' else 'y'))
+            yield figure_name, fig, {}
 
         if self.secondary == 'markers' and n_secondary > 1:
             # XXX: this uses `ax` defined above
-            fig = figures['_legend_'] = plt.figure()
-            legend = plt.figlegend(*ax.get_legend_handles_labels(), loc='center',
+            fig = plt.figure()
+            legend = plt.figlegend(*ax.get_axes().get_legend_handles_labels(), loc='center',
                                    ncol=int(np.ceil(n_secondary / MAX_LEGEND_PER_COL)),
-                                   prop=small_font)
+                                   prop=make_small_font())
             fig.canvas.draw()
             # FIXME: need some padding
             bbox = legend.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
-            plt.savefig(self.out_fmt.format('_legend_'), bbox_inches=bbox)
-            figure_names.append('_legend_')
-
-        if self.interactive:
-            embed_shell({'figures': figures})
-        else:
-            return 'Saved to %s' % self.out_fmt.format('{%s}' % ','.join(figure_names))
+            yield '_legend_', fig, {'bbox_inches': bbox}
 
     @classmethod
     def add_arguments(cls, p):
         p.add_argument('systems', nargs='+', metavar='FILE')
         meg = p.add_mutually_exclusive_group()
         meg.add_argument('--by-system', dest='figures_by', action='store_const', const='system',
-                         help='Each system in its own figure')
+                         help='Each system in its own figure, or row with --heatmap')
         meg.add_argument('--by-measure', dest='figures_by', action='store_const', const='measure', default='measure',
-                         help='Each measure in its own figure (default)')
+                         help='Each measure in its own figure, or row with --heatmap (default)')
 
         meg = p.add_mutually_exclusive_group()
         meg.add_argument('--2d', dest='secondary', action='store_const', const='markers', default='markers',
@@ -335,6 +365,8 @@ class PlotSystems(object):
                          help='Show rows of fscore plots')
         meg.add_argument('--columns', dest='secondary', action='store_const', const='columns',
                          help='Show columns of fscore plots')
+        meg.add_argument('--heatmap', dest='secondary', action='store_const', const='heatmap',
+                         help='Show a heatmap comparing all systems and measures')
 
         p.add_argument('--pr', dest='prec_and_rec', action='store_true', default=False,
                        help='In rows or columns mode, plot both precision and recall, rather than F1')
@@ -440,7 +472,6 @@ class CompareMeasures(object):
 
     def plot_format(self, results):
         import matplotlib.pyplot as plt
-        from matplotlib import cm
         small_font = make_small_font()
         correlations = results['correlations']
 
@@ -478,7 +509,7 @@ class CompareMeasures(object):
 
         ticks = (np.arange(len(measures)), measures)
 
-        cmap = cm.get_cmap('jet')  # or RdBu?
+        cmap = plt.get_cmap(CMAP)
         cmap.set_bad('white')
         fig, ax = plt.subplots(figsize=self.figsize)
         im = ax.imshow(pearson, interpolation='nearest', cmap=cmap)
