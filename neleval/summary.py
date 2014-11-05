@@ -334,9 +334,7 @@ class PlotSystems(object):
                     raise ValueError('Unexpected secondary: {!r}'.format(self.secondary))
             fig.tight_layout()  # would break axis resizing for markers layout
 
-            # With CIs, non-score axis is clear enough
-            ax.grid(axis='both' if self.confidence is None
-                    else ('x' if self.secondary == 'rows' else 'y'))
+            plt.grid(axis='x' if self.secondary == 'rows' else 'y')
             yield figure_name, fig, {}
 
         if self.secondary == 'markers' and n_secondary > 1:
@@ -360,7 +358,7 @@ class PlotSystems(object):
                          help='Each measure in its own figure, or row with --heatmap (default)')
 
         meg = p.add_mutually_exclusive_group()
-        meg.add_argument('--2d', dest='secondary', action='store_const', const='markers', default='markers',
+        meg.add_argument('--scatter', dest='secondary', action='store_const', const='markers', default='markers',
                          help='Plot precision and recall as separate axes with different markers as needed (default)')
         meg.add_argument('--rows', dest='secondary', action='store_const', const='rows',
                          help='Show rows of fscore plots')
