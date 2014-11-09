@@ -38,6 +38,20 @@ class Annotation(object):
         assert isinstance(other, Annotation)
         return cmp((self.start, -self.end), (other.start, -other.end))
 
+    def compare_spans(self, other):
+        if self.docid != other.docid:
+            return 'different documents'
+        if self.start > other.end or self.end < other.start:
+            return 'non-overlapping'
+        elif self.start == other.start and self.end == other.end:
+            return 'duplicate'
+        elif self.start < other.start and self.end >= other.end:
+            return 'nested'
+        elif self.start >= other.start and self.end < other.end:
+            return 'nested'
+        else:
+            return 'crossing'
+
     # Getters
     @property
     def span(self):
