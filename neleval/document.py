@@ -21,7 +21,7 @@ class Document(object):
 
     # May be 'ignore', 'warn', 'error'
     VALIDATION = {
-        'nested': 'warn',
+        'nested': 'ignore',
         'crossing': 'warn',
         'duplicate': 'error',
     }
