@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 "Document - group and compare annotations"
-from .annotation import Annotation
+
 from collections import OrderedDict
+import warnings
+
+from .annotation import Annotation
 
 TEMPLATE = u'{}\t{}\t{}\t{}\t{}'
 ENC = 'utf8'
@@ -12,8 +15,44 @@ ENC = 'utf8'
 class Document(object):
     def __init__(self, id, annotations):
         self.id = id
-        self.annotations = annotations
+        self.annotations = sorted(annotations, key=lambda a: (a.start, -a.end))
+        self._validate()
         self._set_fields()
+
+    # May be 'ignore', 'warn', 'error'
+    VALIDATION = {
+        'nested': 'ignore',
+        'crossing': 'warn',
+        'duplicate': 'error',
+    }
+
+    def _validate(self, _categories=['nested', 'crossing', 'duplicate']):
+        # XXX: do we nee to ensure start > end for all Annotations first?
+        issues = {cat: [] for cat, val in self.VALIDATION.items()
+                  if val != 'ignore'}
+        if not issues:
+            return
+        open_anns = []
+        tags = sorted([(a.start, 'open', a) for a in self.annotations] +
+                      [(a.end, 'close', a) for a in self.annotations])
+        for key, op, ann in tags:
+            if op == 'open':
+                open_anns.append(ann)
+            else:
+                open_anns.remove(ann)
+                for other in open_anns:
+                    comparison = ann.compare_spans(other)
+                    if comparison in issues:
+                        issues[comparison].append((other, ann))
+        for issue, instances in issues.items():
+            if not instances:
+                continue
+            if self.VALIDATION[issue] == 'error':
+                a, b = instances[0]
+                raise ValueError('Found annotations with {} span:'
+                                 '\n{}\n{}'.format(issue, a, b))
+            elif self.VALIDATION[issue] == 'warn':
+                warnings.warn('Found annotations with {} span'.format(issue))
 
     def _set_fields(self):
         """Set fields on annotations that are relative to document"""

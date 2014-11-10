@@ -1,5 +1,13 @@
 #!/usr/bin/env python
-from .document import Reader as AnnotationReader
+from io import BytesIO
+from pprint import pprint
+import os
+import warnings
+from contextlib import contextmanager
+
+from nose.tools import assert_sequence_equal
+
+from .document import Reader as AnnotationReader, Document
 from .data import Reader, Mention, Writer
 from .configs import MEASURE_SETS, TMP_MEASURES, LUO_MEASURES, CAI_STRUBE_MEASURES, ALL_MEASURES, parse_measures
 from .coref_metrics import mapping_to_sets, sets_to_mapping
@@ -9,11 +17,6 @@ from .evaluate import Evaluate
 from .formats import Unstitch, Stitch
 from .tac import PrepareTac
 from .utils import normalise_link
-from io import BytesIO
-from pprint import pprint
-import os
-
-from nose.tools import assert_sequence_equal
 
 DIR = os.path.join(os.path.dirname(__file__))
 EXAMPLES = os.path.join(DIR, 'examples')
@@ -69,6 +72,72 @@ def test_annotation_read_write():
     docs = list(AnnotationReader(open(TAC_GOLD_COMB)))
     d_str = '\n'.join([str(d) for d in docs])
     assert d_str == open(TAC_GOLD_COMB).read().rstrip('\n')
+
+@contextmanager
+def set_validation(val):
+    prev_value = Document.VALIDATION
+    Document.VALIDATION = val
+    yield
+    Document.VALIDATION = prev_value
+
+def test_annotation_validation():
+    def _ex(start, stop, kbid='foo'):
+        return b'docid\t{}\t{}\t{}\t1.0\tTYP'.format(start, stop, kbid)
+
+    def _make_file(*examples):
+        return BytesIO(b''.join(ex + b'\n' for ex in examples))
+    duplicate_file = _make_file(_ex(0, 1), _ex(2, 3), _ex(3, 4), _ex(2, 3))
+
+    with set_validation({'duplicate': 'ignore'}):
+        reader = AnnotationReader(duplicate_file)
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter('always')
+            list(reader)
+            assert len(w) == 0, 'Expected no warning for duplicate annotations'
+
+    duplicate_file.seek(0)
+    with set_validation({'duplicate': 'warn'}):
+        reader = AnnotationReader(duplicate_file)
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter('always')
+            list(reader)
+            assert len(w) == 1, 'Expected warning for duplicate annotations'
+            assert 'duplicate' in str(w[-1].message)
+
+    duplicate_file.seek(0)
+    with set_validation({'duplicate': 'error'}):
+        reader = AnnotationReader(duplicate_file)
+        try:
+            list(reader)
+        except ValueError as exc:
+            assert 'duplicate' in exc.message
+            assert '\t2\t3\t' in exc.message
+        else:
+            assert False, 'Expected error to be raised on duplicate annotation'
+
+    crossing_file = _make_file(_ex(0, 1), _ex(2, 4), _ex(3, 5))
+    with set_validation({'crossing': 'warn'}):
+        reader = AnnotationReader(crossing_file)
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter('always')
+            list(reader)
+            assert len(w) == 1, 'Expected warning for crossing annotations'
+            assert 'crossing' in str(w[-1].message)
+
+    for nested_file in [_make_file(_ex(2, 4), _ex(3, 4)),
+                        _make_file(_ex(2, 4), _ex(2, 3)),
+                        _make_file(_ex(2, 5), _ex(3, 4))]:
+        with set_validation({'nested': 'warn'}):
+            reader = AnnotationReader(nested_file)
+            with warnings.catch_warnings(record=True) as w:
+                warnings.simplefilter('always')
+                list(reader)
+                assert len(w) == 1, 'Expected warning for crossing annotations'
+                print(w[-1])
+                assert 'nested' in str(w[-1].message)
+
+    # TODO: test tricky case with nesting and crossing
+    # TODO: test changing validation rules
 
 def test_conll_data():
     d = list(Reader(open(CONLL_GOLD)))
