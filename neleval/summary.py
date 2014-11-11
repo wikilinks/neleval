@@ -14,6 +14,7 @@ import operator
 import json
 from collections import namedtuple
 import re
+import warnings
 
 try:
     import numpy as np
@@ -525,7 +526,11 @@ class CompareMeasures(object):
             order = np.argsort(measures)
         elif self.sort_by == 'eigen':
             from matplotlib.mlab import PCA
-            order = np.argsort(PCA(all_results).s)
+            try:
+                order = np.argsort(PCA(all_results).s)
+            except np.linalg.LinAlgError:
+                warnings.warn('PCA failed; not sorting measures')
+                order = None
         elif self.sort_by == 'mds':
             from sklearn.manifold import MDS
             mds = MDS(n_components=1, n_init=20, random_state=0)
