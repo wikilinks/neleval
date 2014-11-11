@@ -264,7 +264,8 @@ class PlotSystems(object):
                 plt.close(figure)
 
         if self.interactive:
-            embed_shell({'figures': figures})
+            print('Opening interactive shell with variables `figures` and `results`')
+            embed_shell({'figures': figures, 'results': all_results})
         else:
             return 'Saved to %s' % self.out_fmt.format('{%s}' % ','.join(figure_names))
 
