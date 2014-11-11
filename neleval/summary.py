@@ -14,7 +14,6 @@ import operator
 import json
 from collections import namedtuple
 import re
-import warnings
 
 try:
     import numpy as np
@@ -59,6 +58,19 @@ def _parse_figsize(figsize):
     return int(width), int(height)
 
 
+def _parse_label_map(arg):
+    if arg is None:
+        return {}
+    elif hasattr(arg, 'read'):
+        return json.load(arg)
+    elif hasattr(arg, 'keys'):
+        return arg
+    elif os.path.isfile(arg):
+        return json.load(open(arg))
+    elif arg.startswith('{'):
+        return json.loads(arg)
+
+
 class _Result(namedtuple('Result', 'system measure data group')):
     def __new__(cls, system, measure, data, group=None):
         if group is None:
@@ -78,7 +90,8 @@ class PlotSystems(object):
                  lines=False,
                  confidence=None, group_re=None, best_in_group=False,
                  sort_by=None,
-                 out_fmt=DEFAULT_OUT_FMT, figsize=(8, 6), interactive=False):
+                 out_fmt=DEFAULT_OUT_FMT, figsize=(8, 6), label_map=None,
+                 interactive=False):
         if plt is None:
             raise ImportError('PlotSystems requires matplotlib to be installed')
         self.systems = systems
@@ -95,6 +108,7 @@ class PlotSystems(object):
         self.interactive = interactive
         self.out_fmt = out_fmt
         self.figsize = figsize
+        self.label_map = _parse_label_map(label_map)
 
         self.group_re = group_re
         self.best_in_group = best_in_group
@@ -141,20 +155,24 @@ class PlotSystems(object):
 
     METRIC_DATA = {'precision': ('b', 0, '^'), 'recall': ('r', 1, 'v'), 'fscore': ('k', 2, 's')}
 
+    def _t(self, s):
+        # Translate label
+        return self.label_map.get(s, s)
+
     def _plot1d(self, ax, all_scores, group_sizes):
         ordinate = np.repeat(np.arange(len(group_sizes)), group_sizes)
         # TODO: clean this up: use kwargs in METRIC_DATA
         colors, columns, markers = zip(*(self.METRIC_DATA[metric] for metric in self.metrics))
         data = zip(colors, self.metrics, [all_scores[..., c] for c in columns], markers)
         if tuple(self.metrics) == ('fscore',):
-            axis_label = 'fscore'
+            axis_label = self._t('fscore')
         else:
-            axis_label = 'score'
+            axis_label = self._t('score')
         for color, label, scores, marker in data:
             if self.secondary == 'rows':
-                self._plot(ax, scores, ordinate[::-1], marker=marker, color=color, label=label, markeredgecolor=color)
+                self._plot(ax, scores, ordinate[::-1], marker=marker, color=color, label=self._t(label), markeredgecolor=color)
             else:
-                self._plot(ax, ordinate, scores, marker=marker, color=color, label=label, markeredgecolor=color)
+                self._plot(ax, ordinate, scores, marker=marker, color=color, label=self._t(label), markeredgecolor=color)
 
         if self.secondary == 'rows':
             plt.xlabel(axis_label)
@@ -327,12 +345,13 @@ class PlotSystems(object):
                     data = np.array([result.data for result in results])
                     patches.append(self._plot(ax, data[..., 1], data[..., 0],
                                               marker=marker, color=color,
-                                              label=secondary_name))
-                plt.xlabel('recall')
-                plt.ylabel('precision')
+                                              label=self._t(secondary_name)))
+                plt.xlabel(self._t('recall'))
+                plt.ylabel(self._t('precision'))
                 plt.axis((0, 1, 0, 1))
             else:
                 secondary_names, figure_data = zip(*figure_data)
+                secondary_names = [self._t(name) for name in secondary_names]
 
                 ticks = np.arange(n_secondary)
                 scores = np.array([result.data for results in figure_data for result in results])
@@ -414,6 +433,8 @@ class PlotSystems(object):
         p.add_argument('-s', '--sort-by',
                        help='Sort each plot, options include "none", "name", "score", or the name of a measure.')
 
+        p.add_argument('--label-map', help='JSON (or file) mapping internal labels to display labels')
+
         p.set_defaults(cls=cls)
         return p
 
@@ -424,7 +445,7 @@ class CompareMeasures(object):
     def __init__(self, systems, gold=None, evaluation_files=False,
                  measures=DEFAULT_MEASURE_SET,
                  fmt='none', out_fmt=DEFAULT_OUT_FMT, figsize=(8, 6),
-                 sort_by='none'):
+                 sort_by='none', label_map=None):
         if stats is None:
             raise ImportError('CompareMeasures requires scipy to be installed')
         self.systems = systems
@@ -439,6 +460,7 @@ class CompareMeasures(object):
         self.out_fmt = out_fmt
         self.figsize = figsize
         self.sort_by = sort_by
+        self.label_map = _parse_label_map(label_map)
 
     def __call__(self):
         all_results = np.empty((len(self.systems), len(self.measures)))
@@ -478,7 +500,8 @@ class CompareMeasures(object):
             data = ['%0.3f' % v for v in data]
             rows.append([measure1, measure2] + data)
 
-        col_widths = [max(len(row[col]) for row in rows) for col in range(len(rows[0]))]
+        col_widths = [max(len(row[col]) for row in rows)
+                      for col in range(len(rows[0]))]
         fmt = '\t'.join('{{:{:d}s}}'.format(width) for width in col_widths)
         return "\n".join(fmt.format(*row) for row in rows)
 
@@ -504,7 +527,8 @@ class CompareMeasures(object):
             order = np.argsort(PCA(all_results).s)
         elif self.sort_by == 'mds':
             from sklearn.manifold import MDS
-            order = np.argsort(MDS(n_components=1, n_init=20, random_state=0).fit_transform(all_results.T), axis=None)
+            mds = MDS(n_components=1, n_init=20, random_state=0)
+            order = np.argsort(mds.fit_transform(all_results.T), axis=None)
         else:
             order = None
         if order is not None:
@@ -525,6 +549,8 @@ class CompareMeasures(object):
         for i in range(n_measures):
             pearson[i, i] = spearman[i, i] = 1
 
+        measures = [self.label_map.get(measure, measure)
+                    for measure in measures]
         ticks = (np.arange(len(measures)), measures)
 
         cmap = plt.get_cmap(CMAP)
@@ -582,5 +608,7 @@ class CompareMeasures(object):
         p.add_argument('-s', '--sort-by', choices=['none', 'name', 'eigen', 'mds'],
                        help='For plot, sort by name, eigenvalue, or '
                             'multidimensional scaling (requires scikit-learn)')
+
+        p.add_argument('--label-map', help='JSON (or file) mapping internal labels to display labels')
         p.set_defaults(cls=cls)
         return p
