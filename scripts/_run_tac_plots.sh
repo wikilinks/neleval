@@ -1,7 +1,4 @@
-#!/usr/bin/env bash
-#
-# Generate many plots
-set -e
+
 
 usage="Usage: $0 EVALUATION_OUT_DIR"
 
@@ -21,14 +18,8 @@ mkdir -vp $plotdir/columns/{all,team-best}/90ci $plotdir/scatter/ $plotdir/by-sy
 
 ALL_MEASURES=$(cat $(ls $evaldir/*.evaluation | head -n1) | awk 'NR > 1 {print $8}' | sort | sed 's/^/-m /')
 CONF_MEASURES=$(cat $(ls $evaldir/*.confidence | head -n1) | awk 'NR > 1 {print $1}' | sort | sed 's/^/-m /')
-OFFICIAL_MEASURES="-m strong_mention_match -m strong_typed_mention_match -m strong_all_match -m mention_ceaf"
 GROUPRE="--group-re=(?<=/)[^/]*(?=[0-9]\.)"
 LABELMAP='--label-map={"fscore": "$F_1$", "precision": "$P$", "recall": "$R$"}'
-
-# TODO: Determine figure sizes dynamically
-square_figsize="6,6"
-syscols_figsize="17,4"
-teamcols_figsize="8,4"
 
 ./nel plot-systems "$LABELMAP" --by-measure --scatter -o $plotdir/scatter/{}.pdf $GROUPRE $ALL_MEASURES --figsize=$square_figsize --sort-by=name $evaldir/*.evaluation
 for d in all team-best
@@ -60,13 +51,10 @@ do
 	./nel plot-systems "$LABELMAP" --by-system --scatter -o $plotdir/$d/{}.pdf $arg $ALL_MEASURES --figsize=$square_figsize --sort-by name $evaldir/*.evaluation
 done
 
-DEFAULT_MEASURE=mention_ceaf
 ./nel plot-systems "$LABELMAP" --heatmap --by-measure -o $plotdir/single/heatmap/all.pdf --sort-by=name --figsize=$syscols_figsize $ALL_MEASURES --sort-by=$DEFAULT_MEASURE $evaldir/*.evaluation
-./nel plot-systems "$LABELMAP" --heatmap --by-measure -o $plotdir/single/heatmap/tac14.pdf --sort-by=name -m tac14 --figsize=$syscols_figsize --sort-by=$DEFAULT_MEASURE $evaldir/*.evaluation
-./nel plot-systems "$LABELMAP" --heatmap --by-measure -o $plotdir/single/heatmap/tac14-official.pdf --sort-by=name --figsize=$syscols_figsize $OFFICIAL_MEASURES --sort-by=$DEFAULT_MEASURE $evaldir/*.evaluation
+./nel plot-systems "$LABELMAP" --heatmap --by-measure -o $plotdir/single/heatmap/official.pdf --sort-by=name --figsize=$syscols_figsize $OFFICIAL_MEASURES --sort-by=$DEFAULT_MEASURE $evaldir/*.evaluation
 
-./nel plot-systems "$LABELMAP" --single-plot -o $plotdir/single/plot/tac14.pdf --sort-by=name -m tac14 --figsize=$syscols_figsize --sort-by=$DEFAULT_MEASURE --line $evaldir/*.evaluation
-./nel plot-systems "$LABELMAP" --single-plot -o $plotdir/single/plot/tac14-official.pdf --sort-by=name --figsize=$syscols_figsize $OFFICIAL_MEASURES --sort-by=$DEFAULT_MEASURE --line $evaldir/*.evaluation
+./nel plot-systems "$LABELMAP" --single-plot -o $plotdir/single/plot/official.pdf --sort-by=name --figsize=$syscols_figsize $OFFICIAL_MEASURES --sort-by=$DEFAULT_MEASURE --line $evaldir/*.evaluation
 
 ./nel compare-measures "$LABELMAP" -e $ALL_MEASURES -f plot -s eigen --out-fmt $plotdir/measure-cmp/all-{}.pdf $evaldir/*.evaluation
 ./nel compare-measures "$LABELMAP" -e -m tac14 -f plot -s name --out-fmt $plotdir/measure-cmp/tac14-{}.pdf $evaldir/*.evaluation
