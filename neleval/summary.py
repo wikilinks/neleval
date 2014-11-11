@@ -179,7 +179,7 @@ class PlotSystems(object):
             plt.xlabel(axis_label)
         else:
             plt.ylabel(axis_label)
-        plt.legend()
+        plt.legend(loc='best')
 
     def _regroup(self, iterable, key, best_system=False, sort_by='name'):
         iterable = list(iterable)
