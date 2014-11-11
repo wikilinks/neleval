@@ -1,10 +1,7 @@
 """Tools to summarise the output of (multiple calls to) evaluation, confidence, etc."""
 
-# TODO: PlotSystems: single figure for measures (in rows) and systems (by marker)
 # TODO: PlotSystems: legend in plot
 # TODO: examples for documentation (including different output formats)
-# TODO: translation table for better display names for systems, measures, metrics
-# TODO: custom figure size etc.
 # TODO: scores as percentage?
 from __future__ import print_function, absolute_import, division
 
@@ -87,7 +84,7 @@ class PlotSystems(object):
 
     def __init__(self, systems, input_type='evaluate',
                  measures=DEFAULT_MEASURE_SET,
-                 figures_by='measure', secondary='markers', metrics=('fscore',),
+                 figures_by='measure', secondary='columns', metrics=('fscore',),
                  lines=False,
                  confidence=None, group_re=None, best_in_group=False,
                  sort_by=None,
@@ -95,6 +92,10 @@ class PlotSystems(object):
                  interactive=False):
         if plt is None:
             raise ImportError('PlotSystems requires matplotlib to be installed')
+
+        if figures_by == 'single':
+            if secondary == 'markers':
+                raise ValueError('Require rows or columns for single plot')
         self.systems = systems
         self.measures = parse_measures(measures or DEFAULT_MEASURE_SET)
         self.input_type = input_type
@@ -123,11 +124,14 @@ class PlotSystems(object):
            self.sort_by not in self.measures:
             raise ValueError('Acceptable values for sort-by are ("none", "name", "score", {})'.format(', '.join(map(repr, self.measures))))
 
-        multiple_measures_per_figure = (secondary == 'heatmap') or (self.figures_by == 'system' and len(self.measures) > 1)
+        multiple_measures_per_figure = (secondary == 'heatmap') or (self.figures_by == 'single') or (self.figures_by == 'system' and len(self.measures) > 1)
         if self.best_in_group and multiple_measures_per_figure:
             raise ValueError('best-in-group cannot be evaluated with multiple measures per figure')
         if self.sort_by == 'score' and multiple_measures_per_figure:
             raise ValueError('Cannot sort by score with multiple measures per figure. You could instead specify a measure name.')
+
+        if self.figures_by == 'single' and self.group_re:
+            raise ValueError('Single plot does not support grouping')
 
     def _plot(self, ax, x, y, *args, **kwargs):
         # uses errorbars where appropriate
@@ -154,32 +158,45 @@ class PlotSystems(object):
 
         return fn(x, y, *args, **kwargs)
 
-    METRIC_DATA = {'precision': ('b', 0, '^'), 'recall': ('r', 1, 'v'), 'fscore': ('k', 2, 's')}
+    METRIC_DATA = {'precision': (0, 'b', '^'), 'recall': (1, 'r', 'v'), 'fscore': (2, 'k', '.')}
+
+    def _metric_data(self):
+        for metric in self.metrics:
+            ind, color, marker = self.METRIC_DATA[metric]
+            yield ind, {'marker': marker, 'color': color,
+                        'markeredgecolor': color,
+                        'label': self._t(metric)}
 
     def _t(self, s):
         # Translate label
         return self.label_map.get(s, s)
 
-    def _plot1d(self, ax, all_scores, group_sizes):
+    def _plot1d(self, ax, data, group_sizes, tick_labels, score_label):
+        small_font = make_small_font()
         ordinate = np.repeat(np.arange(len(group_sizes)), group_sizes)
-        # TODO: clean this up: use kwargs in METRIC_DATA
-        colors, columns, markers = zip(*(self.METRIC_DATA[metric] for metric in self.metrics))
-        data = zip(colors, self.metrics, [all_scores[..., c] for c in columns], markers)
-        if tuple(self.metrics) == ('fscore',):
-            axis_label = self._t('fscore')
-        else:
-            axis_label = self._t('score')
-        for color, label, scores, marker in data:
+        for scores, kwargs in data:
             if self.secondary == 'rows':
-                self._plot(ax, scores, ordinate[::-1], marker=marker, color=color, label=self._t(label), markeredgecolor=color)
+                self._plot(ax, scores, ordinate[::-1], **kwargs)
+                           #, marker=marker, color=color, label=self._t(label), markeredgecolor=color)
             else:
-                self._plot(ax, ordinate, scores, marker=marker, color=color, label=self._t(label), markeredgecolor=color)
+                self._plot(ax, ordinate, scores, **kwargs)
 
+        ticks = np.arange(len(tick_labels))
+        tick_labels = [self._t(label) for label in tick_labels]
+        score_label = self._t(score_label)
         if self.secondary == 'rows':
-            plt.xlabel(axis_label)
+            plt.yticks(ticks[::-1], tick_labels, fontproperties=small_font)
+            plt.axis((0, 1, -.5, len(tick_labels) - .5))
+            plt.xlabel(score_label)
+        elif self.secondary == 'columns':
+            plt.xticks(ticks, tick_labels, rotation=XTICK_ROTATION, fontproperties=small_font)
+            plt.axis((-.5, len(tick_labels) - .5, 0, 1))
+            plt.ylabel(score_label)
         else:
-            plt.ylabel(axis_label)
-        plt.legend(loc='best')
+            raise ValueError('Unexpected secondary: {!r}'.format(self.secondary))
+        plt.tight_layout()
+        if len(data) > 1:
+            plt.legend(loc='best')
 
     def _regroup(self, iterable, key, best_system=False, sort_by='name'):
         iterable = list(iterable)
@@ -260,7 +277,7 @@ class PlotSystems(object):
         else:
             sort_by = self.sort_by
 
-        if self.figures_by == 'measure':
+        if self.figures_by in ('measure', 'single'):
             if sort_by == 'none':
                 groups = [result.group for result in all_results]
                 sort_by = lambda results: groups.index(results[0].group)
@@ -300,28 +317,39 @@ class PlotSystems(object):
     def _generate_figures(self, *args):
         if self.secondary == 'heatmap':
             yield self._heatmap(*args)
+        elif self.figures_by == 'single':
+            yield self._single_plot(*args)
         else:
             for plot in self._generate_plots(*args):
                 yield plot
+
+    def _fscore_matrix(self, all_results, primary_regroup, secondary_regroup,
+                       get_field=lambda x: x):
+        matrix = []
+        primary_names = []
+        for primary_name, row in self._regroup(all_results, **primary_regroup):
+            secondary_names, row = zip(*self._regroup(row, **secondary_regroup))
+            matrix.append([get_field(cell.data[2]) for (cell,) in row])
+            primary_names.append(primary_name)
+        matrix = np.array(matrix)
+        return matrix, primary_names, secondary_names
 
     def _heatmap(self, all_results, primary_regroup, secondary_regroup):
         # FIXME: sort_by only currently applied to columns!
         figure = plt.figure('heatmap', figsize=self.figsize)
         ax = figure.add_subplot(1, 1, 1)
 
-        matrix = []
-        row_names = []
-        for row_name, row in self._regroup(all_results, **primary_regroup):
-            column_names, row = zip(*self._regroup(row, **secondary_regroup))
-            matrix.append([cell.data[2]['score'] for (cell,) in row])
-            row_names.append(row_name)
+        matrix, row_names, column_names = self._fscore_matrix(all_results,
+                                                              primary_regroup,
+                                                              secondary_regroup,
+                                                              operator.itemgetter('score'))
 
         im = ax.imshow(matrix, interpolation='nearest',
                        cmap=plt.get_cmap(CMAP), vmin=0, vmax=1)
         small_font = make_small_font()
-        plt.yticks(np.arange(len(row_names)), row_names,
+        plt.yticks(np.arange(len(row_names)), [self._t(name) for name in row_names],
                    fontproperties=small_font)
-        plt.xticks(np.arange(len(column_names)), column_names,
+        plt.xticks(np.arange(len(column_names)), [self._t(name) for name in column_names],
                    rotation=XTICK_ROTATION, fontproperties=small_font)
         figure.colorbar(im)
         figure.tight_layout()
@@ -330,8 +358,22 @@ class PlotSystems(object):
     def _marker_cycle(self):
         return itertools.cycle(('+', '.', 'o', 's', '*', '^', 'v', 'p'))
 
+    def _single_plot(self, all_results, primary_regroup, secondary_regroup):
+        figure_name = 'altogether'
+        matrix, measure_names, sys_names = self._fscore_matrix(all_results,
+                                                               primary_regroup,
+                                                               secondary_regroup)
+        fig = plt.figure(figure_name, figsize=self.figsize)
+        ax = fig.add_subplot(1, 1, 1)
+        colors = plt.get_cmap(CMAP)(np.linspace(0, 1.0, len(measure_names)))
+        data = [(col, {'label': self._t(measure), 'marker': marker,
+                       'color': color, 'markeredgecolor': color})
+                for col, measure, marker, color
+                in zip(matrix, measure_names, self._marker_cycle(), colors)]
+        self._plot1d(ax, data, np.ones(len(sys_names), dtype=int), sys_names, 'fscore')
+        return figure_name, fig, {}
+
     def _generate_plots(self, all_results, primary_regroup, secondary_regroup):
-        small_font = make_small_font()
         for figure_name, figure_data in self._regroup(all_results, **primary_regroup):
             figure_data = self._regroup(figure_data, **secondary_regroup)
             n_secondary = len(figure_data)
@@ -350,22 +392,20 @@ class PlotSystems(object):
                 plt.xlabel(self._t('recall'))
                 plt.ylabel(self._t('precision'))
                 plt.axis((0, 1, 0, 1))
+                fig.tight_layout()
             else:
                 secondary_names, figure_data = zip(*figure_data)
-                secondary_names = [self._t(name) for name in secondary_names]
 
-                ticks = np.arange(n_secondary)
                 scores = np.array([result.data for results in figure_data for result in results])
-                self._plot1d(ax, scores, [len(group) for group in figure_data])
-                if self.secondary == 'rows':
-                    plt.yticks(ticks[::-1], secondary_names, fontproperties=small_font)
-                    plt.axis((0, 1, -.5, n_secondary - .5))
-                elif self.secondary == 'columns':
-                    plt.xticks(ticks, secondary_names, rotation=XTICK_ROTATION, fontproperties=small_font)
-                    plt.axis((-.5, n_secondary - .5, 0, 1))
+
+                if tuple(self.metrics) == ('fscore',):
+                    axis_label = 'fscore'
                 else:
-                    raise ValueError('Unexpected secondary: {!r}'.format(self.secondary))
-            fig.tight_layout()  # would break axis resizing for markers layout
+                    axis_label = 'score'
+                axis_label = '{} {}'.format(self._t(figure_name), self._t(axis_label))
+
+                self._plot1d(ax, [(scores[..., c], kwargs) for c, kwargs in self._metric_data()],
+                             [len(group) for group in figure_data], secondary_names, axis_label)
 
             plt.grid(axis='x' if self.secondary == 'rows' else 'y')
             yield figure_name, fig, {}
@@ -389,14 +429,16 @@ class PlotSystems(object):
                          help='Each system in its own figure, or row with --heatmap')
         meg.add_argument('--by-measure', dest='figures_by', action='store_const', const='measure', default='measure',
                          help='Each measure in its own figure, or row with --heatmap (default)')
+        meg.add_argument('--single-plot', dest='figures_by', action='store_const', const='single',
+                         help='Single figure showing fscore for all given measures')
 
         meg = p.add_mutually_exclusive_group()
-        meg.add_argument('--scatter', dest='secondary', action='store_const', const='markers', default='markers',
-                         help='Plot precision and recall as separate axes with different markers as needed (default)')
+        meg.add_argument('--scatter', dest='secondary', action='store_const', const='markers', default='columns',
+                         help='Plot precision and recall as separate axes with different markers as needed')
         meg.add_argument('--rows', dest='secondary', action='store_const', const='rows',
-                         help='Show rows of fscore plots')
+                         help='Show rows of P/R/F plots')
         meg.add_argument('--columns', dest='secondary', action='store_const', const='columns',
-                         help='Show columns of fscore plots')
+                         help='Show columns of P/R/F plots (default)')
         meg.add_argument('--heatmap', dest='secondary', action='store_const', const='heatmap',
                          help='Show a heatmap comparing all systems and measures')
 

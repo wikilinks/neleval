@@ -22,7 +22,7 @@ mkdir -vp $plotdir/columns/{all,team-best}/90ci $plotdir/scatter/ $plotdir/by-sy
 ALL_MEASURES=$(cat $(ls $evaldir/*.evaluation | head -n1) | awk 'NR > 1 {print $8}' | sort | sed 's/^/-m /')
 CONF_MEASURES=$(cat $(ls $evaldir/*.confidence | head -n1) | awk 'NR > 1 {print $1}' | sort | sed 's/^/-m /')
 GROUPRE="--group-re=(?<=/)[^/]*(?=[0-9]\.)"
-LABELMAP='--label-map={"fscore": "$F_1$", "precision": "$P$", "recall": "$R$", "score": "Score"}'
+LABELMAP='--label-map={"fscore": "$F_1$", "precision": "$P$", "recall": "$R$"}'
 
 # TODO: Determine figure sizes dynamically
 square_figsize="6,6"
