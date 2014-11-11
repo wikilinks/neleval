@@ -74,7 +74,8 @@ class PlotSystems(object):
 
     def __init__(self, systems, input_type='evaluate',
                  measures=DEFAULT_MEASURE_SET,
-                 figures_by='measure', secondary='markers', prec_and_rec=False,
+                 figures_by='measure', secondary='markers', metrics=('fscore',),
+                 lines=False,
                  confidence=None, group_re=None, best_in_group=False,
                  sort_by=None,
                  out_fmt=DEFAULT_OUT_FMT, figsize=(8, 6), interactive=False):
@@ -88,8 +89,9 @@ class PlotSystems(object):
         if confidence is not None and input_type != 'confidence':
             raise ValueError('--input-type=confidence required')
         self.secondary = secondary or 'markers'
-        self.prec_and_rec = prec_and_rec
+        self.metrics = metrics
 
+        self.lines = lines
         self.interactive = interactive
         self.out_fmt = out_fmt
         self.figsize = figsize
@@ -116,32 +118,37 @@ class PlotSystems(object):
         # uses errorbars where appropriate
         x = np.atleast_1d(x)
         y = np.atleast_1d(y)
-        fn = ax.scatter
+        fn = ax.plot
 
         if x.dtype.names and 'lo' in x.dtype.names:
             kwargs['xerr'] = [x['score'] - x['lo'], x['hi'] - x['score']]
-            kwargs['fmt'] = 'o'
             fn = ax.errorbar
         if x.dtype.names and 'score' in x.dtype.names:
             x = x['score']
 
         if y.dtype.names and 'lo' in y.dtype.names:
             kwargs['yerr'] = [y['score'] - y['lo'], y['hi'] - y['score']]
-            kwargs['fmt'] = 'o'
             fn = ax.errorbar
         if y.dtype.names and 'score' in y.dtype.names:
             y = y['score']
 
+        if fn == ax.plot:
+            kwargs['ls'] = '-' if self.lines else 'None'
+        else:
+            kwargs['fmt'] = '-o' if self.lines else 'o'
+
         return fn(x, y, *args, **kwargs)
+
+    METRIC_DATA = {'precision': ('b', 0), 'recall': ('r', 1), 'fscore': ('k', 2)}
 
     def _plot1d(self, ax, all_scores, group_sizes):
         ordinate = np.repeat(np.arange(len(group_sizes)), group_sizes)
-        if self.prec_and_rec:
-            data = zip(['b', 'r'], ['precision', 'recall'], [all_scores[..., 0], all_scores[..., 1]])
-            axis_label = 'precision/recall'
-        else:
-            data = zip(['k'], ['fscore'], [all_scores[..., 2]])
+        colors, columns = zip(*(self.METRIC_DATA[metric] for metric in self.metrics))
+        data = zip(colors, self.metrics, [all_scores[..., c] for c in columns])
+        if tuple(self.metrics) == ('fscore',):
             axis_label = 'fscore'
+        else:
+            axis_label = 'score'
         for color, label, scores in data:
             if self.secondary == 'rows':
                 self._plot(ax, scores, ordinate[::-1], marker='.', color=color, label=label)
@@ -368,8 +375,14 @@ class PlotSystems(object):
         meg.add_argument('--heatmap', dest='secondary', action='store_const', const='heatmap',
                          help='Show a heatmap comparing all systems and measures')
 
-        p.add_argument('--pr', dest='prec_and_rec', action='store_true', default=False,
-                       help='In rows or columns mode, plot both precision and recall, rather than F1')
+        meg = p.add_mutually_exclusive_group()
+        meg.add_argument('--pr', dest='metrics', action='store_const', const=('precision', 'recall'), default=('fscore',),
+                         help='In rows or columns mode, plot both precision and recall, rather than F1')
+        meg.add_argument('--prf', dest='metrics', action='store_const', const=('precision', 'recall', 'fscore'),
+                         help='In rows or columns mode, plot precision and recall as well as F1')
+
+        p.add_argument('--lines', action='store_true', default=False,
+                       help='Draw lines between points in rows/cols mode')
 
         p.add_argument('-i', '--input-type', choices=['evaluate', 'confidence'], default='evaluate',
                        help='Whether input was produced by the evaluate (default) or confidence command')
