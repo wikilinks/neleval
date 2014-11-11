@@ -7,6 +7,7 @@ import random
 import operator
 import functools
 import json
+import csv
 
 # Attempt to import joblib, but don't fail.
 try:
@@ -350,6 +351,25 @@ class Confidence(object):
         ret = (fmt + u'\t{}' * len(formats)).format(*header)
         ret += u''.join(u'\n' + u'\t'.join(row) for row in rows)
         return ret.encode('utf-8')
+
+    @staticmethod
+    def read_tab_format(file):
+        headers = [field.rstrip() for field in next(file).strip().split('\t')]
+        by_measure = {}
+        for line in file:
+            row = dict(zip(headers, (field.rstrip() for field in line.rstrip().split('\t'))))
+            measure = row['measure']
+            if measure not in by_measure:
+                cis = [int(field[:-2]) for field in headers
+                       if field[-2:] == '%(']
+                by_measure[measure] = {'measure': measure,
+                                       'overall': {},
+                                       'intervals': {metric: {} for metric in ('precision', 'recall', 'fscore')}}
+            metric = row['metric']
+            by_measure[measure]['overall'][metric] = float(row['score'])
+            for ci in cis:
+                by_measure[measure]['intervals'][metric][ci] = (float(row['%d%%(' % ci]), float(row[')%d%%' % ci]))
+        return list(by_measure.values())
 
     FMTS = {'json': json_format,
             'tab': tab_format,

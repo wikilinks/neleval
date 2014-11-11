@@ -16,7 +16,7 @@ from .significance import Significance, Confidence
 #from .rcv import ReutersCodes
 from .tac import PrepareTac
 from .configs import ListMeasures
-from .research import CompareMeasures
+from .summary import CompareMeasures, PlotSystems
 
 APPS = [
     Evaluate,
@@ -33,6 +33,7 @@ APPS = [
     #ReutersCodes,
     PrepareTac,
     CompareMeasures,
+    PlotSystems,
 ]
 
 
