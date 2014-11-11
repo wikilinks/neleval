@@ -244,7 +244,8 @@ class PlotSystems(object):
             if sort_by == 'none':
                 groups = [result.group for result in all_results]
                 sort_by = lambda results: groups.index(results[0].group)
-            primary_regroup = {'key': operator.attrgetter('measure')}
+            primary_regroup = {'key': operator.attrgetter('measure'),
+                               'sort_by': 'measure',}
             secondary_regroup = {'key': operator.attrgetter('group'),
                                  'best_system': self.best_in_group,
                                  'sort_by': sort_by,}
