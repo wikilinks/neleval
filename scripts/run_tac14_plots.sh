@@ -34,13 +34,16 @@ do
 	if [ $d == "team-best" ]
 	then
 		arg="--best-in-group $GROUPRE"
+		nociarg="--line --prf"
 		figsize=$teamcols_figsize
 	else
 		arg=
+		nociarg=
+		figsize=$teamcols_figsize
 		figsize=$syscols_figsize
 	fi
-	./nel plot-systems --by-measure --columns --pr -o $plotdir/columns/$d/{}.pdf $ALL_MEASURES --figsize=$figsize $arg --sort-by=score $evaldir/*.evaluation
-	./nel plot-systems --by-measure --columns --pr -o $plotdir/columns/$d/90ci/{}.pdf $CONF_MEASURES -i confidence --ci=90 $arg --figsize=$figsize --sort-by=score $evaldir/*.confidence
+	./nel plot-systems --by-measure --columns -o $plotdir/columns/$d/{}.pdf $ALL_MEASURES --figsize=$figsize $nociarg $arg --sort-by=score $evaldir/*.evaluation
+	./nel plot-systems --by-measure --columns -o $plotdir/columns/$d/90ci/{}.pdf $CONF_MEASURES -i confidence --ci=90 $arg --figsize=$figsize --sort-by=score $evaldir/*.confidence
 done
 
 for d in by-system by-team
