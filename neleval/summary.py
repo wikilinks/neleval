@@ -139,21 +139,22 @@ class PlotSystems(object):
 
         return fn(x, y, *args, **kwargs)
 
-    METRIC_DATA = {'precision': ('b', 0), 'recall': ('r', 1), 'fscore': ('k', 2)}
+    METRIC_DATA = {'precision': ('b', 0, '^'), 'recall': ('r', 1, 'v'), 'fscore': ('k', 2, 's')}
 
     def _plot1d(self, ax, all_scores, group_sizes):
         ordinate = np.repeat(np.arange(len(group_sizes)), group_sizes)
-        colors, columns = zip(*(self.METRIC_DATA[metric] for metric in self.metrics))
-        data = zip(colors, self.metrics, [all_scores[..., c] for c in columns])
+        # TODO: clean this up: use kwargs in METRIC_DATA
+        colors, columns, markers = zip(*(self.METRIC_DATA[metric] for metric in self.metrics))
+        data = zip(colors, self.metrics, [all_scores[..., c] for c in columns], markers)
         if tuple(self.metrics) == ('fscore',):
             axis_label = 'fscore'
         else:
             axis_label = 'score'
-        for color, label, scores in data:
+        for color, label, scores, marker in data:
             if self.secondary == 'rows':
-                self._plot(ax, scores, ordinate[::-1], marker='.', color=color, label=label)
+                self._plot(ax, scores, ordinate[::-1], marker=marker, color=color, label=label, markeredgecolor=color)
             else:
-                self._plot(ax, ordinate, scores, marker='.', color=color, label=label)
+                self._plot(ax, ordinate, scores, marker=marker, color=color, label=label, markeredgecolor=color)
 
         if self.secondary == 'rows':
             plt.xlabel(axis_label)
