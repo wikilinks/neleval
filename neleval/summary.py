@@ -308,6 +308,9 @@ class PlotSystems(object):
         figure.tight_layout()
         return 'heatmap', figure, {}
 
+    def _marker_cycle(self):
+        return itertools.cycle(('+', '.', 'o', 's', '*', '^', 'v', 'p'))
+
     def _generate_plots(self, all_results, primary_regroup, secondary_regroup):
         small_font = make_small_font()
         for figure_name, figure_data in self._regroup(all_results, **primary_regroup):
@@ -317,7 +320,7 @@ class PlotSystems(object):
             fig = plt.figure(figure_name, figsize=self.figsize)
             ax = fig.add_subplot(1, 1, 1)
             if self.secondary == 'markers':
-                markers = itertools.cycle(('+', '.', 'o', 's', '*', '^', 'v', 'p'))
+                markers = self._marker_cycle()
                 patches = []
                 for (secondary_name, results), color, marker in zip(figure_data, colors, markers):
                     # recall-precision
