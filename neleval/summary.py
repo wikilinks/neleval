@@ -478,7 +478,8 @@ class CompareMeasures(object):
         scores_by_measure = zip(self.measures, all_results.T)
         for (measure_i, scores_i), (measure_j, scores_j) in _pairs(scores_by_measure):
             correlations[measure_i, measure_j] = {'pearson': stats.pearsonr(scores_i, scores_j),
-                                                  'spearman': stats.spearmanr(scores_i, scores_j)}
+                                                  'spearman': stats.spearmanr(scores_i, scores_j),
+                                                  'kendall': stats.kendalltau(scores_i, scores_j)}
 
         quartiles = {}
         for measure_i, scores_i in scores_by_measure:
@@ -489,12 +490,12 @@ class CompareMeasures(object):
     def tab_format(self, results):
         correlations = results['correlations']
         quartiles = results['quartiles']
-        rows = [['measure1', 'measure2', 'pearson-r', 'spearman-r', 'median-diff', 'iqr-ratio']]
+        rows = [['measure1', 'measure2', 'pearson-r', 'spearman-r', 'kendall-tau', 'median-diff', 'iqr-ratio']]
         for measure1, measure2 in _pairs(self.measures):
             pair_corr = correlations[measure1, measure2]
             quart1 = quartiles[measure1]
             quart2 = quartiles[measure2]
-            data = [pair_corr['pearson'][0], pair_corr['spearman'][0],
+            data = [pair_corr['pearson'][0], pair_corr['spearman'][0], pair_corr['kendall'][0],
                     quart1[2] - quart2[2],
                     (quart1[3] - quart1[1]) / (quart2[3] - quart2[1])]
             data = ['%0.3f' % v for v in data]
@@ -535,50 +536,44 @@ class CompareMeasures(object):
             measures = np.take(measures, order)
             all_results = np.take(all_results, order, axis=1)
 
+        disp_measures = [self.label_map.get(measure, measure)
+                         for measure in measures]
+
         n_measures = len(measures)
-        pearson = np.ma.masked_all((n_measures, n_measures), dtype=float)
-        spearman = np.ma.masked_all((n_measures, n_measures), dtype=float)
-        for (i, measure_i), (j, measure_j) in _pairs(enumerate(measures)):
-            try:
-                pair_corr = correlations[measure_i, measure_j]
-            except KeyError:
-                pair_corr = correlations[measure_j, measure_i]
-            pearson[i, j] = pearson[j, i] = pair_corr['pearson'][0]
-            spearman[i, j] = spearman[j, i] = pair_corr['spearman'][0]
-
-        for i in range(n_measures):
-            pearson[i, i] = spearman[i, i] = 1
-
-        measures = [self.label_map.get(measure, measure)
-                    for measure in measures]
-        ticks = (np.arange(len(measures)), measures)
-
+        ticks = (np.arange(len(measures)), disp_measures)
         cmap = plt.get_cmap(CMAP)
         cmap.set_bad('white')
-        fig, ax = plt.subplots(figsize=self.figsize)
-        im = ax.imshow(pearson, interpolation='nearest', cmap=cmap)
-        plt.colorbar(im)
-        plt.xticks(*ticks, rotation=XTICK_ROTATION, fontproperties=small_font)
-        plt.yticks(*ticks, fontproperties=small_font)
-        plt.tight_layout()
-        plt.savefig(self.out_fmt.format('pearson'))
-        plt.close(fig)
+
+        for metric in ['pearson', 'spearman', 'kendall']:
+            data = np.ma.masked_all((n_measures, n_measures), dtype=float)
+            for (i, measure_i), (j, measure_j) in _pairs(enumerate(measures)):
+                try:
+                    pair_corr = correlations[measure_i, measure_j]
+                except KeyError:
+                    pair_corr = correlations[measure_j, measure_i]
+                data[i, j] = data[j, i] = pair_corr[metric][0]
+
+            for i in range(n_measures):
+                data[i, i] = 1
+
+            fig, ax = plt.subplots(figsize=self.figsize)
+            im = ax.imshow(data, interpolation='nearest', cmap=cmap)
+            plt.colorbar(im)
+            plt.xticks(*ticks, rotation=XTICK_ROTATION,
+                       fontproperties=small_font)
+            plt.yticks(*ticks, fontproperties=small_font)
+            plt.tight_layout()
+            plt.savefig(self.out_fmt.format(metric))
+            plt.close(fig)
 
         fig, ax = plt.subplots(figsize=self.figsize)
-        im = ax.imshow(spearman, interpolation='nearest', cmap=cmap)
-        plt.colorbar(im)
-        plt.xticks(*ticks, rotation=XTICK_ROTATION, fontproperties=small_font)
-        plt.yticks(*ticks, fontproperties=small_font)
-        plt.tight_layout()
-        plt.savefig(self.out_fmt.format('spearman'))
-
-        fig, ax = plt.subplots(figsize=self.figsize)
-        ax.boxplot(all_results[:, ::-1], 0, 'rs', 0, labels=measures[::-1])
+        ax.boxplot(all_results[:, ::-1], 0, 'rs', 0,
+                   labels=disp_measures[::-1])
         plt.yticks(fontproperties=small_font)
         plt.tight_layout()
         plt.savefig(self.out_fmt.format('spread'))
 
-        return 'Saved to %s' % self.out_fmt.format('{pearson,spearman,spread}')
+        return 'Saved to %s' % self.out_fmt.format('{pearson,spearman,kendall,spread}')
 
 
     FMTS = {
