@@ -85,7 +85,8 @@ class _Result(namedtuple('Result', 'system measure data group')):
         return super(_Result, cls).__new__(cls, system, measure, data, group)
 
 
-XTICK_ROTATION = 40
+XTICK_ROTATION = {'rotation': 40, 'ha': 'right'}
+#XTICK_ROTATION = {'rotation': 'vertical', 'ha': 'center'}
 
 
 class PlotSystems(object):
@@ -201,7 +202,7 @@ class PlotSystems(object):
             plt.ylim(-.5, len(tick_labels) - .5)
             plt.xlabel(score_label)
         elif self.secondary == 'columns':
-            plt.xticks(ticks, tick_labels, rotation=XTICK_ROTATION, fontproperties=small_font)
+            plt.xticks(ticks, tick_labels, fontproperties=small_font, **XTICK_ROTATION)
             plt.xlim(-.5, len(tick_labels) - .5)
             self._set_lim(plt.ylim)
             plt.ylabel(score_label)
@@ -363,7 +364,7 @@ class PlotSystems(object):
         plt.yticks(np.arange(len(row_names)), [self._t(name) for name in row_names],
                    fontproperties=small_font)
         plt.xticks(np.arange(len(column_names)), [self._t(name) for name in column_names],
-                   rotation=XTICK_ROTATION, fontproperties=small_font)
+                   fontproperties=small_font, **XTICK_ROTATION)
         figure.colorbar(im)
         figure.tight_layout()
         return 'heatmap', figure, {}
@@ -629,8 +630,7 @@ class CompareMeasures(object):
             fig, ax = plt.subplots(figsize=self.figsize)
             im = ax.imshow(data, interpolation='nearest', cmap=cmap)
             plt.colorbar(im)
-            plt.xticks(*ticks, rotation=XTICK_ROTATION,
-                       fontproperties=small_font)
+            plt.xticks(*ticks, fontproperties=small_font, **XTICK_ROTATION)
             plt.yticks(*ticks, fontproperties=small_font)
             plt.tight_layout()
             plt.savefig(self.out_fmt.format(metric))
