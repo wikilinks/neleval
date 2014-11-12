@@ -16,7 +16,7 @@ from .significance import Significance, Confidence
 #from .rcv import ReutersCodes
 from .tac import PrepareTac
 from .configs import ListMeasures
-from .summary import CompareMeasures, PlotSystems
+from .summary import CompareMeasures, PlotSystems, ComposeMeasures
 
 APPS = [
     Evaluate,
@@ -34,6 +34,7 @@ APPS = [
     PrepareTac,
     CompareMeasures,
     PlotSystems,
+    ComposeMeasures,
 ]
 
 
@@ -60,7 +61,9 @@ def main(args=sys.argv[1:]):
         obj = cls(**namespace)
     except ValueError as e:
         subparsers[cls].error(e.message)
-    print(obj())
+    result = obj()
+    if result is not None:
+        print(result)
 
 if __name__ == '__main__':
     main()

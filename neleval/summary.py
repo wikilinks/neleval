@@ -12,6 +12,7 @@ import json
 from collections import namedtuple
 import re
 import warnings
+import sys
 
 try:
     import numpy as np
@@ -683,5 +684,70 @@ class CompareMeasures(object):
                             'multidimensional scaling (requires scikit-learn)')
 
         p.add_argument('--label-map', help='JSON (or file) mapping internal labels to display labels')
+        p.set_defaults(cls=cls)
+        return p
+
+
+class ComposeMeasures(object):
+    """Adds composite measures rows to evaluation output"""
+
+    def __init__(self, systems, out_fmt=None, ratios=[]):
+        if len(systems) == 0 or (len(systems) == 1 and systems[0] == '-'):
+            if out_fmt is not None:
+                raise ValueError('Cannot use --out-fmt with standard IO mode')
+            self.stdio_mode = True
+        else:
+            self.stdio_mode = False
+        self.systems = systems
+        self.ratios = ratios or []
+        self.out_fmt = out_fmt
+
+    def __call__(self):
+        if self.stdio_mode:
+            return self._process_system(sys.stdin)
+        for path in self.systems:
+            if self.out_fmt is None:
+                out_path = path
+            else:
+                dirname = os.path.dirname(path)
+                basename = os.path.basename(path)
+                if '.' in basename:
+                    basename, ext = os.path.splitext(basename)
+                out_path = self.out_fmt.format(dir=dirname, base=basename, ext=ext)
+
+            with open(path) as in_file:
+                result = self._process_system(in_file)
+            with open(out_path, 'w') as out_file:
+                print(result, file=out_file)
+
+    def _process_system(self, in_file):
+        # TODO: don't be so implicit about header
+        out = []
+        lookup = {}
+        for l in in_file:
+            l = l.rstrip().split('\t')
+            out.append(l)
+            lookup[l[-1]] = l[:-1]
+        for m1, m2 in self.ratios:
+            row = []
+            for v1, v2 in zip(lookup[m1], lookup[m2]):
+                v1 = float(v1)
+                v2 = float(v2)
+                if abs(v2) < 1e-10:
+                    row.append('nan')
+                    continue
+                row.append('{:0.3f}'.format(v1 / v2))
+            row.append('{}/{}'.format(m1, m2))
+            out.append(row)
+        return '\n'.join('\t'.join(row) for row in out)
+
+    @classmethod
+    def add_arguments(cls, p):
+        p.add_argument('systems', nargs='*', metavar='FILE')
+        p.add_argument('-o', '--out-fmt',
+                       help='Output path format (default overwrites input path), e.g. {dir}/{base}.evaluation_with_ratios')
+        p.add_argument('-r', '--ratio', dest='ratios', nargs=2, action='append',
+                       help='Create a ratio of two other measures named <measure1>/<measure2>')
+
         p.set_defaults(cls=cls)
         return p
