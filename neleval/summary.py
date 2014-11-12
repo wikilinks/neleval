@@ -218,7 +218,7 @@ class PlotSystems(object):
             raise ValueError('Unexpected secondary: {!r}'.format(self.secondary))
         plt.tight_layout()
         if len(data) > 1:
-            plt.legend(loc='best')
+            plt.legend(loc='best', prop=small_font)
 
     def _regroup(self, iterable, key, best_system=False, sort_by='name'):
         iterable = list(iterable)
@@ -373,6 +373,7 @@ class PlotSystems(object):
                    fontproperties=small_font)
         plt.xticks(np.arange(len(column_names)), [self._t(name) for name in column_names],
                    fontproperties=small_font, **XTICK_ROTATION)
+        ax.set_xlim(-.5, len(column_names) - .5)
         figure.colorbar(im)
         figure.tight_layout()
         return 'heatmap', figure, {}
