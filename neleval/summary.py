@@ -177,7 +177,9 @@ class PlotSystems(object):
             ind, color, marker = self.METRIC_DATA[metric]
             yield ind, {'marker': marker, 'color': color,
                         'markeredgecolor': color,
-                        'label': self._t(metric)}
+                        'label': self._t(metric),
+                        # HACK: make more flexible later; shows only F1 errorbars
+                        'score_only': metric in ('precision', 'recall')}
 
     def _t(self, s):
         # Translate label
@@ -187,6 +189,11 @@ class PlotSystems(object):
         small_font = make_small_font()
         ordinate = np.repeat(np.arange(len(group_sizes)), group_sizes)
         for scores, kwargs in data:
+            if kwargs.pop('score_only', False):
+                try:
+                    scores = scores['score']
+                except Exception:
+                    pass
             if self.secondary == 'rows':
                 self._plot(ax, scores, ordinate[::-1], **kwargs)
                            #, marker=marker, color=color, label=self._t(label), markeredgecolor=color)
