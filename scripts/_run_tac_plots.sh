@@ -1,5 +1,3 @@
-
-
 usage="Usage: $0 EVALUATION_OUT_DIR"
 
 if [ "$#" -ne 1 ]; then
@@ -19,7 +17,7 @@ mkdir -vp $plotdir/columns/{all,team-best}/90ci $plotdir/scatter/ $plotdir/by-sy
 ALL_MEASURES=$(cat $(ls $evaldir/*.evaluation | head -n1) | awk 'NR > 1 {print $8}' | sort | sed 's/^/-m /')
 CONF_MEASURES=$(cat $(ls $evaldir/*.confidence | head -n1) | awk 'NR > 1 {print $1}' | sort | sed 's/^/-m /')
 GROUPRE="--group-re=(?<=/)[^/]*(?=[0-9]\.)"
-LABELMAP='--label-map={"fscore": "$F_1$", "precision": "$P$", "recall": "$R$"}'
+LABELMAP='--label-map={"fscore": "$F_1$", "precision": "$P$", "recall": "$R$", "b_cubed_plus": "B-Cubed+", "b_cubed": "B-Cubed", "strong_mention_match": "NER", "strong_typed_mention_match": "NERC", "strong_all_match": "NERL", "mention_ceaf": "CEAFm", "entity_ceaf": "CEAFe", "entity_match": "KB ID sets"}'
 
 ./nel plot-systems "$LABELMAP" --by-measure --scatter -o $plotdir/scatter/{}.pdf $GROUPRE $ALL_MEASURES --figsize=$square_figsize --sort-by=name $evaldir/*.evaluation
 for d in all team-best
