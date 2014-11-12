@@ -392,6 +392,7 @@ class PlotSystems(object):
                 for col, measure, marker, color
                 in zip(matrix, measure_names, self._marker_cycle(), colors)]
         self._plot1d(ax, data, np.ones(len(sys_names), dtype=int), sys_names, 'fscore')
+        plt.grid(axis='x' if self.secondary == 'rows' else 'y')
         return figure_name, fig, {}
 
     def _generate_plots(self, all_results, primary_regroup, secondary_regroup):
