@@ -49,6 +49,15 @@ def make_small_font():
     return font
 
 
+def _parse_limits(limits):
+    if limits == 'tight':
+        return
+    if limits.count(',') != 1:
+        raise ValueError('Expected a single comma in figure size, got {!r}'.format(limits))
+    width, _, height = limits.partition(',')
+    return float(width), float(height)
+
+
 def _parse_figsize(figsize):
     if figsize.count(',') != 1:
         raise ValueError('Expected a single comma in figure size, got {!r}'.format(figsize))
@@ -76,7 +85,7 @@ class _Result(namedtuple('Result', 'system measure data group')):
         return super(_Result, cls).__new__(cls, system, measure, data, group)
 
 
-XTICK_ROTATION = 'vertical'
+XTICK_ROTATION = 40
 
 
 class PlotSystems(object):
@@ -87,7 +96,7 @@ class PlotSystems(object):
                  figures_by='measure', secondary='columns', metrics=('fscore',),
                  lines=False,
                  confidence=None, group_re=None, best_in_group=False,
-                 sort_by=None,
+                 sort_by=None, limits=(0, 1),
                  out_fmt=DEFAULT_OUT_FMT, figsize=(8, 6), label_map=None,
                  interactive=False):
         if plt is None:
@@ -112,6 +121,7 @@ class PlotSystems(object):
         self.out_fmt = out_fmt
         self.figsize = figsize
         self.label_map = _parse_label_map(label_map)
+        self.limits = limits
 
         self.group_re = group_re
         self.best_in_group = best_in_group
@@ -187,11 +197,13 @@ class PlotSystems(object):
         score_label = self._t(score_label)
         if self.secondary == 'rows':
             plt.yticks(ticks[::-1], tick_labels, fontproperties=small_font)
-            plt.axis((0, 1, -.5, len(tick_labels) - .5))
+            self._set_lim(plt.xlim)
+            plt.ylim(-.5, len(tick_labels) - .5)
             plt.xlabel(score_label)
         elif self.secondary == 'columns':
             plt.xticks(ticks, tick_labels, rotation=XTICK_ROTATION, fontproperties=small_font)
-            plt.axis((-.5, len(tick_labels) - .5, 0, 1))
+            plt.xlim(-.5, len(tick_labels) - .5)
+            self._set_lim(plt.ylim)
             plt.ylabel(score_label)
         else:
             raise ValueError('Unexpected secondary: {!r}'.format(self.secondary))
@@ -392,7 +404,8 @@ class PlotSystems(object):
                                               label=self._t(secondary_name)))
                 plt.xlabel(self._t('recall'))
                 plt.ylabel(self._t('precision'))
-                plt.axis((0, 1, 0, 1))
+                self._set_lim(plt.ylim)
+                self._set_lim(plt.xlim)
                 fig.tight_layout()
             else:
                 secondary_names, figure_data = zip(*figure_data)
@@ -421,6 +434,11 @@ class PlotSystems(object):
             # FIXME: need some padding
             bbox = legend.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
             yield '_legend_', fig, {'bbox_inches': bbox}
+
+    def _set_lim(self, fn):
+        if self.limits == 'tight':
+            return
+        fn(self.limits)
 
     @classmethod
     def add_arguments(cls, p):
@@ -451,6 +469,8 @@ class PlotSystems(object):
 
         p.add_argument('--lines', action='store_true', default=False,
                        help='Draw lines between points in rows/cols mode')
+        p.add_argument('--limits', type=_parse_limits, default=(0, 1),
+                       help='Limits the shown score range to the specified min,max; or "tight"')
 
         p.add_argument('-i', '--input-type', choices=['evaluate', 'confidence'], default='evaluate',
                        help='Whether input was produced by the evaluate (default) or confidence command')
