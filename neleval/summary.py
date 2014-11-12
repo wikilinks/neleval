@@ -97,7 +97,8 @@ class PlotSystems(object):
             if secondary == 'markers':
                 raise ValueError('Require rows or columns for single plot')
         self.systems = systems
-        self.measures = parse_measures(measures or DEFAULT_MEASURE_SET)
+        self.measures = parse_measures(measures or DEFAULT_MEASURE_SET,
+                                       allow_unknown=True)
         self.input_type = input_type
         self.figures_by = figures_by or 'measure'
         self.confidence = confidence
@@ -493,12 +494,14 @@ class CompareMeasures(object):
             raise ImportError('CompareMeasures requires scipy to be installed')
         self.systems = systems
         if gold:
-            raise not evaluation_files
+            assert not evaluation_files
             self.gold = list(Reader(open(gold)))
         else:
+            assert evaluation_files
             self.gold = None
 
-        self.measures = parse_measures(measures or DEFAULT_MEASURE_SET)
+        self.measures = parse_measures(measures or DEFAULT_MEASURE_SET,
+                                       allow_unknown=evaluation_files)
         self.format = self.FMTS[fmt] if fmt is not callable else fmt
         self.out_fmt = out_fmt
         self.figsize = figsize

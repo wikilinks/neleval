@@ -145,7 +145,7 @@ def _expand(measures):
     return [m for group in measures for m in _expand(group)]
 
 
-def parse_measures(in_measures, incl_clustering=True):
+def parse_measures(in_measures, incl_clustering=True, allow_unknown=False):
     # flatten nested sequences and expand group names
     measures = _expand(in_measures)
     # remove duplicates while maintaining order
@@ -160,9 +160,8 @@ def parse_measures(in_measures, incl_clustering=True):
         try:
             get_measure(m)
         except Exception:
-            raise
             invalid.append(m)
-    if invalid:
+    if invalid and not allow_unknown:
         raise ValueError('Could not resolve measures: '
                          '{}'.format(sorted(not_found)))
 
