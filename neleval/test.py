@@ -81,6 +81,7 @@ def set_validation(val):
     Document.VALIDATION = prev_value
 
 def test_annotation_validation():
+    # FIXME!!!: Update to use start-end not start-stop
     def _ex(start, stop, kbid='foo'):
         return b'docid\t{}\t{}\t{}\t1.0\tTYP'.format(start, stop, kbid)
 

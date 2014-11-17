@@ -1,8 +1,11 @@
 #!/usr/bin/env python
 "Document - group and compare annotations"
 
+from __future__ import print_function
+
 from collections import OrderedDict
 import warnings
+import sys
 
 from .annotation import Annotation
 
@@ -23,7 +26,7 @@ class Document(object):
     VALIDATION = {
         'nested': 'ignore',
         'crossing': 'warn',
-        'duplicate': 'error',
+        'duplicate': 'ignore',
     }
 
     def _validate(self, _categories=['nested', 'crossing', 'duplicate']):
@@ -34,7 +37,7 @@ class Document(object):
             return
         open_anns = []
         tags = sorted([(a.start, 'open', a) for a in self.annotations] +
-                      [(a.end, 'close', a) for a in self.annotations])
+                      [(a.end + 1, 'close', a) for a in self.annotations])  # use stop, not end
         for key, op, ann in tags:
             if op == 'open':
                 open_anns.append(ann)
@@ -48,11 +51,12 @@ class Document(object):
             if not instances:
                 continue
             if self.VALIDATION[issue] == 'error':
-                a, b = instances[0]
+                b, a = instances[0]
                 raise ValueError('Found annotations with {} span:'
                                  '\n{}\n{}'.format(issue, a, b))
             elif self.VALIDATION[issue] == 'warn':
-                warnings.warn('Found annotations with {} span'.format(issue))
+                b, a = instances[0]
+                warnings.warn('Found annotations with {} span:\n{}\n{}'.format(issue, a, b))
 
     def _set_fields(self):
         """Set fields on annotations that are relative to document"""
@@ -119,8 +123,12 @@ class Reader(object):
         return self.read()
 
     def read(self):
-        for groupid, annots in self.group(self.annotations()):
-            yield self.cls(groupid, annots)
+        try:
+            for groupid, annots in self.group(self.annotations()):
+                yield self.cls(groupid, annots)
+        except Exception:
+            print('ERROR while processing', self.fh, file=sys.stderr)
+            raise
 
     def annotations(self):
         "Yield Annotation objects"
