@@ -99,7 +99,8 @@ class PlotSystems(object):
                  lines=False,
                  confidence=None, group_re=None, best_in_group=False,
                  sort_by=None, at_most=None, limits=(0, 1),
-                 out_fmt=DEFAULT_OUT_FMT, figsize=(8, 6), label_map=None,
+                 out_fmt=DEFAULT_OUT_FMT, figsize=(8, 6),
+                 label_map=None, style_map=None, cmap=CMAP,
                  interactive=False):
         if plt is None:
             raise ImportError('PlotSystems requires matplotlib to be installed')
@@ -123,6 +124,8 @@ class PlotSystems(object):
         self.out_fmt = out_fmt
         self.figsize = figsize
         self.label_map = _parse_label_map(label_map)
+        self.style_map = _parse_label_map(style_map)
+        self.cmap = cmap
         self.limits = limits
 
         self.group_re = group_re
@@ -177,6 +180,8 @@ class PlotSystems(object):
     def _metric_data(self):
         for metric in self.metrics:
             ind, color, marker = self.METRIC_DATA[metric]
+            marker = self._marker(metric) or marker
+            color = self._color(metric) or color
             yield ind, {'marker': marker, 'color': color,
                         'markeredgecolor': color,
                         'label': self._t(metric),
@@ -186,6 +191,20 @@ class PlotSystems(object):
     def _t(self, s):
         # Translate label
         return self.label_map.get(s, s)
+
+    def _style(self, s):
+        if not self.style_map:
+            return
+        try:
+            return self.style_map[s]
+        except KeyError:
+            warnings.warn('Found no style for {!r}'.format(s))
+
+    def _color(self, s):
+        return (self._style(s) or '').partition('/')[0]
+
+    def _marker(self, s):
+        return (self._style(s) or '').partition('/')[2]
 
     def _plot1d(self, ax, data, group_sizes, tick_labels, score_label):
         small_font = make_small_font()
@@ -390,8 +409,10 @@ class PlotSystems(object):
                                                               secondary_regroup,
                                                               operator.itemgetter('score'))
 
+        if self.limits and self.limits != 'tight':
+            kwargs = {'vmin': self.limits[0], 'vmax': self.limits[1]}
         im = ax.imshow(matrix, interpolation='nearest',
-                       cmap=plt.get_cmap(CMAP), vmin=0, vmax=1)
+                       cmap=self.cmap, **kwargs)
         small_font = make_small_font()
         plt.yticks(np.arange(len(row_names)), [self._t(name) for name in row_names],
                    fontproperties=small_font)
@@ -410,13 +431,15 @@ class PlotSystems(object):
         matrix, measure_names, sys_names = self._fscore_matrix(all_results,
                                                                primary_regroup,
                                                                secondary_regroup)
+        colors = plt.get_cmap(self.cmap)(np.linspace(0, 1.0, len(measure_names)))
+
         fig = plt.figure(figure_name, figsize=self.figsize)
         ax = fig.add_subplot(1, 1, 1)
-        colors = plt.get_cmap(CMAP)(np.linspace(0, 1.0, len(measure_names)))
-        data = [(col, {'label': self._t(measure), 'marker': marker,
-                       'color': color, 'markeredgecolor': color})
-                for col, measure, marker, color
-                in zip(matrix, measure_names, self._marker_cycle(), colors)]
+        data = [(col, {'label': self._t(measure), 'marker': self._marker(measure) or marker,
+                       'color': self._color(measure) or color,
+                       'markeredgecolor': self._color(measure) or color})
+                for col, measure, color, marker
+                in zip(matrix, measure_names, colors, self._marker_cycle())]
         self._plot1d(ax, data, np.ones(len(sys_names), dtype=int), sys_names, 'fscore')
         plt.grid(axis='x' if self.secondary == 'rows' else 'y')
         return figure_name, fig, {}
@@ -425,7 +448,7 @@ class PlotSystems(object):
         for figure_name, figure_data in self._regroup(all_results, **primary_regroup):
             figure_data = self._regroup(figure_data, **secondary_regroup)
             n_secondary = len(figure_data)
-            colors = plt.get_cmap(CMAP)(np.linspace(0, 1.0, n_secondary))
+            colors = plt.get_cmap(self.cmap)(np.linspace(0, 1.0, n_secondary))
             fig = plt.figure(figure_name, figsize=self.figsize)
             ax = fig.add_subplot(1, 1, 1)
             if self.secondary == 'markers':
@@ -435,7 +458,8 @@ class PlotSystems(object):
                     # recall-precision
                     data = np.array([result.data for result in results])
                     patches.append(self._plot(ax, data[..., 1], data[..., 0],
-                                              marker=marker, color=color,
+                                              marker=self._marker(secondary_name) or marker,
+                                              color=self._color(secondary_name) or color,
                                               label=self._t(secondary_name)))
                 plt.xlabel(self._t('recall'))
                 plt.ylabel(self._t('precision'))
@@ -504,6 +528,7 @@ class PlotSystems(object):
 
         p.add_argument('--lines', action='store_true', default=False,
                        help='Draw lines between points in rows/cols mode')
+        p.add_argument('--cmap', default=CMAP)
         p.add_argument('--limits', type=_parse_limits, default=(0, 1),
                        help='Limits the shown score range to the specified min,max; or "tight"')
 
@@ -534,6 +559,7 @@ class PlotSystems(object):
         p.add_argument('--at-most', type=int, help='Show the first AT_MOST sorted entries')
 
         p.add_argument('--label-map', help='JSON (or file) mapping internal labels to display labels')
+        p.add_argument('--style-map', help='JSON (or file) mapping labels to <color>/<marker> settings')
 
         p.set_defaults(cls=cls)
         return p
@@ -545,6 +571,7 @@ class CompareMeasures(object):
     def __init__(self, systems, gold=None, evaluation_files=False,
                  measures=DEFAULT_MEASURE_SET,
                  fmt='none', out_fmt=DEFAULT_OUT_FMT, figsize=(8, 6),
+                 cmap=CMAP,
                  sort_by='none', label_map=None):
         if stats is None:
             raise ImportError('CompareMeasures requires scipy to be installed')
@@ -563,6 +590,7 @@ class CompareMeasures(object):
         self.figsize = figsize
         self.sort_by = sort_by
         self.label_map = _parse_label_map(label_map)
+        self.cmap = cmap
 
     def __call__(self):
         all_results = np.empty((len(self.systems), len(self.measures)))
@@ -647,7 +675,7 @@ class CompareMeasures(object):
 
         n_measures = len(measures)
         ticks = (np.arange(len(measures)), disp_measures)
-        cmap = plt.get_cmap(CMAP)
+        cmap = plt.get_cmap(self.cmap)
         cmap.set_bad('white')
 
         for metric in ['pearson', 'spearman', 'kendall']:
@@ -709,6 +737,7 @@ class CompareMeasures(object):
                        help='For plot, sort by name, eigenvalue, or '
                             'multidimensional scaling (requires scikit-learn)')
 
+        p.add_argument('--cmap', default=CMAP)
         p.add_argument('--label-map', help='JSON (or file) mapping internal labels to display labels')
         p.set_defaults(cls=cls)
         return p

@@ -14,8 +14,8 @@ echo Putting plots in $plotdir
 
 mkdir -vp $plotdir/columns/{all,team-best}/90ci $plotdir/scatter/ $plotdir/by-system $plotdir/by-team $plotdir/single/{heatmap,plot} $plotdir/measure-cmp
 
-ALL_MEASURES=$(cat $(ls $evaldir/*.evaluation | head -n1) | awk 'NR > 1 {print $8}' | sort | sed 's/^/-m /')
-CONF_MEASURES=$(cat $(ls $evaldir/*.confidence | head -n1) | awk 'NR > 1 {print $1}' | sort | sed 's/^/-m /')
+ALL_MEASURES=$(cat $(ls $evaldir/*.evaluation | head -n1) | awk 'NR > 1 && $0 !~ /\// {print $8}' | sort | sed 's/^/-m /')
+CONF_MEASURES=$(cat $(ls $evaldir/*.confidence | head -n1) | awk 'NR > 1 && $0 !~ /\// {print $1}' | sort | sed 's/^/-m /')
 GROUPRE="--group-re=(?<=/)[^/]*(?=[0-9]\.)"
 LABELMAP='--label-map={"fscore": "$F_1$", "precision": "$P$", "recall": "$R$", "b_cubed_plus": "B-Cubed+", "b_cubed": "B-Cubed", "strong_mention_match": "NER", "strong_typed_mention_match": "NERC", "strong_all_match": "NERL", "mention_ceaf": "CEAFm", "entity_ceaf": "CEAFe", "entity_match": "KB ID sets"}'
 
