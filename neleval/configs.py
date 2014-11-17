@@ -30,6 +30,9 @@ MEASURES = {
     'b_cubed_plus':                 Measure(['span', 'kbid'], agg='b_cubed'),
     'entity_ceaf':                  Measure(['span'], agg='entity_ceaf'),
     'mention_ceaf':                 Measure(['span'], agg='mention_ceaf'),
+    'mention_ceaf_plus':            Measure(['span', 'kbid'], agg='mention_ceaf'),
+    'typed_mention_ceaf':           Measure(['span', 'type'], agg='mention_ceaf'),
+    'typed_mention_ceaf_plus':      Measure(['span', 'type', 'kbid',], agg='mention_ceaf'),
     'pairwise':                     Measure(['span'], agg='pairwise'),
     # Cai & Strube (2010) evaluation measures
     #'cs_b_cubed':                   Measure(['span'], agg='cs_b_cubed'),
@@ -78,6 +81,9 @@ MEASURE_SETS = {
         #'entity_cs_ceaf',
         #'cs_b_cubed',
         'b_cubed_plus',
+        'typed_mention_ceaf',
+        'mention_ceaf_plus',
+        'typed_mention_ceaf_plus',
     },
     CORNOLTI_WWW13_MEASURES: [
         'strong_linked_mention_match',
@@ -120,6 +126,7 @@ MEASURE_SETS = {
         'strong_typed_all_match',  # span, type and resolution/nil must match
         # Assess recognition and clustering in TAC 2014 end-to-end task
         'mention_ceaf', # prf based on cluster alignment
+        'typed_mention_ceaf',  # same requiring type match
     ],
     TMP_MEASURES: [
         'mention_ceaf',
