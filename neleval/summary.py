@@ -98,7 +98,7 @@ class PlotSystems(object):
                  figures_by='measure', secondary='columns', metrics=('fscore',),
                  lines=False,
                  confidence=None, group_re=None, best_in_group=False,
-                 sort_by=None, limits=(0, 1),
+                 sort_by=None, at_most=None, limits=(0, 1),
                  out_fmt=DEFAULT_OUT_FMT, figsize=(8, 6), label_map=None,
                  interactive=False):
         if plt is None:
@@ -127,7 +127,7 @@ class PlotSystems(object):
 
         self.group_re = group_re
         self.best_in_group = best_in_group
-        if self.best_in_group and \
+        if self.best_in_group == True and \
            self.figures_by == 'measure' and \
            self.secondary == 'markers' and \
            len(self.measures) > 1:
@@ -136,15 +136,16 @@ class PlotSystems(object):
         if self.sort_by not in ('none', 'name', 'score') and \
            self.sort_by not in self.measures:
             raise ValueError('Acceptable values for sort-by are ("none", "name", "score", {})'.format(', '.join(map(repr, self.measures))))
+        self.at_most = at_most
 
         multiple_measures_per_figure = (secondary == 'heatmap') or (self.figures_by == 'single') or (self.figures_by == 'system' and len(self.measures) > 1)
-        if self.best_in_group and multiple_measures_per_figure:
+        if self.best_in_group == True and multiple_measures_per_figure:
             raise ValueError('best-in-group cannot be evaluated with multiple measures per figure')
         if self.sort_by == 'score' and multiple_measures_per_figure:
             raise ValueError('Cannot sort by score with multiple measures per figure. You could instead specify a measure name.')
 
-        if self.figures_by == 'single' and self.group_re:
-            raise ValueError('Single plot does not support grouping')
+        if self.figures_by == 'single' and self.group_re and self.best_in_group in (False, True):
+            raise ValueError('Single plot does not support grouping without --best-in-group')
 
     def _plot(self, ax, x, y, *args, **kwargs):
         # uses errorbars where appropriate
@@ -223,9 +224,13 @@ class PlotSystems(object):
     def _regroup(self, iterable, key, best_system=False, sort_by='name'):
         iterable = list(iterable)
         out = [(k, list(it)) for k, it in itertools.groupby(sorted(iterable, key=key), key=key)]
-        if best_system:
+        if best_system == True:
             out = [(best.system, [best])
                    for best in (max(results, key=lambda result: result.data[2]['score']) for group, results in out)]
+        elif best_system:
+            # Already selected in _select_best_in_group
+            out = [(results[0].system, results) for group, results in out]
+
         if sort_by == 'name':
             # done above
             return out
@@ -237,7 +242,7 @@ class PlotSystems(object):
             sort_by = lambda results: -max(result.data[2]['score'] for result in results)
         else:
             raise ValueError('Unknown sort: {!r}'.format(sort_by))
-        return sorted(out, key=lambda entry: sort_by(entry[1]))
+        return sorted(out, key=lambda entry: sort_by(entry[1]))[:self.at_most]
 
     def _get_system_names(self, systems):
         path_prefix = os.path.commonprefix(systems)
@@ -289,6 +294,21 @@ class PlotSystems(object):
                                    for measure, measure_results in zip(self.measures, sys_results))
         return all_results_tmp
 
+    @staticmethod
+    def _select_best_in_group(results, measure):
+        found = False
+        best = {}
+        for res in results:
+            if res.measure == measure:
+                found = True
+                best_sys, best_score = best.get(res.group, (None, -float('inf')))
+                cur_score = res.data['score'][2]
+                if cur_score > best_score:
+                    best[res.group] = (res.system, cur_score)
+        if not found:
+            raise KeyError('Could not find results for measure {!r}'.format(measure))
+        return [res for res in results if best[res.group][0] == res.system]
+
     def __call__(self):
         all_results = self._load_data()
 
@@ -298,6 +318,10 @@ class PlotSystems(object):
             sort_by = lambda results: groups_by_measure.index(results[0].group)
         else:
             sort_by = self.sort_by
+
+        if self.best_in_group != True and self.best_in_group:
+            # cut back all_results to only the system per group that is best by measure best_in_group
+            all_results = self._select_best_in_group(all_results, self.best_in_group)
 
         if self.figures_by in ('measure', 'single'):
             if sort_by == 'none':
@@ -503,10 +527,11 @@ class PlotSystems(object):
 
         p.add_argument('--group-re', type=re.compile,
                        help='Display systems grouped, where a system\'s group label is extracted from its path by this PCRE')
-        p.add_argument('--best-in-group', action='store_true', default=False,
-                       help='Only show best system per group')
+        p.add_argument('--best-in-group', nargs='?', const=True, default=False,
+                       help='Only show best system per group, optionally according to a given measure')
         p.add_argument('-s', '--sort-by',
                        help='Sort each plot, options include "none", "name", "score", or the name of a measure.')
+        p.add_argument('--at-most', type=int, help='Show the first AT_MOST sorted entries')
 
         p.add_argument('--label-map', help='JSON (or file) mapping internal labels to display labels')
 
