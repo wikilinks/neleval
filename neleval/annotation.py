@@ -34,11 +34,16 @@ class Annotation(object):
             u'\t'.join([unicode(c) for c in self.candidates])
             )
 
+    def __repr__(self):
+        return 'Annotation({!r}, {!r}, {!r}, {!r})'.format(self.docid, self.start, self.end, self.candidates)
+
     def __cmp__(self, other):
         assert isinstance(other, Annotation)
         return cmp((self.start, -self.end), (other.start, -other.end))
 
     def compare_spans(self, other):
+        assert self.start <= self.end, 'End is before start: {!r}'.format(self)
+        assert other.start <= other.end, 'End is before start: {!r}'.format(self)
         if self.docid != other.docid:
             return 'different documents'
         if self.start > other.end or self.end < other.start:
@@ -130,6 +135,9 @@ class Candidate(object):
         return u'{}\t{}\t{}'.format(self.id,
                                     self.score or '',
                                     self.type or '')
+
+    def __repr__(self):
+        return '<{!r}>'.format(self.id)
 
     def __cmp__(self, other):
         assert isinstance(other, Candidate)
