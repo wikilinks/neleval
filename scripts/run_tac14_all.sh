@@ -17,7 +17,8 @@ outdir=$1; shift # directory to which results are written
 
 SCR=`dirname $0`
 
-JOBS=8 # number of jobs for parallel mode (set to number of CPUs if possible)
+# number of jobs for parallel mode (set to number of CPUs if possible)
+JOBS=$(getconf _NPROCESSORS_ONLN 2>/dev/null) || JOBS=8
 FMT='tab' # format for confidence and significance output ('tab' or 'json')
 CONFIDENCE_MEASURES=(
     strong_mention_match
@@ -31,6 +32,8 @@ CONFIDENCE_MEASURES=(
 # CALCULATE SCORES
 $SCR/run_tac14_evaluation.sh $goldx $goldt $sysdir $outdir $JOBS
 
+# CALCULATE COMPOSITE SCORES
+./nel compose-measures -r strong_all_match strong_mention_match -r strong_typed_mention_match strong_mention_match $outdir/*.evaluation
 
 # GET GOLD STANDARD PATH
 gold=$outdir/gold.combined.tsv
@@ -50,12 +53,12 @@ then
 fi
 
 
-# CALCULATE METRIC CORRELATIONS
-if [ ${#systems[*]} != 1 ]
-then
-	echo "INFO calculating measure correlations"
-	./nel compare-measures -e -m tac14 -f plot -s eigen --out-fmt $outdir/00measure-{}.pdf $outdir/*.evaluation
-fi
+## CALCULATE METRIC CORRELATIONS
+#if [ ${#systems[*]} != 1 ]
+#then
+#	echo "INFO calculating measure correlations"
+#	./nel compare-measures -e -m tac14 -f plot -s eigen --out-fmt $outdir/00measure-{}.pdf $outdir/*.evaluation
+#fi
 
 # CALCULATE CONFIDENCE INTERVALS
 echo "INFO Calculating confidence intervals.."
