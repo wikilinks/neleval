@@ -104,6 +104,11 @@ class Annotation(object):
     def is_linked(self):
         return not self.is_nil
 
+    def add_candidate(self, cand):
+        if isinstance(cand, Annotation):
+            self.candidates.extend(cand.candidates)
+        self.candidates.append(cand)
+
     # Parsing methods
     @classmethod
     def from_string(cls, s):

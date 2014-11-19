@@ -1,5 +1,5 @@
 from .document import ENC
-from .document import Reader
+from .document import Reader, GoldReader
 from .document import by_mention
 from .evaluate import get_measure, Evaluate
 from collections import Counter
@@ -54,7 +54,7 @@ class Analyze(object):
     """Analyze errors"""
     def __init__(self, system, gold=None, unique=False, summary=False, with_correct=False):
         self.system = list(Reader(open(system)))
-        self.gold = list(Reader(open(gold)))
+        self.gold = list(GoldReader(open(gold)))
         self.unique = unique
         self.summary = summary
         self.with_correct = with_correct

@@ -3,9 +3,12 @@
 
 from __future__ import print_function
 
+from operator import attrgetter
+import itertools
 from collections import OrderedDict
 import warnings
 import sys
+from functools import partial
 
 from .annotation import Annotation
 
@@ -16,26 +19,45 @@ ENC = 'utf8'
 # Document class contains methods for linking annotation
 
 class Document(object):
-    def __init__(self, id, annotations):
-        self.id = id
-        self.annotations = sorted(annotations, key=lambda a: (a.start, -a.end))
-        self._validate()
-        self._set_fields()
-
-    # May be 'ignore', 'warn', 'error'
-    VALIDATION = {
+    # May be 'ignore', 'warn', 'error'; or 'merge' for 'duplicate' only
+    DEFAULT_VALIDATION = {
         'nested': 'ignore',
         'crossing': 'warn',
-        'duplicate': 'ignore',
+        'duplicate': 'merge',
+    }
+    GOLD_VALIDATION = {
+        'nested': 'ignore',
+        'crossing': 'error',
+        'duplicate': 'error',
     }
 
-    def _validate(self, _categories=['nested', 'crossing', 'duplicate']):
+    def __init__(self, id, annotations, validation=DEFAULT_VALIDATION):
+        validation = validation.copy()
+        self.id = id
+        self.annotations = sorted(annotations, key=lambda a: (a.start, -a.end))
+        if validation.get('duplicate') == 'merge':
+            self.annotations = list(self._merge())
+            # as a safety check
+            validation['duplicate'] = 'error'
+        self._validate(validation)
+        self._set_fields()
+
+    def _merge(self):
+        # PERHAPS THIS SHOULD NOT BE HERE. SHOULD BELONG IN PREPARE-TAC IF CANDIDATE SYNTAX FOR MULTIPLE CANDIDATES IS TO HOLD
+        for span, group in itertools.groupby(self.annotations, attrgetter('span')):
+            first = next(group)
+            for other in group:
+                first.add_candidate(other)
+            yield first
+
+    def _validate(self, validation, _categories=['nested', 'crossing', 'duplicate']):
         # XXX: do we nee to ensure start > end for all Annotations first?
-        issues = {cat: [] for cat, val in self.VALIDATION.items()
-                  if val != 'ignore'}
+        issues = {cat: [] for cat, val in validation.items()
+                  if val not in ('ignore', 'merge')}
         if not issues:
             return
         open_anns = []
+        # XXX: may be possible to write by just iterating through annotations
         tags = sorted([(a.start, 'open', a) for a in self.annotations] +
                       [(a.end + 1, 'close', a) for a in self.annotations])  # use stop, not end
         for key, op, ann in tags:
@@ -50,11 +72,11 @@ class Document(object):
         for issue, instances in issues.items():
             if not instances:
                 continue
-            if self.VALIDATION[issue] == 'error':
+            if validation[issue] == 'error':
                 b, a = instances[0]
                 raise ValueError('Found annotations with {} span:'
                                  '\n{}\n{}'.format(issue, a, b))
-            elif self.VALIDATION[issue] == 'warn':
+            elif validation[issue] == 'warn':
                 b, a = instances[0]
                 warnings.warn('Found annotations with {} span:\n{}\n{}'.format(issue, a, b))
 
@@ -134,3 +156,7 @@ class Reader(object):
         "Yield Annotation objects"
         for line in self.fh:
             yield Annotation.from_string(line.rstrip('\n').decode(ENC))
+
+
+GoldDocument = partial(Document, validation=Document.GOLD_VALIDATION)
+GoldReader = partial(Reader, cls=GoldDocument)

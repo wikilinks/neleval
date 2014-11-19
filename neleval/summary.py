@@ -29,7 +29,7 @@ except ImportError:
 
 
 from .configs import DEFAULT_MEASURE_SET, MEASURE_HELP, parse_measures
-from .document import Reader
+from .document import GoldReader
 from .evaluate import Evaluate
 from .significance import Confidence
 from .interact import embed_shell
@@ -586,7 +586,7 @@ class CompareMeasures(object):
         self.systems = systems
         if gold:
             assert not evaluation_files
-            self.gold = list(Reader(open(gold)))
+            self.gold = list(GoldReader(open(gold)))
         else:
             assert evaluation_files
             self.gold = None

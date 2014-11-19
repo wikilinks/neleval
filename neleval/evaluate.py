@@ -4,7 +4,7 @@ Evaluate linker performance.
 """
 from .configs import (DEFAULT_MEASURE_SET, parse_measures,
                       MEASURE_HELP, get_measure)
-from .document import Document, Reader
+from .document import Document, Reader, GoldReader
 import warnings
 import json
 
@@ -39,7 +39,7 @@ class Evaluate(object):
         if not isinstance(system, list):
             system = list(Reader(open(system)))
         if not isinstance(gold, list):
-            gold = list(Reader(open(gold)))
+            gold = list(GoldReader(open(gold)))
         self.system = system
         self.gold = gold
         self.measures = parse_measures(measures or DEFAULT_MEASURE_SET)

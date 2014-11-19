@@ -16,7 +16,7 @@ except ImportError:
     Parallel = delayed = cpu_count = None
 
 #from data import measures, Reader
-from .document import Reader
+from .document import Reader, GoldReader
 from .configs import DEFAULT_MEASURE, parse_measures, MEASURE_HELP
 from .evaluate import Evaluate, Matrix
 
@@ -126,8 +126,7 @@ class Significance(object):
 
     def __call__(self):
         all_counts = defaultdict(dict)
-        #gold = sorted(Reader(open(self.gold)))
-        gold = list(Reader(open(self.gold)))
+        gold = list(GoldReader(open(self.gold)))
         for path in self.systems:
             #system = sorted(Reader(open(path)))
             system = list(Reader(open(path)))
@@ -298,7 +297,7 @@ class Confidence(object):
         return ret
 
     def _read_to_matrices(self):
-        gold = list(Reader(open(self.gold)))
+        gold = list(GoldReader(open(self.gold)))
         system = list(Reader(open(self.system)))
         doc_pairs = list(Evaluate.iter_pairs(system, gold))
         counts = {}
