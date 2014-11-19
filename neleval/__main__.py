@@ -5,6 +5,7 @@ import argparse
 import textwrap
 import re
 import sys
+import traceback
 
 #from .prepare import Prepare
 from .evaluate import Evaluate
@@ -60,7 +61,7 @@ def main(args=sys.argv[1:]):
     try:
         obj = cls(**namespace)
     except ValueError as e:
-        subparsers[cls].error(e.message)
+        subparsers[cls].error(e.message + "\n" + traceback.format_exc())
     result = obj()
     if result is not None:
         print(result)
