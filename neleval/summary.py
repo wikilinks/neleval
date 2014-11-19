@@ -136,9 +136,6 @@ class PlotSystems(object):
            len(self.measures) > 1:
             raise ValueError('best-in-group not supported with shared legend')
         self.sort_by = sort_by or 'none'
-        if self.sort_by not in ('none', 'name', 'score') and \
-           self.sort_by not in self.measures:
-            raise ValueError('Acceptable values for sort-by are ("none", "name", "score", {})'.format(', '.join(map(repr, self.measures))))
         self.at_most = at_most
 
         multiple_measures_per_figure = (secondary == 'heatmap') or (self.figures_by == 'single') or (self.figures_by == 'system' and len(self.measures) > 1)
@@ -273,8 +270,10 @@ class PlotSystems(object):
                  self.group_re.search(system).group() if self.group_re else None)
                 for system in systems]
 
-    def _load_data(self):
+    def _load_data(self, more_measures):
         # XXX: this needs a refactor/cleanup!!! Maybe just use more struct arrays rather than namedtuple
+        measures = self.measures + more_measures
+
         if self.input_type == 'confidence':
             """
             {'intervals': {'fscore': {90: (0.504, 0.602),
@@ -285,7 +284,7 @@ class PlotSystems(object):
              'measure': 'strong_nil_match',
              'overall': {'fscore': '0.555', 'precision': '0.498', 'recall': '0.626'}}
             """
-            all_results = np.empty((len(self.systems), len(self.measures), 3), dtype=[('score', float),
+            all_results = np.empty((len(self.systems), len(measures), 3), dtype=[('score', float),
                                                                                       ('lo', float),
                                                                                       ('hi', float)])
             for system, sys_results in zip(self.systems, all_results):
@@ -293,24 +292,24 @@ class PlotSystems(object):
                 # XXX: this is an ugly use of list comprehensions
                 mat = [[(result_dict[measure]['overall'][metric], 0 if self.confidence is None else result_dict[measure]['intervals'][metric][self.confidence][0], 0 if self.confidence is None else result_dict[measure]['intervals'][metric][self.confidence][1])
                         for metric in ('precision', 'recall', 'fscore')]
-                       for measure in self.measures]
+                       for measure in measures]
                 sys_results[...] = mat
             if self.confidence is None:
                 # hide other fields
                 all_results = all_results[['score']]
 
         else:
-            all_results = np.empty((len(self.systems), len(self.measures), 3), dtype=[('score', float)])
+            all_results = np.empty((len(self.systems), len(measures), 3), dtype=[('score', float)])
             for system, sys_results in zip(self.systems, all_results):
                 result_dict = Evaluate.read_tab_format(open(system))
                 sys_results[...] = [[(result_dict[measure][metric],) for metric in ('precision', 'recall', 'fscore')]
-                                    for measure in self.measures]
+                                    for measure in measures]
 
         # TODO: avoid legacy array intermediary
         all_results_tmp = []
         for (system_name, group), sys_results in zip(self._get_system_names(self.systems), all_results):
             all_results_tmp.extend(_Result(system=system_name, measure=measure, group=group, data=measure_results)
-                                   for measure, measure_results in zip(self.measures, sys_results))
+                                   for measure, measure_results in zip(measures, sys_results))
         return all_results_tmp
 
     @staticmethod
@@ -329,9 +328,15 @@ class PlotSystems(object):
         return [res for res in results if best[res.group][0] == res.system]
 
     def __call__(self):
-        all_results = self._load_data()
+        more_measures = []
+        if self.sort_by and self.sort_by not in ('score', 'name', 'none', 'measure') and self.sort_by not in self.measures + more_measures:
+            more_measures.append(self.sort_by)
+        if self.best_in_group not in (False, True) and self.best_in_group not in self.measures + more_measures:
+            more_measures.append(self.best_in_group)
 
-        if self.sort_by in self.measures:
+        all_results = self._load_data(more_measures)
+
+        if self.sort_by in self.measures + more_measures:
             by_measure = sorted((result for result in all_results if result.measure == self.sort_by), key=lambda result: -result.data[2]['score'])
             groups_by_measure = [result.group for result in by_measure]
             sort_by = lambda results: groups_by_measure.index(results[0].group)
@@ -341,6 +346,9 @@ class PlotSystems(object):
         if self.best_in_group != True and self.best_in_group:
             # cut back all_results to only the system per group that is best by measure best_in_group
             all_results = self._select_best_in_group(all_results, self.best_in_group)
+
+        # HACK: now remove measures only needed for selecting
+        all_results = [res for res in all_results if res.measure not in more_measures]
 
         if self.figures_by in ('measure', 'single'):
             if sort_by == 'none':
