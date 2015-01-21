@@ -16,6 +16,7 @@ from .significance import Significance, Confidence
 #from .filter import FilterMentions
 #from .rcv import ReutersCodes
 from .tac import PrepareTac
+from .brat import PrepareBrat
 from .configs import ListMeasures
 from .summary import CompareMeasures, PlotSystems, ComposeMeasures
 
@@ -33,6 +34,7 @@ APPS = [
     #FetchMapping,
     #ReutersCodes,
     PrepareTac,
+    PrepareBrat,
     CompareMeasures,
     PlotSystems,
     ComposeMeasures,
