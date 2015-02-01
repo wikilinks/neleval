@@ -37,9 +37,13 @@ class Evaluate(object):
         fmt - output format
         """
         if not isinstance(system, list):
+            warnings.warn('Reading system output..')
             system = list(Reader(open(system)))
+            warnings.warn('..done.')
         if not isinstance(gold, list):
+            warnings.warn('Reading gold standard..')
             gold = list(Reader(open(gold)))
+            warnings.warn('..done.')
         self.system = system
         self.gold = gold
         self.measures = parse_measures(measures or DEFAULT_MEASURE_SET)

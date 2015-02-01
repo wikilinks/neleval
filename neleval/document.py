@@ -47,16 +47,22 @@ class Document(object):
                     comparison = ann.compare_spans(other)
                     if comparison in issues:
                         issues[comparison].append((other, ann))
+        warnings.warn('issues: %s' % issues)
         for issue, instances in issues.items():
             if not instances:
                 continue
             if self.VALIDATION[issue] == 'error':
                 b, a = instances[0]
-                raise ValueError('Found annotations with {} span:'
-                                 '\n{}\n{}'.format(issue, a, b))
+                raise ValueError('Found annotations with {} span:\n{}\n{}'
+                                 .format(issue,
+                                         unicode(a).encode(ENC),
+                                         unicode(b).encode(ENC)))
             elif self.VALIDATION[issue] == 'warn':
                 b, a = instances[0]
-                warnings.warn('Found annotations with {} span:\n{}\n{}'.format(issue, a, b))
+                warnings.warn('Found annotations with {} span:\n{}\n{}'
+                              .format(issue,
+                                      unicode(a).encode(ENC),
+                                      unicode(b).encode(ENC)))
 
     def _set_fields(self):
         """Set fields on annotations that are relative to document"""
