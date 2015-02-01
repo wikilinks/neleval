@@ -5,9 +5,12 @@ from .utils import normalise_link
 from collections import defaultdict
 from glob import glob
 import os
+import urllib
 
 EXT = 'ann' # extension of brat annotation files
 SCORE = 1.0 # default disambiguation score
+WP = 'Wikipedia:' # likely wikipedia namespace
+WP_LEN = len(WP)
 
 class PrepareBrat(object):
     "Convert brat format for evaluation"
@@ -29,15 +32,15 @@ class PrepareBrat(object):
     def annotations(self):
         "Return list of annotation objects"
         r = BratReader(self.dir)
-        for aid, docid, start, end, name, candidates in r:
+        for annot_id, doc_id, start, end, name, candidates in r:
             mapped = list(self.map(candidates))
-            yield Annotation(docid, start, end, mapped)
+            yield Annotation(doc_id, start, end, mapped)
 
     def map(self, candidates):
         for c in candidates:
-            kbid = normalise_link(c.id)
+            kb_id = normalise_link(c.id)
             if self.mapping:
-                c.id = self.mapping.get(kbid, kbid)
+                c.id = self.mapping.get(kb_id, kb_id)
             yield c
 
     def read_mapping(self, mapping):
@@ -62,30 +65,46 @@ class BratReader(object):
         self.score = score
 
     def __iter__(self):
-        for docid, fh in self.files():
-            mentions, resolutions = self.read(fh)
-            for aid, start, end, name, type in mentions:
-                candidates = [Candidate(resolutions.get(aid), self.score, type)]
-                yield aid, docid, start, end, name, candidates
+        for doc_id, fh in self.files():
+            mentions, norms = self.read(fh)
+            for annot_id, start, end, name, ne_type in mentions:
+                candidates = list(self.candidates(annot_id, ne_type, norms))
+                yield annot_id, doc_id, start, end, name, candidates
 
     def files(self):
         for f in glob(os.path.join(self.dir, '*.{}'.format(self.ext))):
-            docid = os.path.basename(f)[:-self.len]
-            yield docid, open(f)
+            doc_id = os.path.basename(f)[:-self.len]
+            yield doc_id, open(f)
 
     def read(self, fh):
         mentions = []
-        resolutions = defaultdict(list)
-        for line in fh:
-            line = line.strip()
-            if line.strip().startswith('#'):
-                # comment value is a resolution id
-                comment_id, annot_id, comment = line.split('\t')
-                _, annot_id = annot_id.split()
-                resolutions[annot_id] = comment
-            else:
-                # annotation
-                annot_id, mention, name = line.split('\t')
-                type, start, end = mention.split()
-                mentions.append((annot_id, start, end, name, type))
-        return mentions, resolutions
+        normalizations = defaultdict(list)
+        for l in fh:
+            l = l.decode(ENC).strip()
+            if l.startswith('T'):
+                # mention annotation line
+                annot_id, mention, name = l.split('\t', 2)
+                ne_type, start, end = mention.split(' ', 2)
+                mentions.append((annot_id, start, end, name, ne_type))
+            elif l.startswith('N'):
+                # normalization annotation line
+                norm_id, reference = l.split('\t', 1)
+                _, annot_id, kb_id = reference.split(' ', 2)
+                normalizations[annot_id].append(self.normalise(kb_id))
+        return mentions, normalizations
+
+    def normalise(self, kb_id):
+        return self.unquote(self.rm_namespace(kb_id))
+
+    def unquote(self, kb_id):
+        return urllib.unquote(kb_id.encode(ENC)).decode(ENC)
+
+    def rm_namespace(self, kb_id):
+        if kb_id.startswith(WP):
+            return kb_id[len(WP):]
+        else:
+            return kb_id
+
+    def candidates(self, annot_id, ne_type, norms):
+        for kb_id in norms.get(annot_id, []):
+            yield Candidate(kb_id, self.score, ne_type)
