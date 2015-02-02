@@ -1,9 +1,13 @@
 #!/usr/bin/env python
+import itertools
+import operator
+from collections import defaultdict
+from xml.etree.cElementTree import iterparse
+
+
 from .annotation import Annotation, Candidate
 from .data import ENC
 from .utils import normalise_link
-from collections import defaultdict
-from xml.etree.cElementTree import iterparse
 
 # TODO add reader for TAC before 2014
 
@@ -61,6 +65,7 @@ class PrepareTac(object):
                 redirects[title] = title
         return redirects
 
+
 class TacReader(object):
     def __init__(self, links_file, queries_file):
         self.links_file = links_file
@@ -68,9 +73,16 @@ class TacReader(object):
 
     def __iter__(self):
         cdict = self.read_candidates()
-        for qid, docid, start, end, name in self.iter_queries():
-            candidates = sorted(cdict.get(qid, []), reverse=True)
-            yield qid, docid, start, end, name, candidates
+        for (docid, start, end), queries in self.grouped_queries():
+            qids, _, _, _, names = zip(*queries)
+
+            candidates = sum((cdict.pop(qid, []) for qid in qids), [])
+            candidates = sorted(candidates, reverse=True)  # sort by -score
+            yield qids, docid, start, end, names, candidates
+
+        if cdict:
+            raise ValueError('Remaining annotations unaligned to '
+                             'queries: {}'.format(cdict))
 
     def read_candidates(self):
         "Return {qid: [(score, kbid, type)]} dictionary"
@@ -78,6 +90,8 @@ class TacReader(object):
         for line in open(self.links_file):
             cols = line.decode(ENC).strip().split('\t')
             if len(cols) < 3:
+                continue
+            if cols[0] == 'query_id':
                 continue
             qid, kbid, type = cols[:3]
             score = 1.0 if len(cols) <= 3 else float(cols[3])
@@ -89,6 +103,10 @@ class TacReader(object):
         for event, elem in iterparse(self.queries_file):
             if elem.tag == QUERY_ELEM:
                 yield self._query(elem)
+
+    def grouped_queries(self, key=operator.itemgetter(slice(1, 4))):
+        # Deduplicate by span!
+        return itertools.groupby(sorted(self.iter_queries(), key=key), key)
 
     def _query(self, query_elem):
         "Return (qid, docid, start, end, name) tuple"
