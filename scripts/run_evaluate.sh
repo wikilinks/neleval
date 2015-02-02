@@ -14,7 +14,7 @@ gold=$1; shift # prepared gold standard annotations (.combined.tsv)
 sys=$1; shift # prepared system annotations (.combined.tsv)
 
 out=`echo $sys | sed 's/.combined.tsv/.evaluation/'`
-./nel evaluate \
+python -m cProfile nel.py evaluate \
     -m all \
     -f 'tab' \
     -g $gold \

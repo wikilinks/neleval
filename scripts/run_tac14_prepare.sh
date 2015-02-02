@@ -3,14 +3,15 @@
 # Convert TAC system output to evaluation format
 set -e
 
-usage="Usage: $0 OUT_DIR SYSTEM_TAB"
+usage="Usage: $0 OUT_DIR EXCLUDED_SPANS SYSTEM_TAB"
 
-if [ "$#" -ne 2 ]; then
+if [ "$#" -ne 3 ]; then
     echo $usage
     exit 1
 fi
 
 outdir=$1; shift # output directory
+exclspans=$1; shift # path to spans where mentions should be ignored (tab-separated)
 syst=$1; shift # system link annotations (tab-separated)
                # mentions file must have same path but with .xml extension
 
@@ -27,5 +28,5 @@ fi
 
 # RUN PREPARE SCRIPT
 out=$outdir/`basename $pre`.combined.tsv
-./nel prepare-tac -q $sysx $syst \
+./nel prepare-tac -q $sysx $syst -x "$exclspans" \
     > $out

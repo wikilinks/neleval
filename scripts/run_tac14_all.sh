@@ -3,15 +3,16 @@
 # Run TAC14 evaluation and analysis
 set -e
 
-usage="Usage: $0 GOLD_XML GOLD_TAB SYSTEMS_DIR OUT_DIR"
+usage="Usage: $0 GOLD_XML GOLD_TAB EXCLUDED_SPANS SYSTEMS_DIR OUT_DIR"
 
-if [ "$#" -ne 4 ]; then
+if [ "$#" -ne 5 ]; then
     echo $usage
     exit 1
 fi
 
 goldx=$1; shift # gold standard queries/mentions (XML)
 goldt=$1; shift # gold standard link annotations (tab-separated)
+exclspans=$1; shift # path to spans where mentions should be ignored (tab-separated)
 sysdir=$1; shift  # directory containing output from systems
 outdir=$1; shift # directory to which results are written
 
@@ -30,7 +31,7 @@ CONFIDENCE_MEASURES=(
 
 
 # CALCULATE SCORES
-$SCR/run_tac14_evaluation.sh $goldx $goldt $sysdir $outdir $JOBS
+$SCR/run_tac14_evaluation.sh $goldx $goldt $exclspans $sysdir $outdir $JOBS
 
 # CALCULATE COMPOSITE SCORES
 ./nel compose-measures -r strong_all_match strong_mention_match -r strong_typed_mention_match strong_mention_match $outdir/*.evaluation

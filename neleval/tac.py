@@ -7,7 +7,7 @@ from xml.etree.cElementTree import iterparse
 
 from .annotation import Annotation, Candidate
 from .data import ENC
-from .utils import normalise_link
+from .utils import normalise_link, log
 
 # TODO add reader for TAC before 2014
 
@@ -21,9 +21,11 @@ NAME_ELEM  = 'name'
 
 class PrepareTac(object):
     "Convert TAC output format for evaluation"
-    def __init__(self, system, queries, mapping=None):
-        self.system = system # TAC links file
-        self.queries = queries # TAC queries/mentions file
+    def __init__(self, system, queries, excluded_spans=None, mapping=None):
+        assert excluded_spans
+        self.system = system  # TAC links file
+        self.queries = queries  # TAC queries/mentions file
+        self.excluded_offsets = self.read_excluded_spans(excluded_spans)
         self.mapping = self.read_mapping(mapping)
 
     def __call__(self):
@@ -33,16 +35,30 @@ class PrepareTac(object):
     def add_arguments(cls, p):
         p.add_argument('system', metavar='FILE', help='link annotations')
         p.add_argument('-q', '--queries', required=True, help='mention annotations')
+        p.add_argument('-x', '--excluded-spans', help='file of spans to delete mentions in')
         p.add_argument('-m', '--mapping', help='mapping for titles')
         p.set_defaults(cls=cls)
         return p
 
     def annotations(self):
         "Return list of annotation objects"
+        n_candidates = 0
+        n_excluded = 0
+        n_annotations = 0
         r = TacReader(self.system, self.queries)
+        excluded = self.excluded_offsets
         for qid, docid, start, end, name, candidates in r:
+            # NB: start, end are strings
+            if (docid, start) in excluded or (docid, end) in excluded:
+                n_excluded += 1
+                continue
+            n_candidates += len(candidates)
             mapped = list(self.map(candidates))
             yield Annotation(docid, start, end, mapped)
+            n_annotations += 1
+        log.info('Read {} candidates for {} annotations (excluded {}) '
+                 'from {}'.format(n_candidates, n_annotations, n_excluded,
+                                  self.system))
 
     def map(self, candidates):
         for c in candidates:
@@ -64,6 +80,18 @@ class PrepareTac(object):
                     redirects[r] = title
                 redirects[title] = title
         return redirects
+
+    def read_excluded_spans(self, path):
+        if path is None:
+            return set()
+
+        excluded = set()
+        with open(path) as f:
+            for l in f:
+                doc_id, start, end = l.strip().split('\t')[:3]
+                for i in range(int(start), int(end) + 1):
+                    excluded.add((doc_id, str(i)))
+        return excluded
 
 
 class TacReader(object):
