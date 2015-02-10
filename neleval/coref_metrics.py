@@ -612,6 +612,7 @@ if __name__ == '__main__':
         'ceafm': mention_ceaf,
         'muc': muc,
         'pairs': pairwise,
+        'negpairs': pairwise_negative,
     }
     key = read_conll_coref(args.key_file)
     response = read_conll_coref(args.response_file)
