@@ -1,2 +1,20 @@
 #!/bin/bash
+PRG="$0"
+CURDIR="`pwd`"
+# need this for relative symlinks
+while [ -h "$PRG" ] ; do
+  ls=`ls -ld "$PRG"`
+  link=`expr "$ls" : '.*-> \(.*\)$'`
+  if expr "$link" : '/.*' > /dev/null; then
+    PRG="$link"
+  else
+    PRG=`dirname "$PRG"`"/$link"
+  fi
+done
+SCRIPTDIR=`dirname "$PRG"`
+if [ x"${PYTHONPATH}" == x ]; then
+  export PYTHONPATH="${SCRIPTDIR}"
+else
+  export PYTHONPATH="${SCRIPTDIR}":${PYTHONPATH}
+fi
 python -m neleval.__main__ "$@"
