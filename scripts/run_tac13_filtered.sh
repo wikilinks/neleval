@@ -3,16 +3,13 @@
 # Run TAC13 filtered evaluation and analysis
 set -e
 
-usage="Usage: $0 GOLD_XML GOLD_TAB SYSTEMS_DIR OUT_DIR"
+usage="Usage: $0 OUT_DIR\\n\\nOUT_DIR should include *.combined.tsv outputs from an evaluation script"
 
-if [ "$#" -ne 4 ]; then
-    echo $usage
+if [ "$#" -ne 1 ]; then
+    echo -e $usage
     exit 1
 fi
 
-goldx=$1; shift # gold standard queries/mentions (XML)
-goldt=$1; shift # gold standard link annotations (tab-separated)
-sysdir=$1; shift  # directory containing output from systems
 outdir=$1; shift # directory to which results are written
 
 SCR=`dirname $0`
@@ -41,10 +38,6 @@ FILTERS=(
     "GPE_WB:::^eng-(NG|WL)-.*GPE$"
     "GPE_DF:::^bolt-eng-DF-.*GPE$"
     )
-
-
-# RUN OVERALL EVALUATION
-$SCR/run_tac13_evaluation.sh $goldx $goldt $sysdir $outdir $JOBS
 
 
 # GET GOLD STANDARD PATH
