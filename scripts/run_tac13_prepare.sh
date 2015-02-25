@@ -3,9 +3,9 @@
 # Convert TAC system output to evaluation format
 set -e
 
-usage="Usage: $0 GOLD_XML NE_TYPES SYSTEMS_DIR OUT_DIR"
+usage="Usage: $0 GOLD_XML NE_TYPES SYSTEMS_DIR OUT_DIR [-x EXCLUDED_SPANS]"
 
-if [ "$#" -ne 4 ]; then
+if [ "$#" -lt 4 ]; then
     echo $usage
     exit 1
 fi
@@ -22,7 +22,7 @@ cat $syst \
     > $stab
 #rm $stab
 out=$outdir/$sys.combined.tsv
-./nel prepare-tac -q $goldx $stab \
+./nel prepare-tac -q $goldx $stab $@ \
     | sort \
     | cut -f1,2,3,4,5 \
     | paste - $netypes \

@@ -3,9 +3,9 @@
 # Run TAC13 evaluation and analysis
 set -e
 
-usage="Usage: $0 GOLD_XML GOLD_TAB SYSTEMS_DIR OUT_DIR"
+usage="Usage: $0 GOLD_XML GOLD_TAB SYSTEMS_DIR OUT_DIR [-x EXCLUDED_SPANS]"
 
-if [ "$#" -ne 4 ]; then
+if [ "$#" -lt 4 ]; then
     echo $usage
     exit 1
 fi
@@ -28,7 +28,7 @@ CONFIDENCE_MEASURES=(
 
 
 # CALCULATE SCORES
-$SCR/run_tac13_evaluation.sh $goldx $goldt $sysdir $outdir $JOBS
+$SCR/run_tac13_evaluation.sh $goldx $goldt $sysdir $outdir $JOBS $@
 
 
 # GET GOLD STANDARD PATH
