@@ -9,7 +9,7 @@ import os
 import itertools
 import operator
 import json
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 import re
 import warnings
 import sys
@@ -79,11 +79,26 @@ def _parse_label_map(arg):
         return json.loads(arg)
 
 
+def _get_system_names(systems):
+    path_prefix = os.path.commonprefix(systems)
+    if os.path.sep in path_prefix:
+        path_prefix = os.path.dirname(path_prefix) + os.path.sep
+    path_suffix = os.path.commonprefix([system[::-1]
+                                        for system in systems])
+    return [system[len(path_prefix):-len(path_suffix)] for system in systems]
+
+
+
 class _Result(namedtuple('Result', 'system measure data group')):
     def __new__(cls, system, measure, data, group=None):
         if group is None:
             group = system
         return super(_Result, cls).__new__(cls, system, measure, data, group)
+
+
+def _group(group_re, system):
+    if group_re is not None:
+        return group_re.search(system).group()
 
 
 XTICK_ROTATION = {'rotation': 40, 'ha': 'right'}
@@ -260,16 +275,6 @@ class PlotSystems(object):
             raise ValueError('Unknown sort: {!r}'.format(sort_by))
         return sorted(out, key=lambda entry: sort_by(entry[1]))[:self.at_most]
 
-    def _get_system_names(self, systems):
-        path_prefix = os.path.commonprefix(systems)
-        if os.path.sep in path_prefix:
-            path_prefix = os.path.dirname(path_prefix) + os.path.sep
-        path_suffix = os.path.commonprefix([system[::-1]
-                                            for system in systems])
-        return [(system[len(path_prefix):-len(path_suffix)],
-                 self.group_re.search(system).group() if self.group_re else None)
-                for system in systems]
-
     def _load_data(self, more_measures):
         # XXX: this needs a refactor/cleanup!!! Maybe just use more struct arrays rather than namedtuple
         measures = self.measures + more_measures
@@ -307,8 +312,8 @@ class PlotSystems(object):
 
         # TODO: avoid legacy array intermediary
         all_results_tmp = []
-        for (system_name, group), sys_results in zip(self._get_system_names(self.systems), all_results):
-            all_results_tmp.extend(_Result(system=system_name, measure=measure, group=group, data=measure_results)
+        for path, system_name, sys_results in zip(self.systems, _get_system_names(self.systems), all_results):
+            all_results_tmp.extend(_Result(system=system_name, measure=measure, group=_group(self.group_re, path), data=measure_results)
                                    for measure, measure_results in zip(measures, sys_results))
         return all_results_tmp
 
@@ -812,5 +817,114 @@ class ComposeMeasures(object):
         p.add_argument('-r', '--ratio', dest='ratios', nargs=2, action='append',
                        help='Create a ratio of two other measures named <measure1>/<measure2>')
 
+        p.set_defaults(cls=cls)
+        return p
+
+
+class RankSystems(object):
+    """Get filenames corresponding to best-ranked systems
+
+    Given evaluation outputs, ranks the system by some measure(s), or
+    best per name group.
+
+    This is a useful command-line helper before plotting to ensure all have
+    same systems.
+    """
+    # TODO: support JSON format output
+
+    def __init__(self, systems, measures, metrics=['fscore'],
+                 group_re=None, group_limit=None, group_max=None, limit=None, max=None,
+                 short_names=False):
+        self.systems = systems
+        self.measures = parse_measures(measures or DEFAULT_MEASURE_SET,
+                                       allow_unknown=True)
+        self.metrics = metrics or ['fscore']
+        self.group_re = group_re
+        self.group_limit = group_limit
+        self.group_max = group_max
+        self.limit = limit
+        self.max = max
+        self.short_names = short_names
+
+    def __call__(self):
+        # This could be done by awk and sort and awk if we rathered....
+        Tup = namedtuple('Tup', 'system group measure metric score')
+        tuples = []
+        measures = set(self.measures)
+        short_names = _get_system_names(self.systems)
+        for path, short in zip(self.systems, short_names):
+            results = Evaluate.read_tab_format(open(path))
+            system = short if self.short_names else path
+            tuples.extend(Tup(system, _group(self.group_re, path), measure, metric, score)
+                          for measure, measure_results in results.items() if measure in measures
+                          for metric, score in measure_results.items() if metric in self.metrics)
+
+        tuples.sort(key=lambda tup: (tup.measure, tup.metric, -tup.score))
+        result = []
+        for _, rank_tuples in itertools.groupby(tuples, key=lambda tup: (tup.measure, tup.metric)):
+            result.extend(self._rank(rank_tuples))
+
+        if self.group_re:
+            header = 'measure\tmetric\trank\tgroup rank\tscore\tgroup\tsystem'
+            fmt = '{0.measure}\t{0.metric}\t{1[0]}\t{1[1]}\t{0.score}\t{0.group}\t{0.system}'
+        else:
+            header = 'measure\tmetric\trank\tscore\tsystem'
+            fmt = '{0.measure}\t{0.metric}\t{1[0]}\t{0.score}\t{0.system}'
+
+        rows = [header]
+        rows.extend(fmt.format(tup, ranks) for tup, ranks in result)
+        return '\n'.join(rows)
+
+    def _rank(self, tuples):
+        key_fns = [(lambda k: None, self.limit, self.max)]
+        if self.group_re is not None:
+            # no_yield cases must be handled first for group, then overall :s
+            key_fns.insert(0, (operator.attrgetter('group'), self.group_limit, self.group_max))
+        INF = float('inf')
+
+        idx = defaultdict(int)
+        prev = defaultdict(lambda: (INF, INF))
+        for tup in tuples:
+            no_yield = False
+            ranks = []
+
+            for fn, limit, max_rank in key_fns:
+                key = fn(tup)
+
+                idx[key] += 1
+                if limit is not None and idx[key] > limit:
+                    no_yield = True
+                    break
+
+                score, rank = prev[key]
+                if tup.score != score:
+                    rank = idx[key]
+                    prev[key] = (tup.score, rank)
+                ranks.append(rank)
+                if max_rank is not None and rank > max_rank:
+                    no_yield = True
+                    break
+
+            if not no_yield:
+                yield tup, tuple(ranks)
+
+    @classmethod
+    def add_arguments(cls, p):
+        p.add_argument('systems', nargs='+', metavar='FILE')
+        p.add_argument('-m', '--measure', dest='measures', action='append',
+                       metavar='NAME', help=MEASURE_HELP)
+        p.add_argument('--metric', dest='metrics', action='append',
+                       choices=['precision', 'recall', 'fscore'], metavar='NAME')
+        p.add_argument('--group-re', type=re.compile,
+                       help='Rank systems within groups, where a system\'s '
+                            'group label is extracted from its path by this '
+                            'PCRE')
+        p.add_argument('--short-names', action='store_true', help='Strip common prefix/suffix off system names')
+        meg = p.add_mutually_exclusive_group()
+        meg.add_argument('--group-limit', type=int, help='Max number of entries per group (breaking ties arbitrarily)')
+        meg.add_argument('--group-max', type=int, help='Max rank per group')
+        meg = p.add_mutually_exclusive_group()
+        meg.add_argument('--limit', type=int, help='Max number of entries (breaking ties arbitrarily)')
+        meg.add_argument('--max', type=int, help='Max rank')
         p.set_defaults(cls=cls)
         return p

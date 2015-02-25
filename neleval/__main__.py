@@ -18,7 +18,7 @@ from .significance import Significance, Confidence
 from .tac import PrepareTac
 from .brat import PrepareBrat
 from .configs import ListMeasures
-from .summary import CompareMeasures, PlotSystems, ComposeMeasures
+from .summary import CompareMeasures, PlotSystems, ComposeMeasures, RankSystems
 
 APPS = [
     Evaluate,
@@ -36,6 +36,7 @@ APPS = [
     PrepareTac,
     PrepareBrat,
     CompareMeasures,
+    RankSystems,
     PlotSystems,
     ComposeMeasures,
 ]

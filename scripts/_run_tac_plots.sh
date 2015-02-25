@@ -25,7 +25,7 @@ do
 	if [ $d == "team-best" ]
 	then
 		arg="--best-in-group $GROUPRE"
-		nociarg="--line --prf"
+		nociarg="--lines --prf"
 		figsize=$teamcols_figsize
 	else
 		arg=

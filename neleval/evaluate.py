@@ -122,7 +122,7 @@ class Evaluate(object):
     @classmethod
     def read_tab_format(cls, file):
         header = next(file)
-        assert header.rstrip() == cls._header()
+        assert header.rstrip() == cls._header(), 'Differing headers: expected {!r}, got {!r}'.format(cls._header(), header.rstrip())
         results = {}
         for l in file:
             row = l.rstrip().split('\t')
