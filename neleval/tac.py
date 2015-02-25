@@ -22,7 +22,6 @@ NAME_ELEM  = 'name'
 class PrepareTac(object):
     "Convert TAC output format for evaluation"
     def __init__(self, system, queries, excluded_spans=None, mapping=None):
-        assert excluded_spans
         self.system = system  # TAC links file
         self.queries = queries  # TAC queries/mentions file
         self.excluded_offsets = self.read_excluded_spans(excluded_spans)
