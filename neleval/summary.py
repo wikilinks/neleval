@@ -388,7 +388,8 @@ class PlotSystems(object):
 
         if self.interactive:
             print('Opening interactive shell with variables `figures` and `results`')
-            embed_shell({'figures': figures, 'results': all_results})
+            embed_shell({'figures': figures, 'results': all_results},
+                        shell=None if self.interactive is True else self.interactive)
         else:
             return 'Saved to %s' % self.out_fmt.format('{%s}' % ','.join(figure_names))
 
@@ -551,7 +552,7 @@ class PlotSystems(object):
         meg = p.add_mutually_exclusive_group()
         meg.add_argument('-o', '--out-fmt', default=DEFAULT_OUT_FMT,
                        help='Path template for saving plots with --fmt=plot (default: %(default)s))')
-        meg.add_argument('--interactive', action='store_true', default=False,
+        meg.add_argument('--interactive', nargs='?', default=False, const=True, metavar='SHELL',
                          help='Open an interactive shell with `figures` available instead of saving images to file')
 
         p.add_argument('--figsize', default=(8, 6), type=_parse_figsize,

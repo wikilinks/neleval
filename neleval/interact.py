@@ -30,8 +30,15 @@ def run_python(local):
     code.interact(local=local)
 
 
-def embed_shell(local):
-    for fn in [run_ipython, run_bpython, run_python]:
+lookup = {'ipython': run_ipython, 'python': run_python, 'bpython': run_bpython}
+
+
+def embed_shell(local, shell=None):
+    if shell is None:
+        options = [run_ipython, run_bpython, run_python]
+    else:
+        options = [lookup[shell]]
+    for fn in options:
         try:
             fn(local)
             return
