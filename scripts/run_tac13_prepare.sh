@@ -3,7 +3,7 @@
 # Convert TAC system output to evaluation format
 set -e
 
-usage="Usage: $0 GOLD_XML NE_TYPES SYSTEMS_DIR OUT_DIR [-x EXCLUDED_SPANS]"
+usage="Usage: $0 GOLD_XML NE_TYPES OUT_DIR SYSTEM_TAB [-x EXCLUDED_SPANS]"
 
 if [ "$#" -lt 4 ]; then
     echo $usage

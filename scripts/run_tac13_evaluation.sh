@@ -39,7 +39,7 @@ cat $gold \
     | cut -f6 \
     > $netypes
 ls $sysdir/* \
-    | xargs -I{} -n 1 -P $jobs $SCR/run_tac13_prepare.sh $goldx $netypes {} $outdir $@
+    | xargs -I{} -n 1 -P $jobs $SCR/run_tac13_prepare.sh $goldx $netypes $outdir {} $@
 
 
 # EVALUATE
