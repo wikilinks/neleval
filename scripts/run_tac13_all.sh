@@ -17,7 +17,7 @@ outdir=$1; shift # directory to which results are written
 
 SCR=`dirname $0`
 
-JOBS=8 # number of jobs for parallel mode (set to number of CPUs if possible)
+JOBS=$(getconf _NPROCESSORS_ONLN 2>/dev/null) || 8 # number of jobs for parallel mode (set to number of CPUs if possible)
 FMT='tab' # format for confidence and significance output ('tab' or 'json')
 CONFIDENCE_MEASURES=(
     strong_link_match
