@@ -51,6 +51,8 @@ class PrepareTac(object):
             if (docid, start) in excluded or (docid, end) in excluded:
                 n_excluded += 1
                 continue
+            if not candidates:
+                raise ValueError('No candidates found for query ' + str(qid))
             n_candidates += len(candidates)
             mapped = list(self.map(candidates))
             yield Annotation(docid, start, end, mapped)
