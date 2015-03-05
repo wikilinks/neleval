@@ -3,9 +3,9 @@
 # Run TAC14 evaluation and analysis
 set -e
 
-usage="Usage: $0 GOLD_XML GOLD_TAB SYSTEMS_DIR OUT_DIR"
+usage="Usage: $0 GOLD_XML GOLD_TAB SYSTEMS_DIR OUT_DIR [-x EXCLUDED_SPANS]"
 
-if [ "$#" -ne 4 ]; then
+if [ "$#" -lt 4 ]; then
     echo $usage
     exit 1
 fi
@@ -30,7 +30,7 @@ CONFIDENCE_MEASURES=(
 
 
 # CALCULATE SCORES
-$SCR/run_tac14_evaluation.sh $goldx $goldt $sysdir $outdir $JOBS
+$SCR/run_tac14_evaluation.sh $goldx $goldt $sysdir $outdir $JOBS $@
 
 # CALCULATE COMPOSITE SCORES
 ./nel compose-measures -r strong_all_match strong_mention_match -r strong_typed_mention_match strong_mention_match $outdir/*.evaluation

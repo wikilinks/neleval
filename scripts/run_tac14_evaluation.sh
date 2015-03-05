@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -e
 
-usage="Usage: $0 GOLD_XML GOLD_TAB SYSTEMS_DIR OUT_DIR NUM_JOBS"
+usage="Usage: $0 GOLD_XML GOLD_TAB EXCLUDED_SPANS SYSTEMS_DIR OUT_DIR NUM_JOBS [-x EXCLUDED_SPANS]"
 
-if [ "$#" -ne 5 ]; then
+if [ "$#" -lt 5 ]; then
     echo $usage
     exit 1
 fi
@@ -24,14 +24,14 @@ cat $goldt \
     | awk 'BEGIN{OFS="\t"}{print $1,$2,$3,"1.0"}' \
     > $gtab
 gold=$outdir/gold.combined.tsv
-./nel prepare-tac -q $goldx $gtab \
+./nel prepare-tac -q $goldx $gtab $@ \
     > $gold
 
 
 # CONVERT SYSTEMS TO EVALUATION FORMAT
 echo "INFO Converting systems to evaluation format.."
 ls $sysdir/*.tab \
-    | xargs -n 1 -P $jobs $SCR/run_tac14_prepare.sh $outdir
+    | xargs -I{} -n 1 -P $jobs $SCR/run_tac14_prepare.sh $outdir {} $@
 
 
 # EVALUATE

@@ -3,9 +3,9 @@
 # Run TAC 2013 evaluation
 set -e
 
-usage="Usage: $0 GOLD_XML GOLD_TAB SYSTEMS_DIR OUT_DIR NUM_JOBS"
+usage="Usage: $0 GOLD_XML GOLD_TAB SYSTEMS_DIR OUT_DIR NUM_JOBS [-x EXCLUDED_SPANS]"
 
-if [ "$#" -ne 5 ]; then
+if [ "$#" -lt 5 ]; then
     echo $usage
     exit 1
 fi
@@ -27,7 +27,7 @@ cat $goldt \
     > $gtab
 #rm $gtab
 gold=$outdir/gold.combined.tsv
-./nel prepare-tac -q $goldx $gtab \
+./nel prepare-tac -q $goldx $gtab $@ \
     | sort \
     > $gold
 
@@ -39,7 +39,7 @@ cat $gold \
     | cut -f6 \
     > $netypes
 ls $sysdir/* \
-    | xargs -n 1 -P $jobs $SCR/run_tac13_prepare.sh $goldx $netypes $outdir
+    | xargs -I{} -n 1 -P $jobs $SCR/run_tac13_prepare.sh $goldx $netypes $outdir {} $@
 
 
 # EVALUATE

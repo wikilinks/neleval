@@ -2,11 +2,13 @@
 """
 Evaluate linker performance.
 """
+import warnings
+import json
+
 from .configs import (DEFAULT_MEASURE_SET, parse_measures,
                       MEASURE_HELP, get_measure)
 from .document import Document, Reader
-import warnings
-import json
+from .utils import log
 
 
 class StrictMetricWarning(Warning):
@@ -37,13 +39,13 @@ class Evaluate(object):
         fmt - output format
         """
         if not isinstance(system, list):
-            warnings.warn('Reading system output..')
+            log.debug('Reading system output..')
             system = list(Reader(open(system)))
-            warnings.warn('..done.')
+            log.debug('..done.')
         if not isinstance(gold, list):
-            warnings.warn('Reading gold standard..')
+            log.debug('Reading gold standard..')
             gold = list(Reader(open(gold)))
-            warnings.warn('..done.')
+            log.debug('..done.')
         self.system = system
         self.gold = gold
         self.measures = parse_measures(measures or DEFAULT_MEASURE_SET)

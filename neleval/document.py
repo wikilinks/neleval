@@ -47,7 +47,6 @@ class Document(object):
                     comparison = ann.compare_spans(other)
                     if comparison in issues:
                         issues[comparison].append((other, ann))
-        warnings.warn('issues: %s' % issues)
         for issue, instances in issues.items():
             if not instances:
                 continue
