@@ -1,8 +1,13 @@
 #!/usr/bin/env python
 import itertools
 import operator
+import argparse
 from collections import defaultdict
 from xml.etree.cElementTree import iterparse
+
+from .annotation import Annotation, Candidate
+from .data import ENC
+from .utils import normalise_link
 
 
 from .annotation import Annotation, Candidate
@@ -20,11 +25,28 @@ END_ELEM   = 'end'
 NAME_ELEM  = 'name'
 
 class PrepareTac(object):
-    "Convert TAC output format for evaluation"
+    """Convert TAC output format for evaluation
+
+    queries file looks like:
+
+        <?xml version="1.0" encoding="UTF-8"?>
+        <kbpentlink>
+          <query id="doc_01">
+            <name>China</name>
+            <docid>bolt-eng-DF-200-192451-5799099</docid>
+            <beg>2450</beg>
+            <end>2454</end>
+          </query>
+        </kbpentlink>
+
+    links file looks like:
+
+        doc_01	kb_A	GPE	0.95
+    """
     def __init__(self, system, queries, excluded_spans=None, mapping=None):
         self.system = system  # TAC links file
         self.queries = queries  # TAC queries/mentions file
-        self.excluded_offsets = self.read_excluded_spans(excluded_spans)
+        self.excluded_offsets = read_excluded_spans(excluded_spans)
         self.mapping = self.read_mapping(mapping)
 
     def __call__(self):
@@ -54,45 +76,48 @@ class PrepareTac(object):
             if not candidates:
                 raise ValueError('No candidates found for query ' + str(qid))
             n_candidates += len(candidates)
-            mapped = list(self.map(candidates))
+            mapped = list(apply_mapping(self.mapping, candidates))
             yield Annotation(docid, start, end, mapped)
             n_annotations += 1
         log.info('Read {} candidates for {} annotations (excluded {}) '
                  'from {}'.format(n_candidates, n_annotations, n_excluded,
                                   self.system))
 
-    def map(self, candidates):
-        for c in candidates:
-            kbid = normalise_link(c.id)
-            if self.mapping:
-                c.id = self.mapping.get(kbid, kbid)
-            yield c
 
-    def read_mapping(self, mapping):
-        if not mapping:
-            return None
-        redirects = {}
-        with open(mapping) as f:
-            for l in f:
-                bits = l.decode('utf8').rstrip().split('\t')
-                title = bits[0].replace(' ', '_')
-                for r in bits[1:]:
-                    r = r.replace(' ', '_')
-                    redirects[r] = title
-                redirects[title] = title
-        return redirects
+def read_mapping(mapping):
+    if not mapping:
+        return None
+    redirects = {}
+    with open(mapping) as f:
+        for l in f:
+            bits = l.decode('utf8').rstrip().split('\t')
+            title = bits[0].replace(' ', '_')
+            for r in bits[1:]:
+                r = r.replace(' ', '_')
+                redirects[r] = title
+            redirects[title] = title
+    return redirects
 
-    def read_excluded_spans(self, path):
-        if path is None:
-            return set()
 
-        excluded = set()
-        with open(path) as f:
-            for l in f:
-                doc_id, start, end = l.strip().split('\t')[:3]
-                for i in range(int(start), int(end) + 1):
-                    excluded.add((doc_id, str(i)))
-        return excluded
+def apply_mapping(mapping, candidates):
+    for c in candidates:
+        kbid = normalise_link(c.id)
+        if mapping:
+            c.id = mapping.get(kbid, kbid)
+        yield c
+
+
+def read_excluded_spans(path):
+    if path is None:
+        return set()
+
+    excluded = set()
+    with open(path) as f:
+        for l in f:
+            doc_id, start, end = l.strip().split('\t')[:3]
+            for i in range(int(start), int(end) + 1):
+                excluded.add((doc_id, str(i)))
+    return excluded
 
 
 class TacReader(object):
@@ -144,3 +169,68 @@ class TacReader(object):
         for child in query_elem:
             d[child.tag] = child.text
         return qid, d[DOCID_ELEM], d[START_ELEM], d[END_ELEM], d[NAME_ELEM]
+
+
+class PrepareTac15(object):
+    """Convert TAC 2015 KBP EL output format for evaluation
+
+    Format is single tab-delimited file of fields:
+
+        * system run ID
+        * mention text
+        * doc ID
+        * start
+        * end
+        * link (KB ID beginning "E" or "NIL")
+        * entity type of {GPE, ORG, PER, LOC, FAC}
+        * mention type of {NAM, NOM}
+        * confidence score in (0.0, 1.0]
+    """
+    def __init__(self, system, excluded_spans=None, mapping=None):
+        self.system = system
+        self.excluded_offsets = read_excluded_spans(excluded_spans)
+        self.mapping = read_mapping(mapping)
+
+    def __call__(self):
+        return u'\n'.join(unicode(a) for a in self.read_annotations(self.system)).encode(ENC)
+
+    @classmethod
+    def add_arguments(cls, p):
+        p.add_argument('system', metavar='FILE', type=argparse.FileType('r'), help='link annotations')
+        p.add_argument('-x', '--excluded-spans', help='file of spans to delete mentions in')
+        p.add_argument('-m', '--mapping', help='mapping of KB IDs to titles')
+        p.set_defaults(cls=cls)
+        return p
+
+    @staticmethod
+    def _read_tab_delim(f):
+        for l in f:
+            yield l.rstrip('\n\r').split('\t')
+
+    def read_annotations(self, f):
+        "Return list of annotation objects"
+        key_fn = operator.itemgetter(slice(2, 5))
+        grouped = itertools.groupby(sorted(self._read_tab_delim(f),
+                                           key=key_fn), key_fn)
+        excluded = self.excluded_offsets
+        n_candidates = 0
+        n_annotations = 0
+        n_excluded = 0
+        for (docid, start, end), cand_data in grouped:
+            if (docid, start) in excluded or (docid, end) in excluded:
+                n_excluded += 1
+                continue
+            # order by descending score
+            cand_data = sorted(cand_data, key=lambda x: -float(x[-1]))
+            candidates = []
+            for cand in cand_data:
+                kbid, ne_type, mention_type, score = cand[5:]
+                type = '{}/{}'.format(ne_type, mention_type)
+                candidates.append(Candidate(kbid, score, type))
+            mapped = list(apply_mapping(self.mapping, candidates))
+            yield Annotation(docid, start, end, mapped)
+            n_annotations += 1
+            n_candidates += len(mapped)
+        log.info('Read {} candidates for {} annotations (excluded {}) '
+                 'from {}'.format(n_candidates, n_annotations, n_excluded,
+                                  self.system.name))
