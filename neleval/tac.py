@@ -2,6 +2,7 @@
 import itertools
 import operator
 import argparse
+import re
 from collections import defaultdict
 from xml.etree.cElementTree import iterparse
 
@@ -176,11 +177,10 @@ class PrepareTac15(object):
 
     Format is single tab-delimited file of fields:
 
-        * system run ID
-        * mention text
-        * doc ID
-        * start
-        * end
+        * system run ID (ignored)
+        * mention ID (ignored)
+        * mention text (ignored)
+        * offset in format "<doc ID>: <start> - <end>"
         * link (KB ID beginning "E" or "NIL")
         * entity type of {GPE, ORG, PER, LOC, FAC}
         * mention type of {NAM, NOM}
@@ -209,14 +209,15 @@ class PrepareTac15(object):
 
     def read_annotations(self, f):
         "Return list of annotation objects"
-        key_fn = operator.itemgetter(slice(2, 5))
+        key_fn = operator.itemgetter(3)
         grouped = itertools.groupby(sorted(self._read_tab_delim(f),
                                            key=key_fn), key_fn)
         excluded = self.excluded_offsets
         n_candidates = 0
         n_annotations = 0
         n_excluded = 0
-        for (docid, start, end), cand_data in grouped:
+        for key, cand_data in grouped:
+            docid, start, end = self.KEY_RE.match(key).groups()
             if (docid, start) in excluded or (docid, end) in excluded:
                 n_excluded += 1
                 continue
@@ -224,7 +225,7 @@ class PrepareTac15(object):
             cand_data = sorted(cand_data, key=lambda x: -float(x[-1]))
             candidates = []
             for cand in cand_data:
-                kbid, ne_type, mention_type, score = cand[5:]
+                kbid, ne_type, mention_type, score = cand[4:]
                 type = '{}/{}'.format(ne_type, mention_type)
                 candidates.append(Candidate(kbid, score, type))
             mapped = list(apply_mapping(self.mapping, candidates))
@@ -234,3 +235,5 @@ class PrepareTac15(object):
         log.info('Read {} candidates for {} annotations (excluded {}) '
                  'from {}'.format(n_candidates, n_annotations, n_excluded,
                                   self.system.name))
+
+    KEY_RE = re.compile(ur'^(\S+): ?(\d+) ?[-\u2013] ?(\d+)$')
