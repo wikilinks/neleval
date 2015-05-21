@@ -3,7 +3,7 @@ Entity linking evaluation
 
 Python evaluation scripts for [TAC](http://www.nist.gov/tac/) entity linking (and related wikification, named entity disambiguation and cross-document coreference tasks).
 
-TAC13 quickstart
+TAC14 quickstart
 ================
 
 Assumes that `python` (2.7, with Py3k support soon) is installed on your system with `numpy` (and preferably `scipy` for fast CEAF calculation) and `joblib`.
