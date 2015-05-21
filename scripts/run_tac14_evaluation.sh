@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-usage="Usage: $0 GOLD_XML GOLD_TAB EXCLUDED_SPANS SYSTEMS_DIR OUT_DIR NUM_JOBS [-x EXCLUDED_SPANS]"
+usage="Usage: $0 GOLD_XML GOLD_TAB SYSTEMS_DIR OUT_DIR NUM_JOBS [-x EXCLUDED_SPANS]"
 
 if [ "$#" -lt 5 ]; then
     echo $usage
