@@ -185,6 +185,9 @@ class PrepareTac15(object):
         * entity type of {GPE, ORG, PER, LOC, FAC}
         * mention type of {NAM, NOM}
         * confidence score in (0.0, 1.0]
+        * web search (ignored)
+        * wiki text (ignored)
+        * unknown (ignored)
     """
     def __init__(self, system, excluded_spans=None, mapping=None):
         self.system = system
@@ -221,11 +224,12 @@ class PrepareTac15(object):
             if (docid, start) in excluded or (docid, end) in excluded:
                 n_excluded += 1
                 continue
-            # order by descending score
-            cand_data = sorted(cand_data, key=lambda x: -float(x[-1]))
+            # order by descending score, i.e. column 8 of the TAC 2015 
+            # KBP EL output format
+            cand_data = sorted(cand_data, key=lambda x: -float(x[7]))
             candidates = []
             for cand in cand_data:
-                kbid, ne_type, mention_type, score = cand[4:]
+                kbid, ne_type, mention_type, score = cand[4:8]
                 type = '{}/{}'.format(ne_type, mention_type)
                 candidates.append(Candidate(kbid, score, type))
             mapped = list(apply_mapping(self.mapping, candidates))
