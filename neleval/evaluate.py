@@ -4,6 +4,7 @@ Evaluate linker performance.
 """
 import warnings
 import json
+from argparse import FileType
 
 from .configs import (DEFAULT_MEASURE_SET, parse_measures,
                       MEASURE_HELP, get_measure)
@@ -31,7 +32,7 @@ class Evaluate(object):
 
     def __init__(self, system, gold=None,
                  measures=DEFAULT_MEASURE_SET,
-                 fmt='none'):
+                 fmt='none', measure_prefix=''):
         """
         system - system output
         gold - gold standard
@@ -40,17 +41,18 @@ class Evaluate(object):
         """
         if not isinstance(system, list):
             log.debug('Reading system output..')
-            system = list(Reader(open(system)))
+            system = list(Reader(FileType('r')(system)))
             log.debug('..done.')
         if not isinstance(gold, list):
             log.debug('Reading gold standard..')
-            gold = list(Reader(open(gold)))
+            gold = list(Reader(FileType('r')(gold)))
             log.debug('..done.')
         self.system = system
         self.gold = gold
         self.measures = parse_measures(measures or DEFAULT_MEASURE_SET)
         self.format = self.FMTS[fmt] if fmt is not callable else fmt
         self.doc_pairs = list(self.iter_pairs(self.system, self.gold))
+        self.measure_fmt = measure_prefix.replace('%', '%%') + '%s'
 
     @classmethod
     def iter_pairs(self, system, gold):
@@ -65,9 +67,9 @@ class Evaluate(object):
         measures = (parse_measures(measures)
                     if measures is not None
                     else self.measures)
-        self.results = {measure: Matrix(*get_measure(measure).
-                                        docs_to_contingency(self.system,
-                                                            self.gold)).results
+        self.results = {self.measure_fmt % (measure,):
+                        Matrix(*get_measure(measure).docs_to_contingency(
+                            self.system, self.gold)).results
                         for measure in measures}
         return self.format(self, self.results)
 
@@ -78,6 +80,8 @@ class Evaluate(object):
         p.add_argument('-f', '--fmt', default='tab', choices=cls.FMTS.keys())
         p.add_argument('-m', '--measure', dest='measures', action='append',
                        metavar='NAME', help=MEASURE_HELP)
+        p.add_argument('--prefix', default='', dest='measure_prefix',
+                       help='To prepend on measure names in output')
         p.set_defaults(cls=cls)
         return p
 
@@ -110,6 +114,7 @@ class Evaluate(object):
         return delimiter.join([i[:6] for i in METRICS] + ['measure'])
 
     def row(self, results, measure_str, num_fmt):
+        measure_str = self.measure_fmt % (measure_str,)
         row = []
         measure_results = results.get(measure_str, {})
         for metric in METRICS:

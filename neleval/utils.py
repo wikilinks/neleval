@@ -1,7 +1,6 @@
 import re
 import logging
 
-logging.basicConfig(level=logging.INFO, format='%(levelname)s\t%(asctime)s\t%(message)s')
 log = logging.getLogger()
 
 WIKI_PREFIX = re.compile('^http://[^.]+.wikipedia.org/wiki/')
