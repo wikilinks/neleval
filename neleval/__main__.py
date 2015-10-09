@@ -9,7 +9,7 @@ import traceback
 
 #from .prepare import Prepare
 from .evaluate import Evaluate
-from .analyze import Analyze
+from .analyze import Analyze, FixSpans
 from .significance import Significance, Confidence
 #from .formats import Unstitch, Stitch, Tagme
 #from .fetch_map import FetchMapping
@@ -24,6 +24,7 @@ APPS = [
     Evaluate,
     ListMeasures,
     Analyze,
+    FixSpans,
     Significance,
     Confidence,
     #Prepare,
