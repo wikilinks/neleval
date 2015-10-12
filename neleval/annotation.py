@@ -119,6 +119,13 @@ class Annotation(object):
             candidates = sorted(Candidate.from_string(cols[3]), reverse=True)
         return Annotation(docid, start, end, candidates)
 
+    @classmethod
+    def list_fields(cls):
+        ann = cls.from_string('a\t0\t1\tabc')
+        return [f for f in dir(ann)
+                if not f.startswith('_')
+                and not callable(getattr(ann, f, None))]
+
 
 class Candidate(object):
     __slots__ = ['id', 'score', 'type']

@@ -593,6 +593,10 @@ def muc(true, pred):
     return p_num, p_den, r_num, r_den
 
 
+COREF_METRICS = {f.__name__: f for f in [b_cubed, entity_ceaf, mention_ceaf,
+                                         muc, pairwise, pairwise_negative]}
+
+
 if REFERENCE_COREF_SCORER_PATH is not None:
     if _run_reference_coref_scorer({}, {}).get('bcub') != (0., 0., 0., 0.):
         warnings.warn('Not using coreference metric debug mode:'

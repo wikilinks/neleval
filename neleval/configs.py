@@ -1,6 +1,6 @@
 import textwrap
 from collections import defaultdict
-from .annotation import Measure
+from .annotation import Measure, Annotation
 
 try:
     keys = dict.viewkeys
@@ -212,6 +212,7 @@ class ListMeasures(object):
         self.measures = measures
 
     def __call__(self):
+        from .coref_metrics import COREF_METRICS
         measures = parse_measures(self.measures or get_measure_choices())
         header = ['Name', 'Aggregate', 'Filter', 'Key Fields', 'In groups']
         rows = [header]
@@ -247,6 +248,14 @@ class ListMeasures(object):
         ret += ('A measure may be specified explicitly. Thus:\n'
                 '  {}\nmay be entered as\n  {}'
                 ''.format(DEFAULT_MEASURE, get_measure(DEFAULT_MEASURE)))
+        ret += '\n\n'
+        ret += ('Available aggregates are:\n'
+                '- non-clustering: %s\n'
+                '- clustering: %s' % (', '.join(sorted(Measure.NON_CLUSTERING_AGG)),
+                                      ', '.join(sorted(COREF_METRICS))))
+        ret += '\n\n'
+        ret += ('Available filter and key fields (roughly): %s' %
+                ', '.join(sorted(Annotation.list_fields())))
         return ret
 
     @classmethod
