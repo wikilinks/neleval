@@ -559,6 +559,35 @@ def pairwise_negative(true, pred):
     return n_neg_agreements, p_den, n_neg_agreements, r_den
 
 
+def pairwise_slow(true, pred):
+    p_den = sum(_triangle(len(pred_cluster)) for pred_cluster in values(pred))
+    r_den = sum(_triangle(len(true_cluster)) for true_cluster in values(true))
+    numerator = sum(_triangle(len(true_cluster & pred_cluster))
+                    for true_cluster in values(true)
+                    for pred_cluster in values(pred))
+    return numerator, p_den, numerator, r_den
+
+
+def pairwise_negative_slow(true, pred):
+    trues = [len(true_cluster) for true_cluster in values(true)]
+    preds = [len(pred_cluster) for pred_cluster in values(pred)]
+    intersections = [[len(true_cluster & pred_cluster)
+                      for true_cluster in values(true)]
+                     for pred_cluster in values(pred)]
+    n_pred = sum(preds)
+    n_true = sum(trues)
+    p_den = sum(a * (n_pred - a) for a in preds) // 2
+    r_den = sum(a * (n_true - a) for a in trues) // 2
+    row_sums = [sum(row) for row in intersections]
+    N = sum(row_sums)
+    col_sums = [sum(col) for col in zip(*intersections)]
+    assert N == sum(col_sums)
+    num = sum(n * (N - row_sums[row_idx] - col_sums[col_idx] + n)
+              for row_idx, row in enumerate(intersections)
+              for col_idx, n in enumerate(row)) // 2
+    return num, p_den, num, r_den
+
+
 def _slow_pairwise_negative(true, pred):
     """For testing comparison"""
     return _pairwise(_negative_pairs(values(true)),
