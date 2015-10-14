@@ -82,7 +82,7 @@ class Analyze(object):
     def iter_errors(self):
         for s, g in Evaluate.iter_pairs(self.system, self.gold):
             assert g.id == s.id
-            tp, fp, fn = self.measure.get_matches(g.annotations, s.annotations)
+            tp, fp, fn = self.measure.get_matches(s.annotations, g.annotations)
             for g_m, s_m in tp:
                 if g_m.kbid == s_m.kbid and not self.with_correct:
                     #continue  # Correct case.
