@@ -48,7 +48,7 @@ class PrepareTac(object):
         self.system = system  # TAC links file
         self.queries = queries  # TAC queries/mentions file
         self.excluded_offsets = read_excluded_spans(excluded_spans)
-        self.mapping = self.read_mapping(mapping)
+        self.mapping = read_mapping(mapping)
 
     def __call__(self):
         return u'\n'.join(unicode(a) for a in self.annotations()).encode(ENC)
