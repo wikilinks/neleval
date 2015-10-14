@@ -36,7 +36,7 @@ except NameError:
 
 # TODO: Blanc and standard clustering metrics (e.g. http://scikit-learn.org/stable/modules/clustering.html)
 # TODO: cite originating papers
-# XXX: perhaps use set (or list) of sets rather than dict of sets
+# TODO: calculate all from contingency matrices and marginals
 
 
 ######## Debug mode comparison to reference implementation ########
@@ -172,13 +172,14 @@ def read_conll_coref(f):
 
         i += 1
         tag = l[-1]
+        text = l[0] if len(l) > 1 else ''
 
         closed_here = []
         for match in re.finditer(r'\(?[0-9]+\)?', tag):
             match = match.group()
             cid = match.strip('()')
             if match.startswith('('):
-                stack.append((cid, i))
+                stack.append((cid, (text, i)))
             if match.endswith(')'):
                 start_cid, start = stack.pop()
                 assert start_cid == cid
