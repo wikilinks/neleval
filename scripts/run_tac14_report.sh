@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 
 # Prepare score summary in TAC 2014 format
-set -e
+source $(dirname $0)/_common.sh
 
 usage="Usage: $0 OUT_DIR"
 
@@ -20,21 +20,9 @@ echo -e "DiscP\tDiscR\tDiscF\tLinkP\tLinkR\tLinkF\tCEAFmP\tCEAFmR\tCEAFmF\tSyste
 # ADD SYSTEM SCORES
 for eval in $outdir/*.evaluation
 do
-    cat $eval \
-        | awk '{if ($8 == "strong_typed_mention_match") print}' \
-        | cut -f5,6,7 \
-        | tr '\n' '\t' \
-        >> $report
-    cat $eval \
-        | awk '{if ($8 == "strong_all_match") print}' \
-        | cut -f5,6,7 \
-        | tr '\n' '\t' \
-        >> $report
-    cat $eval \
-        | awk '{if ($8 == "mention_ceaf") print}' \
-        | cut -f5,6,7 \
-        | tr '\n' '\t' \
-        >> $report
+    cat $eval | get_eval_prf strong_typed_mention_match >> $report
+    cat $eval | get_eval_prf strong_all_match >> $report
+    cat $eval | get_eval_prf mention_ceaf >> $report
     basename $eval \
         | sed 's/\.evaluation//' \
         >> $report
