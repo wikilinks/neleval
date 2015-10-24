@@ -20,12 +20,13 @@ SCR=`dirname $0`
 echo "INFO Converting gold to evaluation format.."
 # XXX: "combined" is a misnomer in tac15. Should be neleval? But existing scripts depend on this extension.
 gold=$outdir/gold.combined.tsv
-./nel prepare-tac15 $gtab $@ > $gold
+options=$@
+./nel prepare-tac15 $gtab $options | awk -F'\t' '$6 != "TTL/NAM"' > $gold
 
 # convert systems to evaluation format
 echo "INFO converting systems to evaluation format.."
-ls $sysdir/*.tab \
-	| xargs -I{} -n 1 -P $jobs bash -c "./nel prepare-tac15 {} $@ > $outdir/\$(basename {} | sed s/...\$/combined.tsv/)"
+ls $sysdir/* \
+	| xargs -I{} -n 1 -P $jobs bash -c "./nel prepare-tac15 {} $options > $outdir/\$(basename {}).combined.tsv"
 
 
 
