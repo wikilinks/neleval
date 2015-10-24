@@ -3,6 +3,7 @@ from collections import Counter
 from collections import namedtuple
 from collections import defaultdict
 from argparse import FileType
+import copy
 import heapq
 
 from .document import ENC
@@ -140,14 +141,15 @@ class FixSpans(object):
 
     # XXX: Belongs in another module?
     def __init__(self, system_in, system_out, gold=None,
-                 use_kbid=True, use_1to1=True, use_inter=True,
-                 diff_out=None):
+                 use_kbid=True, use_1to1=True, use_manyto1=False,
+                 use_inter=True, diff_out=None):
         self.system = list(Reader(FileType('r')(system_in)))
         self.system_out = system_out
         self.gold = list(Reader(FileType('r')(gold)))
         self.diff_out = diff_out
         self.use_kbid = use_kbid
         self.use_1to1 = use_1to1
+        self.use_manyto1 = use_manyto1
         self.use_inter = use_inter
 
     def __call__(self):
@@ -157,12 +159,13 @@ class FixSpans(object):
         else:
             diff_file = None
 
-        self._apply(diff_file, self.use_kbid, self.use_1to1, self.use_inter)
+        self._apply(diff_file, self.use_kbid, self.use_1to1, self.use_manyto1, self.use_inter)
 
         for s_m in self.system:
             print(s_m, file=out_file)
 
-    def _apply(self, diff_file, use_kbid=True, use_1to1=True, use_inter=True):
+    def _apply(self, diff_file, use_kbid=True, use_1to1=True,
+               use_manyto1=False, use_inter=True):
         """
         1. Fix kbid matches (ordered by increasing number of overlapping golds,
            just in case!)
@@ -261,13 +264,31 @@ class FixSpans(object):
                 # arbitrarily fix to match first
                 fix(g_ms[0], s_m, 'kbid')
 
-        # 2. Fix one-to-one unambiguous
+        # 2a. Fix one-to-one unambiguous
+        # 2b. Fix many-to-one unambiguous: reduces recall in most metrics
         sorted_g = sorted(g_candidates)  # determinism
-        if use_1to1:
+        if use_1to1 or use_manyto1:
             for g_m in sorted_g:
                 s_ms = g_candidates[g_m]
-                if len(s_ms) == 1 and len(s_candidates[s_ms[0]]) == 1:
+                if len(s_ms) != 1:
+                    continue
+                if len(s_candidates[s_ms[0]]) == 1:
                     fix(g_m, s_ms[0], '1to1')
+                elif use_manyto1:
+                    g_ms = s_candidates[s_m]
+                    if any(len(g_candidates[g_m_other]) != 1
+                           for g_m_other in g_ms):
+                        continue
+                    for i, g_m_other in enumerate(g_ms):
+                        if i == 0:
+                            fix(g_m, s_ms[0], 'manyto1')
+                        else:
+                            # TODO: note reduplication in diff_out
+                            # TODO: forge s_candidates, contingency_candidates
+                            s_m = copy.deepcopy(s_ms[0])
+                            # TODO: ensure sort order
+                            self.system.append(s_m)
+                            fix(g_m, s_m, 'manyto1')
 
         if not use_inter:
             log.info("Fixed %r" % dict(n_fixes))
@@ -355,6 +376,9 @@ class FixSpans(object):
         p.add_argument('--no-1to1', dest='use_1to1', action='store_false',
                        help='Turns off the heuristic of fixing all 1-to-1 '
                             'confusions')
+        p.add_argument('--use-manyto1', dest='use_1to1', action='store_true',
+                       help='Activates a heuristic which reduplicates a system'
+                            'span aligned to multiple gold spans.')
         p.add_argument('--no-inter', dest='use_inter', action='store_false',
                        help='Turns off the heuristic of searching for maximal '
                             'gold and system cluster interesections')
