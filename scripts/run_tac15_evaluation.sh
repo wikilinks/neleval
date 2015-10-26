@@ -8,6 +8,8 @@ if [ "$#" -lt 4 ]; then
     exit 1
 fi
 
+cleanup_cmd='($6 ~ /NAM$/ || ($6 ~ /PER.NOM$/ && $1 ~ /^ENG/)) && $6 != "TTL/NAM" && $1 != "CMN_NW_001331_20150702_F00100023"'
+
 gtab=$1; shift # gold standard link annotations (tab-separated)
 sysdir=$1; shift # directory containing output from systems
 outdir=$1; shift # directory to which results are written
@@ -21,12 +23,12 @@ echo "INFO Converting gold to evaluation format.."
 # XXX: "combined" is a misnomer in tac15. Should be neleval? But existing scripts depend on this extension.
 gold=$outdir/gold.combined.tsv
 options=$@
-./nel prepare-tac15 $gtab $options | awk -F'\t' '$6 != "TTL/NAM"' > $gold
+./nel prepare-tac15 $gtab $options | awk -F'\t' "$cleanup_cmd" > $gold
 
 # convert systems to evaluation format
 echo "INFO converting systems to evaluation format.."
 ls $sysdir/* \
-	| xargs -I{} -n 1 -P $jobs bash -c "./nel prepare-tac15 {} $options > $outdir/\$(basename {}).combined.tsv"
+	| xargs -I{} -n 1 -P $jobs bash -c "f={}; ./nel prepare-tac15 \$f $options | awk -F'\t' '$cleanup_cmd' > $outdir/\$(basename \$f).combined.tsv"
 
 
 
