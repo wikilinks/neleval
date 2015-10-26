@@ -39,7 +39,7 @@ done
 
 for d in by-system by-team
 do
-	if [ d == "by-team" ]
+	if [ $d == "by-team" ]
 	then
 		arg=$GROUPRE
 	else
