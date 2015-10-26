@@ -8,7 +8,7 @@ fi
 evaldir=$1; shift # directory to which results were
 # strip trailing slash
 evaldir="${evaldir%/}"
-plotdir=$evaldir/plots
+plotdir=$evaldir/00plots
 
 echo Putting plots in $plotdir
 

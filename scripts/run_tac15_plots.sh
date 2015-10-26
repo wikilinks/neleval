@@ -3,8 +3,8 @@
 # Generate many plots
 set -e
 
-OFFICIAL_MEASURES="-m strong_mention_match -m strong_typed_mention_match -m strong_all_match -m mention_ceaf"
-DEFAULT_MEASURE=mention_ceaf
+OFFICIAL_MEASURES="-m strong_mention_match -m strong_typed_mention_match -m strong_all_match -m typed_mention_ceaf -m mention_ceaf"
+DEFAULT_MEASURE=typed_mention_ceaf
 
 # TODO: Determine figure sizes dynamically
 square_figsize="6,6"
