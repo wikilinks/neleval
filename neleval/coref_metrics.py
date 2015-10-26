@@ -12,6 +12,8 @@ import time
 import sys
 import functools
 import array
+import signal
+
 
 try:
     from scipy import sparse
@@ -34,7 +36,33 @@ except NameError:
     keys = dict.keys
 
 
-# TODO: Blanc and standard clustering metrics (e.g. http://scikit-learn.org/stable/modules/clustering.html)
+class TimeoutError(Exception):
+    pass
+
+
+class timeout:
+    def __init__(self, seconds=1):
+        self.seconds = seconds
+
+    def handle_timeout(self, signum, frame):
+        raise TimeoutError()
+
+    def __enter__(self):
+        try:
+            signal.signal(signal.SIGALRM, self.handle_timeout)
+            signal.alarm(self.seconds)
+        except Exception:
+            # I can't find documentation of what happens if executed off Unix
+            pass
+
+    def __exit__(self, type, value, traceback):
+        try:
+            signal.alarm(0)
+        except Exception:
+            # I can't find documentation of what happens if executed off Unix
+            pass
+
+
 # TODO: cite originating papers
 # TODO: calculate all from contingency matrices and marginals
 
@@ -411,21 +439,26 @@ def ceaf(true, pred, similarity=dice):
                       'Returning 0', OptionalDependencyWarning)
         return 0, 0, 0, 0
 
-    if sparse is None or not hasattr(similarity, 'vectorized'):
-        X = np.empty((len(true), len(pred)))
-        pred = list(values(pred))
-        for R, Xrow in zip(values(true), X):
-            Xrow[:] = [similarity(R, S) for S in pred]
+    try:
+        with timeout(900):
+            if sparse is None or not hasattr(similarity, 'vectorized'):
+                X = np.empty((len(true), len(pred)))
+                pred = list(values(pred))
+                for R, Xrow in zip(values(true), X):
+                    Xrow[:] = [similarity(R, S) for S in pred]
 
-        p_num = r_num = _disjoint_max_assignment(X)
-        r_den = sum(similarity(R, R) for R in values(true))
-        p_den = sum(similarity(S, S) for S in pred)
-    else:
-        true, pred, _ = sets_to_matrices(true, pred)
-        X = similarity.vectorized(true, pred)
-        p_num = r_num = _disjoint_max_assignment(X)
-        r_den = similarity.vectorized(true, true).sum()
-        p_den = similarity.vectorized(pred, pred).sum()
+                p_num = r_num = _disjoint_max_assignment(X)
+                r_den = sum(similarity(R, R) for R in values(true))
+                p_den = sum(similarity(S, S) for S in pred)
+            else:
+                true, pred, _ = sets_to_matrices(true, pred)
+                X = similarity.vectorized(true, pred)
+                p_num = r_num = _disjoint_max_assignment(X)
+                r_den = similarity.vectorized(true, true).sum()
+                p_den = similarity.vectorized(pred, pred).sum()
+    except TimeoutError:
+        warnings.warn('timeout for CEAF!')
+        return 0, 0, 0, 0
 
     return p_num, p_den, r_num, r_den
 
