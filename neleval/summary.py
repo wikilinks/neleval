@@ -14,20 +14,6 @@ import re
 import warnings
 import sys
 
-try:
-    import numpy as np
-except ImportError:
-    np = None
-try:
-    from matplotlib import pyplot as plt
-except ImportError:
-    plt = None
-try:
-    from scipy import stats
-except ImportError:
-    stats = None
-
-
 from .configs import DEFAULT_MEASURE_SET, MEASURE_HELP, parse_measures
 from .document import Reader
 from .evaluate import Evaluate
@@ -37,6 +23,22 @@ from .interact import embed_shell
 DEFAULT_OUT_FMT = '.%s{}.pdf' % os.path.sep
 MAX_LEGEND_PER_COL = 20
 CMAP = 'jet'
+
+
+def _optional_imports():
+    global np, plt, stats
+    try:
+        import numpy as np
+    except ImportError:
+        np = None
+    try:
+        from matplotlib import pyplot as plt
+    except ImportError:
+        plt = None
+    try:
+        from scipy import stats
+    except ImportError:
+        stats = None
 
 
 def _pairs(items):
@@ -116,7 +118,8 @@ class PlotSystems(object):
                  sort_by=None, at_most=None, limits=(0, 1),
                  out_fmt=DEFAULT_OUT_FMT, figsize=(8, 6),
                  label_map=None, style_map=None, cmap=CMAP,
-                 interactive=False):
+                 run_code=None, interactive=False):
+        _optional_imports()
         if plt is None:
             raise ImportError('PlotSystems requires matplotlib to be installed')
 
@@ -135,6 +138,7 @@ class PlotSystems(object):
         self.metrics = metrics
 
         self.lines = lines
+        self.run_code = run_code
         self.interactive = interactive
         self.out_fmt = out_fmt
         self.figsize = figsize
@@ -374,22 +378,26 @@ class PlotSystems(object):
         else:
             raise ValueError('Unexpected figures_by: {!r}'.format(self.figures_by))
 
-        if self.interactive:
+        if self.interactive or self.run_code:
             figures = {}
         else:
             figure_names = []
         for name, figure, save_kwargs in self._generate_figures(all_results, primary_regroup, secondary_regroup):
-            if self.interactive:
+            if self.interactive or self.run_code:
                 figures[name] = figure
             else:
                 figure_names.append(name)
                 figure.savefig(self.out_fmt.format(name), **save_kwargs)
                 plt.close(figure)
 
-        if self.interactive:
-            print('Opening interactive shell with variables `figures` and `results`')
-            embed_shell({'figures': figures, 'results': all_results},
-                        shell=None if self.interactive is True else self.interactive)
+        if self.run_code or self.interactive:
+            ns = {'figures': figures, 'results': all_results}
+            if self.run_code:
+                for code in self.run_code:
+                    # ns can be updated
+                    exec code in __builtins__, ns
+            if self.interactive:
+                embed_shell(ns, shell=None if self.interactive is True else self.interactive)
         else:
             return 'Saved to %s' % self.out_fmt.format('{%s}' % ','.join(figure_names))
 
@@ -554,6 +562,9 @@ class PlotSystems(object):
                        help='Path template for saving plots with --fmt=plot (default: %(default)s))')
         meg.add_argument('--interactive', nargs='?', default=False, const=True, metavar='SHELL',
                          help='Open an interactive shell with `figures` available instead of saving images to file')
+        meg.add_argument('--run-code', metavar='CODE', action='append',
+                         type=lambda x: compile(x, '__run_code__', 'exec'),
+                         help='Run the given Python code with `figures` available instead of saving images to file')
 
         p.add_argument('--figsize', default=(8, 6), type=_parse_figsize,
                        help='The width,height of a figure in inches (default 8,6)')
@@ -587,6 +598,7 @@ class CompareMeasures(object):
                  fmt='none', out_fmt=DEFAULT_OUT_FMT, figsize=(8, 6),
                  cmap=CMAP,
                  sort_by='none', label_map=None):
+        _optional_imports()
         if stats is None:
             raise ImportError('CompareMeasures requires scipy to be installed')
         self.systems = systems
@@ -854,6 +866,7 @@ class RankSystems(object):
         measures = set(self.measures)
         short_names = _get_system_names(self.systems)
         for path, short in zip(self.systems, short_names):
+            print('opening', path, file=sys.stderr)
             results = Evaluate.read_tab_format(open(path))
             system = short if self.short_names else path
             tuples.extend(Tup(system, _group(self.group_re, path), measure, metric, score)
