@@ -265,7 +265,7 @@ class FixSpans(object):
                 fix(g_ms[0], s_m, 'kbid')
 
         # 2a. Fix one-to-one unambiguous
-        # 2b. Fix many-to-one unambiguous: reduces recall in most metrics
+        # 2b. Fix many-to-one unambiguous: reduces precision in most metrics
         sorted_g = sorted(g_candidates)  # determinism
         if use_1to1 or use_manyto1:
             for g_m in sorted_g:
@@ -324,7 +324,7 @@ class FixSpans(object):
             if priority != calc_priority(g_eid, s_eid):
                 # outdated entry
                 continue
-            log.debug('Fixing %d canddiates in cluster intersection (%s, %s) '
+            log.debug('Fixing %d candidates in cluster intersection (%s, %s) '
                       'with priority %d' %
                       (len(cands), g_eid, s_eid, priority))
 
