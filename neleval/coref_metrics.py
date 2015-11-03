@@ -185,6 +185,19 @@ def sets_to_mapping(s):
     return {m: k for k, ms in s.items() for m in ms}
 
 
+def sets_to_multi_mapping(s):
+    """
+    Input: {cluster_name: set([cluster_items])} dictionary
+    Output: {cluster_item: set([cluster_names])} dictionary
+    """
+    out = defaultdict(set)
+    for k, ms in s.items():
+        for m in ms:
+            out[m].add(k)
+    out.default_factory = None
+    return out
+
+
 def read_conll_coref(f):
     res = defaultdict(set)
     # TODO: handle annotations over document boundary
@@ -656,6 +669,67 @@ def muc(true, pred):
     return p_num, p_den, r_num, r_den
 
 
+def extended_b_cubed(true, pred):
+    """Extended B3 - Amigo et al. (2007)
+
+    >>> true = {'g': {1,2,3}, 'b': {1,2,4,5}, 's': {6,7}}
+    >>> pred = {'A': {1,2,3}, 'B': {1,2,4,5}, 'C': {6,7}}
+    >>> _prf(*extended_b_cubed(true, pred))[:2]
+    (1.0, 1.0)
+    >>> pred['D'] = pred['A']
+    >>> pred['E'] = pred['A']
+    >>> _prf(*extended_b_cubed(true, pred))[:2]  # doctest: +ELLIPSIS
+    (0.8..., 1.0)
+    >>> _prf(*extended_b_cubed(pred, true))[:2]  # doctest: +ELLIPSIS
+    (1.0, 0.8...)
+    >>> pred = {'A': {1,2,3}, 'B': {4,5}, 'C': {6,7}}
+    >>> _prf(*extended_b_cubed(true, pred))[:2]  # doctest: +ELLIPSIS
+    (1.0, 0.68...)
+    >>> pred = {'A': {1,2,3}, 'B': {4,5}, 'C': {6,7}, 'D': {1,2}}
+    >>> _prf(*extended_b_cubed(true, pred))[:2]  # doctest: +ELLIPSIS
+    (1.0, 0.74...)
+    >>> pred = {'A': {1,2,3, 4, 5}, 'C': {6,7}}
+    >>> _prf(*extended_b_cubed(true, pred))[:2]  # doctest: +ELLIPSIS
+    (0.88..., 0.94...)
+    """
+    # FIXME! appears to be reversing P and R
+    true_multi_mapping = sets_to_multi_mapping(true)
+    pred_multi_mapping = sets_to_multi_mapping(pred)
+
+    p_num, p_den, r_num, r_den = 0, 0, 0, 0
+    for m, true_labels in true_multi_mapping.items():
+        other_ms = set()
+        for l in true_labels:
+            other_ms.update(true[l])
+        pred_labels = pred_multi_mapping.get(m, set())
+        r_num_sub = 0.
+        for other_m in other_ms:
+            other_true_labels = true_multi_mapping.get(other_m, set())
+            other_pred_labels = pred_multi_mapping.get(other_m, set())
+            true_int = len(other_true_labels & true_labels)
+            pred_int = len(other_pred_labels & pred_labels)
+            r_num_sub += min(pred_int, true_int) / true_int
+        r_num += r_num_sub / len(other_ms)
+    r_den = len(true_multi_mapping)
+
+    for m, pred_labels in pred_multi_mapping.items():
+        other_ms = set()
+        for l in pred_labels:
+            other_ms.update(pred[l])
+        true_labels = true_multi_mapping.get(m, set())
+        p_num_sub = 0.
+        for other_m in other_ms:
+            other_pred_labels = pred_multi_mapping.get(other_m, set())
+            other_true_labels = true_multi_mapping.get(other_m, set())
+            pred_int = len(other_pred_labels & pred_labels)
+            true_int = len(other_true_labels & true_labels)
+            p_num_sub += min(true_int, pred_int) / pred_int
+        p_num += p_num_sub / len(other_ms)
+    p_den = len(pred_multi_mapping)
+
+    return p_num, p_den, r_num, r_den
+
+
 COREF_METRICS = {f.__name__: f for f in [b_cubed, entity_ceaf, mention_ceaf,
                                          muc, pairwise, pairwise_negative]}
 
@@ -669,6 +743,7 @@ if REFERENCE_COREF_SCORER_PATH is not None:
 
 if __name__ == '__main__':
     import argparse
+    # TODO handle document boundaries
     ap = argparse.ArgumentParser(description='CoNLL2011-2 coreference evaluator')
     ap.add_argument('key_file', type=argparse.FileType('r'))
     ap.add_argument('response_file', type=argparse.FileType('r'))
