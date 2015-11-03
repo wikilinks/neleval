@@ -10,6 +10,7 @@ from .document import ENC
 from .document import Reader
 from .evaluate import get_measure, Evaluate
 from .utils import log
+from .coref_adjust import fix_unaligned
 
 
 class _Missing(object):
@@ -117,270 +118,143 @@ class Analyze(object):
 class FixSpans(object):
     """Adjust unaligned mention spans
 
-    This allows for "weak mention matching" by evaluating after fixing spans.
-    It also aids in analysis of span errors.
-
-    The adjustment algorithm approximately maximises the score after fixing.
-    For each gold mention without an aligned system mention, all unaligned,
-    overlapping system mentions are candidates. At most one s will be aligned
-    to match the gold span g, according to the following rules:
-
-        1. If, at any time, there is a 1:1 overlap confusion between g and s.
-           This is called "1to1", with the "1to1-late" variant in cases where
-           a confusion became 1:1 only after rule 3 was applied.
-        2. Where the KB ID linked from s matches that of overlapping g.
-           (s are processed in order of increasing number of candidate gs.)
-        3. Greedily fix candidates that produce the largest cluster
-           intersection by repeatedly selecting the (gold ID, system ID) with
-           the highest true positive + confusion candidate count.
-
-    The textual order of gold mentions is used to break ties otherwise.
-
+    Also: document-level evaluation
     """
-    # TODO: a variant that takes account of other attribs, like type
+    # TODO: support additional matching
 
-    # XXX: Belongs in another module?
-    def __init__(self, system_in, system_out, gold=None,
-                 use_kbid=True, use_1to1=True, use_manyto1=False,
-                 use_inter=True, diff_out=None):
+    def __init__(self, system_in, system_out, gold_out=None, gold=None,
+                 candidature='mention-overlap', method='max-assignment',
+                 diff_out=None):
+
         self.system = list(Reader(FileType('r')(system_in)))
+        self.gold_out = gold_out
+        if gold_out is None and candidature == 'by-doc':
+            raise ValueError('Fixing by doc alters the gold standard. '
+                             'Please provide --gold-out')
         self.system_out = system_out
         self.gold = list(Reader(FileType('r')(gold)))
         self.diff_out = diff_out
-        self.use_kbid = use_kbid
-        self.use_1to1 = use_1to1
-        self.use_manyto1 = use_manyto1
-        self.use_inter = use_inter
+        self.candidature = candidature
+        self.method = method
 
     def __call__(self):
-        out_file = FileType('w')(self.system_out)
+        true, pred, candidates, gold, system = self.build_candidates()
+
+        fixes = fix_unaligned(true, pred, candidates, method=self.method)
+
         if self.diff_out is not None:
             diff_file = FileType('w')(self.diff_out)
         else:
             diff_file = None
 
-        self._apply(diff_file, self.use_kbid, self.use_1to1, self.use_manyto1, self.use_inter)
+        for method, g_m, s_m in fixes:
+            if diff_file is not None:
+                print('-', method, s_m, file=diff_file)
+            s_m.span = g_m.span
+            if diff_file is not None:
+                print('+', method, s_m, file=diff_file)
 
-        for s_m in self.system:
-            print(s_m, file=out_file)
+        if self.gold_out:
+            with open(self.gold_out, 'w') as fout:
+                for ann in gold:
+                    print(ann, file=fout)
+        with open(self.system_out, 'w') as fout:
+            for ann in system:
+                print(ann, file=fout)
 
-    def _apply(self, diff_file, use_kbid=True, use_1to1=True,
-               use_manyto1=False, use_inter=True):
-        """
-        1. Fix kbid matches (ordered by increasing number of overlapping golds,
-           just in case!)
-        2. Match one-to-one unambiguous. This cannot make more unambiguous.
-        3. Group candidate fixes by cluster intersections (g.eid, s.eid),
-           processed in order of decreasing true positive plus candidate
-           intersection size (i.e. proposed size of intersection)
-        4. Fix each cluster intersection in order. Ramifications:
-             - any pairs involving g or s can be ignored
-             - for all g' overlapping s, any (g', s') may now be unambiguous,
-               affecting strongly connected confusion subgraph, also demoting
-               affected cluster intersections in the greedy search.
-        """
-        n_fixes = Counter()
+    def build_candidates(self):
+        name = '_build_candidates_' + self.candidature.replace('-', '_')
+        try:
+            func = getattr(self, name)
+        except AttributeError:
+            raise ValueError('Unknown candidature method: %s' %
+                             self.candidature)
+        return func()
+
+    def _build_candidates_mention_overlap(self):
         measure = get_measure('strong_mention_match')
 
-        contingency_tp_count = Counter()
-
-        g_candidates = defaultdict(list)
-        s_candidates = defaultdict(list)
-
+        candidates = []
         for sys_doc, gold_doc in Evaluate.iter_pairs(self.system,
                                                      self.gold):
             assert sys_doc.id == gold_doc.id
             tp, fp, fn = measure.get_matches(sys_doc.annotations,
                                              gold_doc.annotations)
             # Ensure determinism
-            tp.sort()
             fp.sort()
             fn.sort()
-
-            contingency_tp_count.update((g_m.eid, s_m.eid)
-                                        for g_m, s_m in tp)
 
             for g_m, _ in fn:
                 for _, s_m in fp:
                     if g_m.compare_spans(s_m) in ('nested', 'crossing'):
-                        g_candidates[g_m].append(s_m)
-                        s_candidates[s_m].append(g_m)
+                        candidates.append(((g_m, g_m.eid), (s_m, s_m.eid)))
                     elif s_m > g_m:
                         break
+        true_clustering = measure.build_clusters([a for doc in self.gold
+                                                  for a in doc.annotations])
+        pred_clustering = measure.build_clusters([a for doc in self.system
+                                                  for a in doc.annotations])
+        return true_clustering, pred_clustering, candidates, self.gold, self.system
 
-        g_candidates.default_factory = None
-        s_candidates.default_factory = None
+    def _build_candidates_by_doc(self):
+        new_system = []
+        new_gold = []
+        measure = get_measure('strong_mention_match')
+        candidates = []
+        true_clustering = defaultdict(set)
+        pred_clustering = defaultdict(set)
+        for sys_doc, gold_doc in Evaluate.iter_pairs(self.system,
+                                                     self.gold):
+            tp, _, _ = measure.get_matches(sys_doc.annotations,
+                                           gold_doc.annotations)
+            eid_pairs = {(g_m.eid, s_m.eid) for g_m, s_m in tp}
+            g_ms = {g_m.eid: g_m for g_m in gold_doc.annotations[::-1]}
+            s_ms = {s_m.eid: s_m for s_m in sys_doc.annotations[::-1]}
 
-        def fix(g_m, s_m, method):
-            log.debug('{} fixing <{s.span}: {s.eid}> to '
-                      '<{g.span}: {g.eid}>'.format(method, s=s_m, g=g_m))
-            n_fixes[method] += 1
-            if diff_file is not None:
-                print('-', method, s_m, file=diff_file)
-            s_m.start = g_m.start
-            s_m.end = g_m.end
-            if diff_file is not None:
-                print('+', method, s_m, file=diff_file)
+            # Remove fn and fp that correspond to aligned clusters
+            for eid, m in g_ms.items():
+                true_clustering[eid].add(m)
+            for eid, m in s_ms.items():
+                pred_clustering[eid].add(m)
 
-            try:
-                cc = contingency_candidates
-                requeue = []
-            except NameError:
-                cc = None
-                requeue = None
+            for g_eid, s_eid in eid_pairs:
+                candidates.append(((g_ms[g_eid], g_eid), (s_ms[s_eid], s_eid)))
 
-            for s_m_other in g_candidates[g_m]:
-                if s_m_other != s_m:
-                    s_candidates[s_m_other].remove(g_m)
-                    if cc is not None:
-                        cc[g_m.eid, s_m_other.eid].remove((g_m, s_m_other))
-                        requeue.append((g_m.eid, s_m_other.eid))
+            g_ms = set(g_ms.values())
+            s_ms = set(s_ms.values())
+            new_gold.extend(g_m for g_m in gold_doc.annotations
+                            if g_m in g_ms)
+            new_system.extend(s_m for s_m in sys_doc.annotations
+                              if s_m in s_ms)
 
-            for g_m_other in s_candidates[s_m]:
-                if g_m_other != g_m:
-                    g_candidates[g_m_other].remove(s_m)
-                    if cc is not None:
-                        cc[g_m_other.eid, s_m.eid].remove((g_m_other, s_m))
-                        requeue.append((g_m_other.eid, s_m.eid))
-
-            del g_candidates[g_m]
-            del s_candidates[s_m]
-
-            contingency_tp_count[g_m.eid, s_m.eid] += 1
-            return requeue
-
-        # 1. Fix kbid matches
-        if use_kbid:
-            kbid_matches = sorted(((s_m, [g_m for g_m in g_ms
-                                          if g_m.kbid == s_m.kbid])
-                                   for s_m, g_ms in s_candidates.iteritems()
-                                   if s_m.is_linked),
-                                  key=lambda tup: (len(tup[1]), tup[0]))
-            for s_m, g_ms in kbid_matches:
-                # check which are still available
-                g_ms = [g_m for g_m in g_ms if g_m in g_candidates]
-                if not g_ms:
-                    continue
-                # arbitrarily fix to match first
-                fix(g_ms[0], s_m, 'kbid')
-
-        # 2a. Fix one-to-one unambiguous
-        # 2b. Fix many-to-one unambiguous: reduces precision in most metrics
-        sorted_g = sorted(g_candidates)  # determinism
-        if use_1to1 or use_manyto1:
-            for g_m in sorted_g:
-                s_ms = g_candidates[g_m]
-                if len(s_ms) != 1:
-                    continue
-                if len(s_candidates[s_ms[0]]) == 1:
-                    fix(g_m, s_ms[0], '1to1')
-                elif use_manyto1:
-                    g_ms = s_candidates[s_m]
-                    if any(len(g_candidates[g_m_other]) != 1
-                           for g_m_other in g_ms):
-                        continue
-                    for i, g_m_other in enumerate(g_ms):
-                        if i == 0:
-                            fix(g_m, s_ms[0], 'manyto1')
-                        else:
-                            # TODO: note reduplication in diff_out
-                            # TODO: forge s_candidates, contingency_candidates
-                            s_m = copy.deepcopy(s_ms[0])
-                            # TODO: ensure sort order
-                            self.system.append(s_m)
-                            fix(g_m, s_m, 'manyto1')
-
-        if not use_inter:
-            log.info("Fixed %r" % dict(n_fixes))
-            return
-
-        # 3. Group remaining candidate fixes by cluster intersections
-        contingency_candidates = defaultdict(list)
-        for g_m in sorted_g:
-            for s_m in g_candidates.get(g_m, []):
-                contingency_candidates[g_m.eid, s_m.eid].append((g_m, s_m))
-
-        def calc_priority(g_eid, s_eid):
-            # FIXME: it's possible that the same mention is repeated in the
-            #        cluster intersection, which `len` double-counts.
-            return -(contingency_tp_count[g_eid, s_eid] +
-                     len(contingency_candidates[g_eid, s_eid]))
-
-        # Redundant storage of cands is for determinism
-        heap = ((calc_priority(g_eid, s_eid), cands, g_eid, s_eid)
-                for (g_eid, s_eid), cands
-                in contingency_candidates.iteritems())
-        # Ignore cases where there's no benefit to fixing
-        # XXX: Perhaps have option to keep these
-        heap = [tup for tup in heap if tup[0] < -1]
-        heapq.heapify(heap)
-
-        # 4. Fix each cluster intersection in order
-        while heap:
-            priority, cands, g_eid, s_eid = heapq.heappop(heap)
-            if g_eid is None or s_eid is None:
-                # Not clustered
-                continue
-            if priority != calc_priority(g_eid, s_eid):
-                # outdated entry
-                continue
-            log.debug('Fixing %d candidates in cluster intersection (%s, %s) '
-                      'with priority %d' %
-                      (len(cands), g_eid, s_eid, priority))
-
-            requeue = set()
-            connected_cands = []
-            while cands or connected_cands:
-                if connected_cands:
-                    method = '1to1-late'
-                    g_m, s_m = connected_cands.pop()
-                else:
-                    method = 'inter'
-                    g_m, s_m = cands.pop()
-
-                if g_m not in g_candidates or s_m not in s_candidates:
-                    # already fixed
-                    continue
-
-                affected_g = s_candidates[s_m][:]
-                requeue.update(fix(g_m, s_m, method))
-                # check for new unambiguous
-                if use_1to1:
-                    for g_m_other in affected_g:
-                        if g_m_other == g_m:
-                            continue
-                        s_ms = g_candidates[g_m_other]
-                        if len(s_ms) == 1 and len(s_candidates[s_ms[0]]) == 1:
-                            connected_cands.append((g_m_other, s_ms[0]))
-
-            for g_eid, s_eid in requeue:
-                priority = calc_priority(g_eid, s_eid)
-                if priority >= -1:
-                    # no benefit to fixing
-                    continue
-                heapq.heappush(heap, (priority,
-                                      contingency_candidates[g_eid, s_eid],
-                                      g_eid, s_eid))
-
-        log.info("Fixed %r" % dict(n_fixes))
+        return true_clustering, pred_clustering, candidates, new_gold, new_system
 
     @classmethod
     def add_arguments(cls, p):
         p.add_argument('system_in', metavar='FILE')
         p.add_argument('-o', '--system-out', metavar='FILE',
                        help='Path to write fixed annotations')
+        p.add_argument('-G', '--gold-out', metavar='FILE',
+                       help='Path to write adjusted gold annotations')
         p.add_argument('-d', '--diff-out', help='Path to write diff of fixes')
         p.add_argument('-g', '--gold', required=True)
-        p.add_argument('--no-kbid', dest='use_kbid', action='store_false',
-                       help='Turns off the heuristic of matching KB ID')
-        p.add_argument('--no-1to1', dest='use_1to1', action='store_false',
-                       help='Turns off the heuristic of fixing all 1-to-1 '
-                            'confusions')
-        p.add_argument('--use-manyto1', dest='use_1to1', action='store_true',
-                       help='Activates a heuristic which reduplicates a system'
-                            'span aligned to multiple gold spans.')
-        p.add_argument('--no-inter', dest='use_inter', action='store_false',
-                       help='Turns off the heuristic of searching for maximal '
-                            'gold and system cluster interesections')
+
+        meg = p.add_mutually_exclusive_group()
+        meg.add_argument('--max-assignment', dest='method', action='store_const',
+                         const='max-assignment', default='max-assignment')
+        meg.add_argument('--greedy', dest='method', action='store_const',
+                         const='greedy')
+        meg.add_argument('--summary', dest='method', action='store_const',
+                         const='summary')
+
+        meg = p.add_mutually_exclusive_group()
+
+        meg.add_argument('--by-overlap', dest='candidature',
+                         const='mention-overlap', default='mention-overlap',
+                         action='store_const',
+                         help='Mention-level with candidates overlapping')
+        meg.add_argument('--by-doc', dest='candidature', const='by-doc',
+                         action='store_const',
+                         help='Doc-level task candidates phrase-aligned')
         p.set_defaults(cls=cls)
         return p

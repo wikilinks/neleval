@@ -58,7 +58,7 @@ class Evaluate(object):
     def iter_pairs(self, system, gold):
         sdocs = {d.id: d for d in system}
         gdocs = {d.id: d for d in gold}
-        for docid in set(sdocs.keys()).union(gdocs.keys()):
+        for docid in sorted(set(sdocs.keys()).union(gdocs.keys())):
             sdoc = sdocs.get(docid) or Document(docid, [])
             gdoc = gdocs.get(docid) or Document(docid, [])
             yield sdoc, gdoc

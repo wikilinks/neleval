@@ -57,10 +57,13 @@ class Annotation(object):
         else:
             return 'crossing'
 
-    # Getters
-    @property
-    def span(self):
+    def _get_span(self):
         return (self.docid, self.start, self.end)
+
+    def _set_span(self, span):
+        self.docid, self.start, self.end = span
+
+    span = property(_get_span, _set_span)
 
     @property
     def link(self):

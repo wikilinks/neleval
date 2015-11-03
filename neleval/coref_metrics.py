@@ -383,20 +383,10 @@ class OptionalDependencyWarning(Warning):
     pass
 
 
-def _disjoint_max_assignment(similarities):
+def _disjoint_max_assignment(similarities, return_mapping=False):
     global sparse
     if sparse is None:
-        if hasattr(similarities, 'toarray'):
-            # Due to supporting scipy without connected_components
-            similarities = similarities.toarray()
-        start = time.time()
-        indices = linear_assignment(-similarities)
-        runtime = time.time() - start
-        if runtime > 1:
-            warnings.warn('The assignment step in CEAF took a long time. '
-                          'We may be able to calculate it faster if you '
-                          'install scipy.', OptionalDependencyWarning)
-        return similarities[indices[:, 0], indices[:, 1]].sum()
+        raise ImportError('Please install scipy to calculate CEAF')
 
     # form n*n adjacency matrix
     where_true, where_pred = similarities.nonzero()
@@ -412,11 +402,13 @@ def _disjoint_max_assignment(similarities):
                       'Calculating max-score assignment the slow way.')
         # HACK!
         sparse = None
-        return _disjoint_max_assignment(similarities)
+        return _disjoint_max_assignment(similarities, return_mapping=return_mapping)
 
     if hasattr(similarities, 'toarray'):
         # faster to work in dense
         similarities = similarities.toarray()
+    true_indices = []
+    pred_indices = []
     total = 0
     for i in range(n_components):
         mask = components == i
@@ -425,10 +417,18 @@ def _disjoint_max_assignment(similarities):
         component_sim = similarities[component_true, :][:, component_pred]
         if component_sim.shape == (1, 1):
             total += component_sim[0, 0]
+            true_indices.append(component_true)
+            pred_indices.append(component_pred)
+        elif 0 in component_sim.shape:
+            pass
         else:
             indices = linear_assignment(-component_sim)
             total += component_sim[indices[:, 0], indices[:, 1]].sum()
+            true_indices.append(component_true.take(indices[:, 0]))
+            pred_indices.append(component_pred.take(indices[:, 1]))
     #assert total == similarities[tuple(linear_assignment(-similarities).T)].sum()
+    if return_mapping:
+        return total, np.concatenate(true_indices), np.concatenate(pred_indices)
     return total
 
 
