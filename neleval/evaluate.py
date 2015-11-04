@@ -67,9 +67,10 @@ class Evaluate(object):
         measures = (parse_measures(measures)
                     if measures is not None
                     else self.measures)
+        cache = {}
         self.results = {self.measure_fmt % (measure,):
                         Matrix(*get_measure(measure).docs_to_contingency(
-                            self.system, self.gold)).results
+                            self.system, self.gold, cache)).results
                         for measure in measures}
         return self.format(self, self.results)
 

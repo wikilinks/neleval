@@ -230,7 +230,6 @@ class Measure(object):
         if isinstance(annotations, dict):
             # assume already built
             return annotations
-        # TODO: caching
         # TODO: can reuse build_index for small efficiency loss
 
         if self.filter is not None:
@@ -274,7 +273,7 @@ class Measure(object):
         fn = [(gold_index[k], None) for k in gold_keys - shared]
         return tp, fp, fn
 
-    def count_clustering(self, system, gold):
+    def count_clustering(self, system, gold, cache=None):
         from . import coref_metrics
         if not self.is_clustering:
             raise ValueError('evaluate_clustering is inappropriate '
@@ -285,13 +284,18 @@ class Measure(object):
             raise ValueError('Invalid aggregation: {!r}'.format(self.agg))
         if not callable(fn):
             raise ValueError('Invalid aggregation: {!r}'.format(self.agg))
+        cache_key = (self.key, self.filter, self.filter_fn)
+        if cache is not None and cache_key in cache:
+            gold_clusters, pred_clusters = cache[cache_key]
         gold_clusters = self.build_clusters(gold)
         pred_clusters = self.build_clusters(system)
+        if cache is not None:
+            cache[cache_key] = (gold_clusters, pred_clusters)
         return fn(gold_clusters, pred_clusters)
 
-    def contingency(self, system, gold):
+    def contingency(self, system, gold, cache=None):
         if self.is_clustering:
-            p_num, p_den, r_num, r_den = self.count_clustering(system, gold)
+            p_num, p_den, r_num, r_den = self.count_clustering(system, gold, cache)
             ptp = p_num
             fp = p_den - p_num
             rtp = r_num
@@ -301,6 +305,6 @@ class Measure(object):
             tp, fp, fn = self.count_matches(system, gold)
             return tp, fp, tp, fn
 
-    def docs_to_contingency(self, system, gold):
+    def docs_to_contingency(self, system, gold, cache=None):
         return self.contingency([a for doc in system for a in doc.annotations],
-                                [a for doc in gold for a in doc.annotations])
+                                [a for doc in gold for a in doc.annotations], cache)
