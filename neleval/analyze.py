@@ -141,6 +141,8 @@ class FixSpans(object):
         true, pred, candidates, gold, system = self.build_candidates()
 
         fixes = fix_unaligned(true, pred, candidates, method=self.method)
+        if self.method == 'summary':
+            return
 
         if self.diff_out is not None:
             diff_file = FileType('w')(self.diff_out)
