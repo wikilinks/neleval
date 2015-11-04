@@ -49,7 +49,7 @@ def fix_unaligned(true, pred, candidates, similarity=overlap,
     if method == 'summary':
         return summarise(true, pred, candidates)
 
-    log.info('Preparing for %s with %dx%d custers and '
+    log.info('Preparing for %s with %dx%d clusters and '
              '%d unaligned pairs', method, len(true),
              len(pred), len(candidates))
     if method == 'max-assignment':
@@ -67,15 +67,26 @@ def fix_unaligned(true, pred, candidates, similarity=overlap,
                    (m_pred, pred_to_ind[l_pred]))
                   for (m_true, l_true), (m_pred, l_pred) in candidates]
     by_cluster_pair = defaultdict(list)
-    for (m_true, l_true), (m_pred, l_pred) in candidates:
-        by_cluster_pair[l_true, l_pred].append((m_true, m_pred))
+
+    vocab_true = defaultdict(None)
+    vocab_pred = defaultdict(None)
+    vocab_true.default_factory = vocab_true.__len__
+    vocab_pred.default_factory = vocab_pred.__len__
+    for m_true, m_pred in candidates:
+        by_cluster_pair[m_true[1], m_pred[1]].append((vocab_true[m_true], vocab_pred[m_pred]))
+    vocab_true.default_factory = None
+    vocab_pred.default_factory = None
+    # now make values sparse matrices
+    by_cluster_pair = {k: sparse.coo_matrix((np.ones(len(mentions)), zip(*mentions)),
+                                            shape=(len(vocab_true), len(vocab_pred)))
+                       for k, mentions in by_cluster_pair.items()}
 
     true, pred, _ = sets_to_matrices(true, pred)
     if similarity is not overlap:
         # For dice, need appropriate norms in modifications to X
         raise NotImplementedError
     X = similarity.vectorized(true, pred)
-    l_true, l_pred, n_mentions = zip(*((l_true, l_pred, len(mentions))
+    l_true, l_pred, n_mentions = zip(*((l_true, l_pred, _disjoint_max_assignment(mentions))
                                        for (l_true, l_pred), mentions
                                        in by_cluster_pair.items()))
     with warnings.catch_warnings():
@@ -84,8 +95,19 @@ def fix_unaligned(true, pred, candidates, similarity=overlap,
 
     fixes = method(X, n_iter, by_cluster_pair,
                    norm_func=lambda l_true, l_pred: 1)
+    vocab_true = _vocab_to_index(vocab_true)
+    vocab_pred = _vocab_to_index(vocab_pred)
+    fixes = [(descr, vocab_true[m_true][0], vocab_pred[m_pred][0])
+             for descr, m_true, m_pred in fixes]
     log.info('Done fixing')
     return fixes
+
+
+def _vocab_to_index(vocab):
+    out = [None] * len(vocab)
+    for k, v in vocab.items():
+        out[v] = k
+    return out
 
 
 def _match(X, by_cluster_pair, norm_func, method_str,
@@ -95,24 +117,37 @@ def _match(X, by_cluster_pair, norm_func, method_str,
     true_fixed = set()
     pred_fixed = set()
     for l_true, l_pred in zip(true_match, pred_match):
-        for m_true, m_pred in by_cluster_pair.pop((l_true, l_pred), ()):
+        mention_mat = by_cluster_pair.pop((l_true, l_pred), None)
+        if mention_mat is None:
+            continue
+        # FIXME: should select least confused mentions to benefit later entity pairs
+        _, true_fixed_pair, pred_fixed_pair = _disjoint_max_assignment(mention_mat, return_mapping=True)
+        for m_true, m_pred in zip(true_fixed_pair, pred_fixed_pair):
+            fixes.append((method_str, m_true, m_pred))
             true_fixed.add(m_true)
             pred_fixed.add(m_pred)
-            fixes.append((method_str, m_true, m_pred))
+
+    true_fixed = np.array(sorted(true_fixed))
+    pred_fixed = np.array(sorted(pred_fixed))
     # Delete candidates for matched mentions
     true_match = set(true_match)
     pred_match = set(pred_match)
-    for (l_true, l_pred), mention_pairs in by_cluster_pair.items():
+    for (l_true, l_pred), mention_mat in by_cluster_pair.items():
         if l_true in true_match or l_pred in pred_match:
-            diff = len(mention_pairs)
-            mention_pairs = [(m_true, m_pred)
-                             for m_true, m_pred in mention_pairs
-                             if m_true not in true_fixed
-                             and m_pred not in pred_fixed]
-            by_cluster_pair[l_true, l_pred] = mention_pairs
-            diff -= len(mention_pairs)
+            idx = np.flatnonzero(~np.logical_or(np.in1d(mention_mat.row, true_fixed),
+                                                np.in1d(mention_mat.col, pred_fixed)))
+            if len(idx) == mention_mat.nnz:
+                continue
+
+            # TODO: remember previous assignment
+            diff = _disjoint_max_assignment(mention_mat)
+            mention_mat.row = mention_mat.row.take(idx, mode='clip')
+            mention_mat.col = mention_mat.col.take(idx, mode='clip')
+            mention_mat.data = mention_mat.data.take(idx, mode='clip')
+            diff -= _disjoint_max_assignment(mention_mat)
             X[l_true, l_pred] -= diff / norm_func(l_true, l_pred)
-            if not mention_pairs:
+
+            if not mention_mat.nnz:
                 del by_cluster_pair[l_true, l_pred]
                 if zero_on_del:
                     # Only keep entries with candidates

@@ -396,53 +396,89 @@ class OptionalDependencyWarning(Warning):
     pass
 
 
+def _find_bijective(X):
+    """
+    >>> from scipy import sparse as sp
+    >>> X = sp.csr_matrix([[0, 1, 0], [1, 0, 0], [0, 1, 1]])
+    >>> [x.tolist() for x in _find_bijective(X)]
+    [[1], [0]]
+    >>> [x.tolist() for x in _find_bijective(X[[2, 0, 1]])]
+    [[2], [0]]
+    >>> [x.tolist() for x in _find_bijective(X[[2, 1, 0, 1]])]
+    [[], []]
+    >>> [x.tolist() for x in _find_bijective(X[:, [2, 0, 1]])]
+    [[1], [1]]
+    """
+    if X.nnz <= 1:
+        return X.nonzero()
+    nz0, nz1 = X.nonzero()
+    rows, row_idx, nz0x = np.unique(nz0, return_index=True,
+                                    return_inverse=True)
+    idx = row_idx.compress(np.bincount(nz0x) == 1)
+    cols, col_idx, nz1x = np.unique(nz1, return_index=True,
+                                    return_inverse=True)
+    idx = np.intersect1d(idx, col_idx.compress(np.bincount(nz1x) == 1),
+                         assume_unique=True)
+    return nz0.take(idx), nz1.take(idx)
+
+
 def _disjoint_max_assignment(similarities, return_mapping=False):
     global sparse
     if sparse is None:
         raise ImportError('Please install scipy to calculate CEAF')
 
+    true_indices = []
+    pred_indices = []
+
+    bij_true, bij_pred = _find_bijective(similarities)
+    if bij_true.shape[0] == similarities.nnz:
+        if return_mapping:
+            return similarities.sum(), bij_true, bij_pred
+        return similarities.sum()
+
+    true_indices.append(bij_true)
+    pred_indices.append(bij_pred)
+
+    n = sum(similarities.shape)
     # form n*n adjacency matrix
     where_true, where_pred = similarities.nonzero()
+    mask = ~np.in1d(where_true, bij_true)
+    where_true = where_true.compress(mask)
+    where_pred = where_pred.compress(mask)
     where_pred = where_pred + similarities.shape[0]
-    n = sum(similarities.shape)
     A = sparse.coo_matrix((np.ones(len(where_true)), (where_true, where_pred)),
                           shape=(n, n))
     try:
         n_components, components = sparse.csgraph.connected_components(A, directed=False)
     except (AttributeError, TypeError):
-        warnings.warn('Could not use scipy.sparse.csgraph.connected_components.'
-                      'Please update your scipy installation. '
-                      'Calculating max-score assignment the slow way.')
-        # HACK!
-        sparse = None
-        return _disjoint_max_assignment(similarities, return_mapping=return_mapping)
+        raise ImportError('Could not use scipy.sparse.csgraph.connected_components.'
+                          'Please update your scipy installation.')
 
     if hasattr(similarities, 'toarray'):
         # faster to work in dense
         similarities = similarities.toarray()
-    true_indices = []
-    pred_indices = []
-    total = 0
     for i in range(n_components):
         mask = components == i
         component_true = np.flatnonzero(mask[:similarities.shape[0]])
         component_pred = np.flatnonzero(mask[similarities.shape[0]:])
         component_sim = similarities[component_true, :][:, component_pred]
         if component_sim.shape == (1, 1):
-            total += component_sim[0, 0]
             true_indices.append(component_true)
             pred_indices.append(component_pred)
         elif 0 in component_sim.shape:
             pass
         else:
             indices = linear_assignment(-component_sim)
-            total += component_sim[indices[:, 0], indices[:, 1]].sum()
             true_indices.append(component_true.take(indices[:, 0]))
             pred_indices.append(component_pred.take(indices[:, 1]))
-    #assert total == similarities[tuple(linear_assignment(-similarities).T)].sum()
+
+    true_indices = np.concatenate(true_indices)
+    pred_indices = np.concatenate(pred_indices)
+    sims = similarities[true_indices, pred_indices]
     if return_mapping:
-        return total, np.concatenate(true_indices), np.concatenate(pred_indices)
-    return total
+        nonzero = sims != 0
+        return sims.sum(), true_indices.compress(nonzero), pred_indices.compress(nonzero)
+    return sims.sum()
 
 
 def ceaf(true, pred, similarity=dice):
