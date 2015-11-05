@@ -414,9 +414,11 @@ def _find_bijective(X):
     nz0, nz1 = X.nonzero()
     rows, row_idx, nz0x = np.unique(nz0, return_index=True,
                                     return_inverse=True)
-    idx = row_idx.compress(np.bincount(nz0x) == 1)
     cols, col_idx, nz1x = np.unique(nz1, return_index=True,
                                     return_inverse=True)
+    if len(rows) == len(cols) == X.nnz:
+        return nz0, nz1
+    idx = row_idx.compress(np.bincount(nz0x) == 1)
     idx = np.intersect1d(idx, col_idx.compress(np.bincount(nz1x) == 1),
                          assume_unique=True)
     return nz0.take(idx), nz1.take(idx)

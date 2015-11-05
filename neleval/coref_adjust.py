@@ -1,15 +1,27 @@
 from __future__ import division, print_function
 
-from collections import defaultdict, OrderedDict
-import itertools
-import heapq
+from collections import defaultdict, OrderedDict, Counter
 import warnings
 
 import numpy as np
 from scipy import sparse
+try:
+    from joblib import Memory
+except ImportError:
+    Memory = None
 
-from .coref_metrics import sets_to_mapping, sets_to_matrices, overlap, _disjoint_max_assignment
+from .coref_metrics import sets_to_matrices, overlap, _disjoint_max_assignment
 from .utils import log
+
+if Memory is not None:
+    import tempfile
+    import os
+    _disjoint_max_assignment = Memory(os.path.join(tempfile.gettempdir(), 'neleval-hungarian'), verbose=0).cache(_disjoint_max_assignment)
+
+
+# Matching under ambiguity:
+# - projected count for cluster pair is min(# gold mentions, # sys mentions)
+# - among cluster pair, fix system mention that has least number of the least frequent set of gold mentions, breaking ties arbitarily but deterministically
 
 
 def summarise(true, pred, candidates):
@@ -85,7 +97,7 @@ def fix_unaligned(true, pred, candidates, similarity=overlap,
     if similarity is not overlap:
         # For dice, need appropriate norms in modifications to X
         raise NotImplementedError
-    X = similarity.vectorized(true, pred)
+    X = similarity.vectorized(true, pred).astype(float)
     l_true, l_pred, n_mentions = zip(*((l_true, l_pred, _disjoint_max_assignment(mentions))
                                        for (l_true, l_pred), mentions
                                        in by_cluster_pair.items()))
