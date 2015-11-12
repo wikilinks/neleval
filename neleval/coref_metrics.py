@@ -30,9 +30,11 @@ try:   # Py3k
     range = xrange
     zip = itertools.izip
     values = dict.viewvalues
+    items = dict.viewitems
     keys = dict.viewkeys
 except NameError:
     values = dict.values
+    items = dict.items
     keys = dict.keys
 
 
@@ -314,7 +316,7 @@ def twinless_adjustment(true, pred):
     return p_true, p_pred, true, r_pred
 
 
-def sets_to_matrices(true, pred):
+def sets_to_matrices(true_sets, pred_sets):
     if sparse is None:
         raise RuntimeError('Cannot vectorize without scipy')
     # TODO: perhaps cache vectorized `true`
@@ -322,24 +324,24 @@ def sets_to_matrices(true, pred):
     vocabulary.default_factory = vocabulary.__len__
     true_indptr = array.array('i', [0])
     true_indices = array.array('i')
-    for true_cluster in values(true):
+    for true_cluster in true_sets:
         for item in true_cluster:
             true_indices.append(vocabulary[item])
         true_indptr.append(len(vocabulary))
 
     pred_indptr = array.array('i', [0])
     pred_indices = array.array('i')
-    for pred_cluster in values(pred):
+    for pred_cluster in pred_sets:
         for item in pred_cluster:
             pred_indices.append(vocabulary[item])
         pred_indptr.append(len(pred_indices))
 
     true_data = np.ones(len(true_indices), dtype=int)
     true_matrix = sparse.csr_matrix((true_data, true_indices, true_indptr),
-                                    shape=(len(true), len(vocabulary)))
+                                    shape=(len(true_sets), len(vocabulary)))
     pred_data = np.ones(len(pred_indices), dtype=int)
     pred_matrix = sparse.csr_matrix((pred_data, pred_indices, pred_indptr),
-                                    shape=(len(pred), len(vocabulary)))
+                                    shape=(len(pred_sets), len(vocabulary)))
     #true_matrix.check_format(full_check=True)
     #pred_matrix.check_format(full_check=True)
     return true_matrix, pred_matrix, vocabulary
@@ -424,7 +426,7 @@ def _find_bijective(X):
     return nz0.take(idx), nz1.take(idx)
 
 
-def _disjoint_max_assignment(similarities, return_mapping=False):
+def _disjoint_max_assignment(similarities, return_mapping=True):
     global sparse
     if sparse is None:
         raise ImportError('Please install scipy to calculate CEAF')
@@ -483,35 +485,40 @@ def _disjoint_max_assignment(similarities, return_mapping=False):
     return sims.sum()
 
 
-def ceaf(true, pred, similarity=dice):
+def ceaf(true, pred, similarity=dice, return_mapping=False):
     "Luo (2005). On coreference resolution performance metrics. In EMNLP."
     if np is None:
         warnings.warn('numpy is required to calculate CEAF. '
                       'Returning 0', OptionalDependencyWarning)
         return 0, 0, 0, 0
 
+    true_keys, true = zip(*items(true))
+    pred_keys, pred = zip(*items(pred))
     try:
-        with timeout(900):
+###        with timeout(900):
             if sparse is None or not hasattr(similarity, 'vectorized'):
                 X = np.empty((len(true), len(pred)))
-                pred = list(values(pred))
-                for R, Xrow in zip(values(true), X):
+                for R, Xrow in zip(true, X):
                     Xrow[:] = [similarity(R, S) for S in pred]
 
-                p_num = r_num = _disjoint_max_assignment(X)
-                r_den = sum(similarity(R, R) for R in values(true))
+                tp, true_inds, pred_inds = _disjoint_max_assignment(X, return_mapping=True)
+                r_den = sum(similarity(R, R) for R in true)
                 p_den = sum(similarity(S, S) for S in pred)
             else:
                 true, pred, _ = sets_to_matrices(true, pred)
                 X = similarity.vectorized(true, pred)
-                p_num = r_num = _disjoint_max_assignment(X)
+                tp, true_inds, pred_inds = _disjoint_max_assignment(X, return_mapping=True)
                 r_den = similarity.vectorized(true, true).sum()
                 p_den = similarity.vectorized(pred, pred).sum()
     except TimeoutError:
         warnings.warn('timeout for CEAF!')
         return 0, 0, 0, 0
 
-    return p_num, p_den, r_num, r_den
+    if return_mapping:
+        return tp, p_den, tp, r_den, [(true_keys[i], pred_keys[j])
+                                      for i, j in zip(true_inds, pred_inds)]
+
+    return tp, p_den, tp, r_den
 
 
 def cs_ceaf(true, pred, similarity=dice):
@@ -524,15 +531,15 @@ def cs_ceaf(true, pred, similarity=dice):
 
 
 @_cross_check('ceafm')
-def mention_ceaf(true, pred):
+def mention_ceaf(true, pred, return_mapping=False):
     "Luo (2005) phi_3"
-    return ceaf(true, pred, similarity=overlap)
+    return ceaf(true, pred, similarity=overlap, return_mapping=return_mapping)
 
 
 @_cross_check('ceafe')
-def entity_ceaf(true, pred):
+def entity_ceaf(true, pred, return_mapping=False):
     "Luo (2005) phi_4"
-    return ceaf(true, pred, similarity=dice)
+    return ceaf(true, pred, similarity=dice, return_mapping=return_mapping)
 
 
 def mention_cs_ceaf(true, pred):

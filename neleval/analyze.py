@@ -3,8 +3,8 @@ from collections import Counter
 from collections import namedtuple
 from collections import defaultdict
 from argparse import FileType
-import copy
-import heapq
+import operator
+import re
 
 from .document import ENC
 from .document import Reader
@@ -111,6 +111,101 @@ class Analyze(object):
                        help='Output a summary rather than each instance')
         p.add_argument('-c', '--with-correct', action='store_true', default=False,
                        help='Output correct entries as well as errors')
+        p.set_defaults(cls=cls)
+        return p
+
+
+class AnalyzeEntities(object):
+    """Analyze best-matched sys-gold entity pairs
+    """
+
+    def __init__(self, system, gold, assignment_measure='mention_ceaf_plus', counters=()):
+        self.system = list(Reader(open(system)))
+        self.gold = list(Reader(open(gold)))
+        self.assignment_measure = get_measure(assignment_measure)
+        self.counters = counters
+
+    COLUMNS = ['true_eid', 'pred_eid',
+               'tp', 'fp', 'fn',
+               'doc_tp', 'doc_fp', 'doc_fn',]
+
+    def __call__(self):
+        # TODO: allow other formats
+        columns = list(self.COLUMNS)
+        for name, _, _ in self.counters:
+            columns.append('true_' + name)
+            columns.append('pred_' + name)
+        print(*columns, sep='\t')
+
+        true_all_annots = [a for doc in self.gold for a in doc.annotations]
+        pred_all_annots = [a for doc in self.system for a in doc.annotations]
+        true_clusters = self.assignment_measure.build_clusters(true_all_annots)
+        pred_clusters = self.assignment_measure.build_clusters(pred_all_annots)
+        _, _, _, _, mapping = self.assignment_measure.count_clustering(pred_clusters, true_clusters, return_mapping=True)
+
+        true_annot_lookup = defaultdict(list)
+        for a in true_all_annots:
+            true_annot_lookup[a.eid].append(a)
+        pred_annot_lookup = defaultdict(list)
+        for a in pred_all_annots:
+            pred_annot_lookup[a.eid].append(a)
+
+        pairs = [(true_eid, pred_eid, true_clusters.pop(true_eid), pred_clusters.pop(pred_eid))
+                 for true_eid, pred_eid in mapping]
+        pairs.extend((true_eid, None, true_vals, set())
+                     for true_eid, true_vals in true_clusters.items())
+        pairs.extend((None, pred_eid, set(), pred_vals)
+                     for pred_eid, pred_vals in pred_clusters.items())
+        for true_eid, pred_eid, true_vals, pred_vals in pairs:
+            analysis = self._analyze_entity(true_vals, pred_vals, true_annot_lookup[true_eid], pred_annot_lookup[pred_eid])
+            stats, doc_stats, true_counters, pred_counters = analysis
+            columns = list(stats + doc_stats)
+            for true_c, pred_c in zip(true_counters, pred_counters):
+                label = ';'.join('{}:{}'.format(k, v) for k, v in true_c.most_common())
+                columns.append(label)
+                label = ';'.join('{}:{}'.format(k, v) for k, v in pred_c.most_common())
+                columns.append(label)
+            print(true_eid, pred_eid, *columns, sep='\t')
+
+    @staticmethod
+    def _stats(true, pred):
+        tp = len(true.intersection(pred))
+        fp = len(pred.difference(true))
+        fn = len(true.difference(pred))
+        return tp, fp, fn
+
+    def _analyze_entity(self, true, pred, true_anns, pred_anns):
+        true_docs = set()
+        true_counters = [Counter() for c in self.counters]
+        for a in true_anns:
+            for c, (name, f, r) in zip(true_counters, self.counters):
+                c[r.search(f(a)).group()] += 1
+            true_docs.add(a.docid)
+
+        pred_docs = set()
+        pred_counters = [Counter() for c in self.counters]
+        for a in pred_anns:
+            for c, (name, f, r) in zip(pred_counters, self.counters):
+                c[r.search(f(a)).group()] += 1
+            pred_docs.add(a.docid)
+
+        return self._stats(true, pred), self._stats(true_docs, pred_docs), true_counters, pred_counters
+
+    @staticmethod
+    def _parse_counter_spec(s):
+        name, s = s.split('=', 1)
+        attr, pat = s.split(',', 1)
+        return name, operator.attrgetter(attr), re.compile(pat)
+
+    @classmethod
+    def add_arguments(cls, p):
+        p.add_argument('system', metavar='FILE')
+        p.add_argument('-g', '--gold', required=True)
+        p.add_argument('-m', '--assignment-measure', default='mention_ceaf_plus',
+                       help='measure used to map system to gold entities')
+        p.add_argument('--counter', type=cls._parse_counter_spec,
+                       action='append', dest='counters', default=[],
+                       help='e.g. Type=type,.* will count over type fields')
         p.set_defaults(cls=cls)
         return p
 
@@ -246,6 +341,8 @@ class FixSpans(object):
                          const='max-assignment', default='max-assignment')
         meg.add_argument('--greedy', dest='method', action='store_const',
                          const='greedy')
+        meg.add_argument('--unambiguous', dest='method', action='store_const',
+                         const='unambiguous')
         meg.add_argument('--summary', dest='method', action='store_const',
                          const='summary')
 

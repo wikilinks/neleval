@@ -273,7 +273,7 @@ class Measure(object):
         fn = [(gold_index[k], None) for k in gold_keys - shared]
         return tp, fp, fn
 
-    def count_clustering(self, system, gold, cache=None):
+    def count_clustering(self, system, gold, cache=None, **kwargs):
         from . import coref_metrics
         if not self.is_clustering:
             raise ValueError('evaluate_clustering is inappropriate '
@@ -291,7 +291,7 @@ class Measure(object):
         pred_clusters = self.build_clusters(system)
         if cache is not None:
             cache[cache_key] = (gold_clusters, pred_clusters)
-        return fn(gold_clusters, pred_clusters)
+        return fn(gold_clusters, pred_clusters, **kwargs)
 
     def contingency(self, system, gold, cache=None):
         if self.is_clustering:

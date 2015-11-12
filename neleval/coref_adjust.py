@@ -25,33 +25,65 @@ if Memory is not None:
 
 
 def summarise(true, pred, candidates):
-    print('%d true clusters' % len(true))
-    print('%d pred clusters' % len(pred))
-    print('%d candidates' % len(candidates))
     g_candidates = defaultdict(list)
     s_candidates = defaultdict(list)
     for g_m, s_m in candidates:
         g_candidates[g_m].append(s_m)
         s_candidates[s_m].append(g_m)
+
+    for prefix, fwd, rev in [('G', g_candidates, s_candidates), ('S', s_candidates, g_candidates)]:
+        for (m, l), other_ms in fwd.items():
+            d = defaultdict(list)
+            for other_m, other_l in other_ms:
+                d[other_l].append(other_m)
+            print(prefix, l, m, len(d), {l: len(ms) for l, ms in d.items()}, '\t'.join('{}\t{}\t{}'.format(other_l, 'excl' if len(set(l3 for _, l3 in rev[other_m, other_l])) == 1 else 'shared', other_m) for other_m, other_l in other_ms), sep='\t')
+
+    # Tricky case is where (sys_label A, gold_mention) repeated where (sys_label B, gold_mention) also
+
     n_1to1 = 0
-    n_1tomany = 0
-    n_manyto1 = 0
+    n_1tomany_same = 0
+    n_1tomany_diverse = 0
+    n_manyto1_same = 0
+    n_manyto1_diverse = 0
+    repeat_s = 0
+    repeat_g = 0
     for g_m, s_ms in g_candidates.items():
         if len(s_ms) == 1:
             if len(s_candidates.get(s_ms[0])) == 1:
                 n_1to1 += 1
             else:
-                n_1tomany += 1
+                g_ms = s_candidates.get(s_ms[0])
+                if len(set(g_l for _, g_l in g_ms)) == 1:
+                    n_1tomany_same += 1
+                else:
+                    n_1tomany_diverse += 1
+        else:
+            for k, v in Counter(s_l for _, s_l in s_ms).items():
+                if v > 1:
+                    repeat_s += 1
     for s_m, g_ms in s_candidates.items():
         if len(g_ms) == 1:
             if len(g_candidates.get(g_ms[0])) == 1:
                 pass
             else:
-                n_manyto1 += 1
+                s_ms = g_candidates.get(g_ms[0])
+                if len(set(s_l for _, s_l in s_ms)) == 1:
+                    n_manyto1_same += 1
+                else:
+                    n_manyto1_diverse += 1
+        else:
+            for k, v in Counter(g_l for _, g_l in g_ms).items():
+                if v > 1:
+                    repeat_g += 1
+    print('%d true clusters' % len(true))
+    print('%d pred clusters' % len(pred))
+    print('%d candidates' % len(candidates))
     print('%d 1to1' % n_1to1)
-    print('%d 1 gold to many sys' % n_1tomany)
-    print('%d 1 sys to many gold' % n_manyto1)
-    print('%d many to many' % (len(candidates) - n_1to1 - n_1tomany - n_manyto1))
+    print('%d 1 gold to many sys: %d homogeneous, %d heterogeneous' % (n_1tomany_same + n_1tomany_diverse, n_1tomany_same, n_1tomany_diverse))
+    print('%d 1 sys to many gold: %d homogeneous, %d heterogeneous' % (n_manyto1_same + n_manyto1_diverse, n_manyto1_same, n_manyto1_diverse))
+    print('%d many to many' % (len(candidates) - n_1to1 - n_1tomany_same - n_1tomany_diverse - n_manyto1_same - n_manyto1_diverse))
+    print('%d system cluster repeated for gold mention' % repeat_g)
+    print('%d gold cluster repeated for system mention' % repeat_s)
 
 
 def fix_unaligned(true, pred, candidates, similarity=overlap,
@@ -68,6 +100,8 @@ def fix_unaligned(true, pred, candidates, similarity=overlap,
         method = _max_assignment
     elif method == 'greedy':
         method = _greedy
+    elif method == 'unambiguous':
+        method = _unambiguous
     else:
         raise ValueError('Unknown method: %r' % method)
 
@@ -93,7 +127,7 @@ def fix_unaligned(true, pred, candidates, similarity=overlap,
                                             shape=(len(vocab_true), len(vocab_pred)))
                        for k, mentions in by_cluster_pair.items()}
 
-    true, pred, _ = sets_to_matrices(true, pred)
+    true, pred, _ = sets_to_matrices(true.values(), pred.values())
     if similarity is not overlap:
         # For dice, need appropriate norms in modifications to X
         raise NotImplementedError
@@ -209,3 +243,31 @@ def _greedy(X, n_iter, by_cluster_pair, norm_func):
         if not by_cluster_pair:
             break
     return fixes
+
+
+def _unambiguous(X, n_iter, by_cluster_pair, norm_func):
+    g_candidates = defaultdict(list)
+    s_candidates = defaultdict(list)
+    for (g_l, s_l), mention_pairs in by_cluster_pair.items():
+        for g_m, s_m in mention_pairs:
+            g_candidates[g_m].append(s_m)
+            s_candidates[s_m].append(g_m)
+    for g_m, cands in g_candidates.items():
+        if len(cands) == 1 and len(s_candidates[cands[0]]) == 1:
+            yield ('unambiguous', g_m, cands[0])
+
+
+###def _unambiguous_entity(X, n_iter, by_cluster_pair, norm_func):
+###    g_candidates = defaultdict(lambda: defaultdict(list))
+###    s_candidates = defaultdict(set)
+###    for (g_l, s_l), mention_pairs in by_cluster_pair.items():
+###        for g_m, s_m in mention_pairs:
+###            g_candidates[g_m][s_l].append(s_m)
+###            s_candidates[s_m].add(g_l)
+
+###    fixes = []
+###    for g_m, cands_by_label in g_candidates.items():
+###        if len(cands_by_label) > 1:
+###            pass
+###        if all(len(s_candidates[s_m]) == 1 for s_m in cands_by_label.pop()):
+###            fixes.append(('unambiguous', ))

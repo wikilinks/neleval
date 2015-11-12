@@ -10,7 +10,7 @@ import logging
 
 #from .prepare import Prepare
 from .evaluate import Evaluate
-from .analyze import Analyze, FixSpans
+from .analyze import Analyze, AnalyzeEntities, FixSpans
 from .significance import Significance, Confidence
 #from .formats import Unstitch, Stitch, Tagme
 #from .fetch_map import FetchMapping
@@ -18,6 +18,7 @@ from .significance import Significance, Confidence
 #from .rcv import ReutersCodes
 from .tac import PrepareTac, PrepareTac15
 from .brat import PrepareBrat
+from .import_ import PrepareConllCoref
 from .configs import ListMeasures
 from .summary import CompareMeasures, PlotSystems, ComposeMeasures, RankSystems
 
@@ -25,6 +26,7 @@ APPS = [
     Evaluate,
     ListMeasures,
     Analyze,
+    AnalyzeEntities,
     FixSpans,
     Significance,
     Confidence,
@@ -38,6 +40,7 @@ APPS = [
     PrepareTac,
     PrepareTac15,
     PrepareBrat,
+    PrepareConllCoref,
     CompareMeasures,
     RankSystems,
     PlotSystems,
