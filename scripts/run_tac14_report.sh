@@ -11,19 +11,17 @@ if [ "$#" -ne 1 ]; then
 fi
 
 outdir=$1; shift # directory to which results are written
+echo $outdir
 
 # INITIALISE REPORT HEADER
 report=$outdir/00report.tab
-echo -e "DiscP\tDiscR\tDiscF\tLinkP\tLinkR\tLinkF\tCEAFmP\tCEAFmR\tCEAFmF\tSystem" \
-    > $report
+(
+echo -e "DiscP\tDiscR\tDiscF\tLinkP\tLinkR\tLinkF\tCEAFmP\tCEAFmR\tCEAFmF\tSystem"
 
 # ADD SYSTEM SCORES
 for eval in $outdir/*.evaluation
 do
-    cat $eval | get_eval_prf strong_typed_mention_match >> $report
-    cat $eval | get_eval_prf strong_all_match >> $report
-    cat $eval | get_eval_prf mention_ceaf >> $report
-    basename $eval \
-        | sed 's/\.evaluation//' \
-        >> $report
+    echo -n $(basename $eval | sed 's/\.[^.]*$//')'	'
+    cat $eval | get_eval_prf strong_typed_mention_match strong_all_match mention_ceaf
 done
+) > $report

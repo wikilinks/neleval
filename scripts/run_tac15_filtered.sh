@@ -14,7 +14,7 @@ outdir=$1; shift # directory to which results are written
 
 SCR=`dirname $0`
 
-JOBS=8 # number of jobs for parallel mode (set to number of CPUs if possible)
+JOBS=2 # number of jobs for parallel mode (set to number of CPUs if possible)
 
 
 # CONFIGURE FILTERS
@@ -26,6 +26,8 @@ FILTERS=(
     "ORG:::ORG/N..$"
     "PER:::PER/N..$"
     "PERNAM:::PER/NAM$"
+    "PERNOM:::PER/NOM$"
+    "NAM:::/NAM$"
     # language filters
     "CMN:::^CMN"
     "ENG:::^ENG"
@@ -41,7 +43,6 @@ FILTERS=(
     "CMN_LOC:::^CMN.*LOC/N..$"
     "CMN_ORG:::^CMN.*ORG/N..$"
     "CMN_PER:::^CMN.*PER/N..$"
-    "CMN_PERNAM:::^CMN.*PER/NAM$"
     "ENG_NW:::^ENG_NW"
     "ENG_DF:::^ENG_DF"
     "ENG_FAC:::^ENG.*FAC/N..$"
@@ -50,6 +51,8 @@ FILTERS=(
     "ENG_ORG:::^ENG.*ORG/N..$"
     "ENG_PER:::^ENG.*PER/N..$"
     "ENG_PERNAM:::^ENG.*PER/NAM$"
+    "ENG_PERNOM:::^ENG.*PER/NOM$"
+    "ENG_NAM:::^ENG.*/NAM$"
     "SPA_NW:::^SPA_NW"
     "SPA_DF:::^SPA_DF"
     "SPA_FAC:::^SPA.*FAC/N..$"
@@ -57,7 +60,6 @@ FILTERS=(
     "SPA_LOC:::^SPA.*LOC/N..$"
     "SPA_ORG:::^SPA.*ORG/N..$"
     "SPA_PER:::^SPA.*PER/N..$"
-    "SPA_PERNAM:::^SPA.*PER/NAM$"
 
     # combined with genre
     "NW_FAC:::^..._NW.*FAC/N..$"
@@ -66,12 +68,18 @@ FILTERS=(
     "NW_ORG:::^..._NW.*ORG/N..$"
     "NW_PER:::^..._NW.*PER/N..$"
     "NW_PERNAM:::^..._NW.*PER/NAM$"
+    "NW_PERNOM:::^..._NW.*PER/NOM$"
+    "NW_NAM:::^..._NW.*/NAM$"
     "DF_FAC:::^..._DF.*FAC/N..$"
     "DF_GPE:::^..._DF.*GPE/N..$"
     "DF_LOC:::^..._DF.*LOC/N..$"
     "DF_ORG:::^..._DF.*ORG/N..$"
     "DF_PER:::^..._DF.*PER/N..$"
     "DF_PERNAM:::^..._DF.*PER/NAM$"
+    "DF_PERNOM:::^..._DF.*PER/NOM$"
+    "DF_NAM:::^..._DF.*/NAM$"
+
+    "ORG,PER,GPE:::^ENG.*(ORG|PER|GPE)/NAM$"
     )
 
 

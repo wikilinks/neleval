@@ -21,6 +21,7 @@ FMT='tab' # format for confidence and significance output ('tab' or 'json')
 
 # FILTER SYSTEM OUTPUT
 sysf=$outdir/`basename $sys`
+echo 'Filtering and evaluating' $sysf >&2
 cat $sys \
     | egrep "$regex" \
     > $sysf

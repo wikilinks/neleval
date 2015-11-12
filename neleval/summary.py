@@ -6,6 +6,7 @@
 from __future__ import print_function, absolute_import, division
 
 import os
+import math
 import itertools
 import operator
 import json
@@ -116,7 +117,7 @@ class PlotSystems(object):
                  lines=False,
                  confidence=None, group_re=None, best_in_group=False,
                  sort_by=None, at_most=None, limits=(0, 1),
-                 out_fmt=DEFAULT_OUT_FMT, figsize=(8, 6),
+                 out_fmt=DEFAULT_OUT_FMT, figsize=(8, 6), legend_ncol=None,
                  label_map=None, style_map=None, cmap=CMAP,
                  run_code=None, interactive=False):
         _optional_imports()
@@ -142,6 +143,7 @@ class PlotSystems(object):
         self.interactive = interactive
         self.out_fmt = out_fmt
         self.figsize = figsize
+        self.legend_ncol = legend_ncol
         self.label_map = _parse_label_map(label_map)
         self.style_map = _parse_label_map(style_map)
         self.cmap = cmap
@@ -220,7 +222,15 @@ class PlotSystems(object):
         return (self._style(s) or '').partition('/')[0]
 
     def _marker(self, s):
-        return (self._style(s) or '').partition('/')[2]
+        s = (self._style(s) or '')
+        if '/' in s:
+            return s.split('/', 2)[1]
+
+    def _further_style(self, s):
+        s = (self._style(s) or '')
+        if s.count('/') < 2:
+            return {}
+        return json.loads(s.split('/', 2)[-1])
 
     def _plot1d(self, ax, data, group_sizes, tick_labels, score_label):
         small_font = make_small_font()
@@ -254,7 +264,7 @@ class PlotSystems(object):
             raise ValueError('Unexpected secondary: {!r}'.format(self.secondary))
         plt.tight_layout()
         if len(data) > 1:
-            plt.legend(loc='best', prop=small_font)
+            plt.legend(loc='best', prop=small_font, ncol=self._ncol(len(data)))
 
     def _regroup(self, iterable, key, best_system=False, sort_by='name'):
         iterable = list(iterable)
@@ -311,8 +321,12 @@ class PlotSystems(object):
             all_results = np.empty((len(self.systems), len(measures), 3), dtype=[('score', float)])
             for system, sys_results in zip(self.systems, all_results):
                 result_dict = Evaluate.read_tab_format(open(system))
-                sys_results[...] = [[(result_dict[measure][metric],) for metric in ('precision', 'recall', 'fscore')]
-                                    for measure in measures]
+                try:
+                    sys_results[...] = [[(result_dict[measure][metric],) for metric in ('precision', 'recall', 'fscore')]
+                                        for measure in measures]
+                except KeyError:
+                    print('While processing', system, file=sys.stderr)
+                    raise
 
         # TODO: avoid legacy array intermediary
         all_results_tmp = []
@@ -410,13 +424,14 @@ class PlotSystems(object):
             for plot in self._generate_plots(*args):
                 yield plot
 
-    def _fscore_matrix(self, all_results, primary_regroup, secondary_regroup,
-                       get_field=lambda x: x):
+    def _metric_matrix(self, all_results, primary_regroup, secondary_regroup,
+                       get_field=lambda x: x, metric='fscore'):
+        idx = ('precision', 'recall', 'fscore').index(metric)
         matrix = []
         primary_names = []
         for primary_name, row in self._regroup(all_results, **primary_regroup):
             secondary_names, row = zip(*self._regroup(row, **secondary_regroup))
-            matrix.append([get_field(cell.data[2]) for (cell,) in row])
+            matrix.append([get_field(cell.data[idx]) for (cell,) in row])
             primary_names.append(primary_name)
         matrix = np.array(matrix)
         return matrix, primary_names, secondary_names
@@ -426,7 +441,7 @@ class PlotSystems(object):
         figure = plt.figure('heatmap', figsize=self.figsize)
         ax = figure.add_subplot(1, 1, 1)
 
-        matrix, row_names, column_names = self._fscore_matrix(all_results,
+        matrix, row_names, column_names = self._metric_matrix(all_results,
                                                               primary_regroup,
                                                               secondary_regroup,
                                                               operator.itemgetter('score'))
@@ -449,20 +464,28 @@ class PlotSystems(object):
         return itertools.cycle(('+', '.', 'o', 's', '*', '^', 'v', 'p'))
 
     def _single_plot(self, all_results, primary_regroup, secondary_regroup):
+        metric, = self.metrics
         figure_name = 'altogether'
-        matrix, measure_names, sys_names = self._fscore_matrix(all_results,
+        matrix, measure_names, sys_names = self._metric_matrix(all_results,
                                                                primary_regroup,
-                                                               secondary_regroup)
+                                                               secondary_regroup,
+                                                               metric=metric)
         colors = plt.get_cmap(self.cmap)(np.linspace(0, 1.0, len(measure_names)))
 
         fig = plt.figure(figure_name, figsize=self.figsize)
         ax = fig.add_subplot(1, 1, 1)
-        data = [(col, {'label': self._t(measure), 'marker': self._marker(measure) or marker,
-                       'color': self._color(measure) or color,
-                       'markeredgecolor': self._color(measure) or color})
+        def _dict_mrg(*ds):
+            out = {}
+            for d in ds:
+                out.update(d)
+            return out
+        data = [(col, _dict_mrg({'label': self._t(measure), 'marker': self._marker(measure) or marker,
+                                 'color': self._color(measure) or color,
+                                 'markeredgecolor': self._color(measure) or color},
+                                self._further_style(measure)))
                 for col, measure, color, marker
                 in zip(matrix, measure_names, colors, self._marker_cycle())]
-        self._plot1d(ax, data, np.ones(len(sys_names), dtype=int), sys_names, 'fscore')
+        self._plot1d(ax, data, np.ones(len(sys_names), dtype=int), sys_names, metric)
         plt.grid(axis='x' if self.secondary == 'rows' else 'y')
         return figure_name, fig, {}
 
@@ -509,12 +532,15 @@ class PlotSystems(object):
             # XXX: this uses `ax` defined above
             fig = plt.figure()
             legend = plt.figlegend(*ax.get_axes().get_legend_handles_labels(), loc='center',
-                                   ncol=int(np.ceil(n_secondary / MAX_LEGEND_PER_COL)),
+                                   ncol=self._ncol(n_secondary),
                                    prop=make_small_font())
             fig.canvas.draw()
             # FIXME: need some padding
             bbox = legend.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
             yield '_legend_', fig, {'bbox_inches': bbox}
+
+    def _ncol(self, n):
+        return self.legend_ncol or int(math.ceil(n / MAX_LEGEND_PER_COL))
 
     def _set_lim(self, fn):
         if self.limits == 'tight':
@@ -547,6 +573,7 @@ class PlotSystems(object):
                          help='In rows or columns mode, plot both precision and recall, rather than F1')
         meg.add_argument('--prf', dest='metrics', action='store_const', const=('precision', 'recall', 'fscore'),
                          help='In rows or columns mode, plot precision and recall as well as F1')
+        meg.add_argument('--recall-only', dest='metrics', action='store_const', const=('recall',))
 
         p.add_argument('--lines', action='store_true', default=False,
                        help='Draw lines between points in rows/cols mode')
@@ -568,6 +595,8 @@ class PlotSystems(object):
 
         p.add_argument('--figsize', default=(8, 6), type=_parse_figsize,
                        help='The width,height of a figure in inches (default 8,6)')
+        p.add_argument('--legend-ncol', default=None, type=int,
+                       help='Number of columns in legend; otherwise ensures at most %d' % MAX_LEGEND_PER_COL)
 
         p.add_argument('-m', '--measure', dest='measures', action='append',
                        metavar='NAME', help=MEASURE_HELP)
@@ -866,7 +895,7 @@ class RankSystems(object):
         measures = set(self.measures)
         short_names = _get_system_names(self.systems)
         for path, short in zip(self.systems, short_names):
-            print('opening', path, file=sys.stderr)
+            #print('opening', path, file=sys.stderr)
             results = Evaluate.read_tab_format(open(path))
             system = short if self.short_names else path
             tuples.extend(Tup(system, _group(self.group_re, path), measure, metric, score)
