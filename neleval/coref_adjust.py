@@ -158,6 +158,10 @@ def _vocab_to_index(vocab):
 
 def _match(X, by_cluster_pair, norm_func, method_str,
            fixes, true_match, pred_match, zero_on_del=False):
+
+    # TODO: Would be easier to perform analysis if matched clusters were output
+    #       by generators rather than callback
+
     # Delete candidates for matched clusters
     X[true_match, pred_match] = 0
     true_fixed = set()
@@ -166,7 +170,9 @@ def _match(X, by_cluster_pair, norm_func, method_str,
         mention_mat = by_cluster_pair.pop((l_true, l_pred), None)
         if mention_mat is None:
             continue
-        # FIXME: should select least confused mentions to benefit later entity pairs
+        # FIXME: Should select least confused mentions to benefit later entity pairs.
+        #        Intended method is described in paper, using additional epsilon-edges.
+        #        Effectively involves moving up code below that finds confused edges.
         _, true_fixed_pair, pred_fixed_pair = _disjoint_max_assignment(mention_mat, return_mapping=True)
         for m_true, m_pred in zip(true_fixed_pair, pred_fixed_pair):
             fixes.append((method_str, m_true, m_pred))
