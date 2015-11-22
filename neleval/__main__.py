@@ -19,6 +19,7 @@ from .tac import PrepareTac, PrepareTac15
 from .brat import PrepareBrat
 from .configs import ListMeasures
 from .summary import CompareMeasures, PlotSystems, ComposeMeasures, RankSystems
+from .weak import ToWeak
 
 APPS = [
     Evaluate,
@@ -40,6 +41,7 @@ APPS = [
     RankSystems,
     PlotSystems,
     ComposeMeasures,
+    ToWeak,
 ]
 
 
