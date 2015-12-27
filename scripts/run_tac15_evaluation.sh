@@ -8,7 +8,7 @@ if [ "$#" -lt 4 ]; then
     exit 1
 fi
 
-cleanup_cmd='($6 ~ /NAM$/ || ($6 ~ /PER.NOM$/ && $1 ~ /^ENG/)) && $6 != "TTL/NAM" && $1 != "CMN_NW_001331_20150702_F00100023"'
+cleanup_cmd='OFS="\t" {} $6 == "TTL/NAM" {$6 = "PER/NOM"} ($6 ~ /NAM$/ || ($6 ~ /PER.NOM$/ && $1 ~ /^ENG/)) && $1 != "CMN_NW_001331_20150702_F00100023"'
 
 gtab=$1; shift # gold standard link annotations (tab-separated)
 sysdir=$1; shift # directory containing output from systems
