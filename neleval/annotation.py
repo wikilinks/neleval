@@ -287,8 +287,9 @@ class Measure(object):
         cache_key = (self.key, self.filter, self.filter_fn)
         if cache is not None and cache_key in cache:
             gold_clusters, pred_clusters = cache[cache_key]
-        gold_clusters = self.build_clusters(gold)
-        pred_clusters = self.build_clusters(system)
+        else:
+            gold_clusters = self.build_clusters(gold)
+            pred_clusters = self.build_clusters(system)
         if cache is not None:
             cache[cache_key] = (gold_clusters, pred_clusters)
         return fn(gold_clusters, pred_clusters, **kwargs)
