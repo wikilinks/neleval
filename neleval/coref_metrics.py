@@ -492,6 +492,9 @@ def ceaf(true, pred, similarity=dice, return_mapping=False):
                       'Returning 0', OptionalDependencyWarning)
         return 0, 0, 0, 0
 
+    if not true or not pred:
+        return 0, 0, 0, 0
+
     true_keys, true = zip(*items(true))
     pred_keys, pred = zip(*items(pred))
     try:
