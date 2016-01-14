@@ -132,7 +132,7 @@ def fix_unaligned(true, pred, candidates, similarity=overlap,
         # For dice, need appropriate norms in modifications to X
         raise NotImplementedError
     X = similarity.vectorized(true, pred).astype(float)
-    l_true, l_pred, n_mentions = zip(*((l_true, l_pred, _disjoint_max_assignment(mentions))
+    l_true, l_pred, n_mentions = zip(*((l_true, l_pred, _disjoint_max_assignment(mentions, return_mapping=False))
                                        for (l_true, l_pred), mentions
                                        in by_cluster_pair.items()))
     with warnings.catch_warnings():
@@ -173,7 +173,7 @@ def _match(X, by_cluster_pair, norm_func, method_str,
         # FIXME: Should select least confused mentions to benefit later entity pairs.
         #        Intended method is described in paper, using additional epsilon-edges.
         #        Effectively involves moving up code below that finds confused edges.
-        _, true_fixed_pair, pred_fixed_pair = _disjoint_max_assignment(mention_mat, return_mapping=True)
+        _, true_fixed_pair, pred_fixed_pair = _disjoint_max_assignment(mention_mat)
         for m_true, m_pred in zip(true_fixed_pair, pred_fixed_pair):
             fixes.append((method_str, m_true, m_pred))
             true_fixed.add(m_true)
@@ -192,11 +192,11 @@ def _match(X, by_cluster_pair, norm_func, method_str,
                 continue
 
             # TODO: remember previous assignment
-            diff = _disjoint_max_assignment(mention_mat)
+            diff = _disjoint_max_assignment(mention_mat, return_mapping=False)
             mention_mat.row = mention_mat.row.take(idx, mode='clip')
             mention_mat.col = mention_mat.col.take(idx, mode='clip')
             mention_mat.data = mention_mat.data.take(idx, mode='clip')
-            diff -= _disjoint_max_assignment(mention_mat)
+            diff -= _disjoint_max_assignment(mention_mat, return_mapping=False)
             X[l_true, l_pred] -= diff / norm_func(l_true, l_pred)
 
             if not mention_mat.nnz:
@@ -213,7 +213,7 @@ def _max_assignment(X, n_iter, by_cluster_pair, norm_func):
     fixes = []
     for i in range(min(n_iter, max_n_iter)):
         log.info('Maximising, iteration %d, nnz=%d', i, X.nnz)
-        _, trues, preds = _disjoint_max_assignment(X, return_mapping=True)
+        _, trues, preds = _disjoint_max_assignment(X)
         _match(X, by_cluster_pair, norm_func, 'RMA iter %d' % (n_iter + 1),
                fixes, trues, preds)
         X.eliminate_zeros()
