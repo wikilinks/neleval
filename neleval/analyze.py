@@ -339,8 +339,8 @@ class FixSpans(object):
         meg = p.add_mutually_exclusive_group()
         meg.add_argument('--max-assignment', dest='method', action='store_const',
                          const='max-assignment', default='max-assignment')
-        meg.add_argument('--greedy', dest='method', action='store_const',
-                         const='greedy')
+        meg.add_argument('--single-best', dest='method', action='store_const',
+                         const='single-best')
         meg.add_argument('--unambiguous', dest='method', action='store_const',
                          const='unambiguous')
         meg.add_argument('--summary', dest='method', action='store_const',

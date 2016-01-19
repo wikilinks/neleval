@@ -98,8 +98,8 @@ def fix_unaligned(true, pred, candidates, similarity=overlap,
              len(pred), len(candidates))
     if method == 'max-assignment':
         method = _max_assignment
-    elif method == 'greedy':
-        method = _greedy
+    elif method == 'single-best':
+        method = _single_best
     elif method == 'unambiguous':
         method = _unambiguous
     else:
@@ -222,7 +222,7 @@ def _max_assignment(X, n_iter, by_cluster_pair, norm_func):
     return fixes
 
 
-def _greedy(X, n_iter, by_cluster_pair, norm_func):
+def _single_best(X, n_iter, by_cluster_pair, norm_func):
     all_true, all_pred = zip(*by_cluster_pair.keys())
     # Retain only cells with candidates
     X2 = sparse.csr_matrix(X.shape, dtype=X.dtype)
@@ -237,14 +237,14 @@ def _greedy(X, n_iter, by_cluster_pair, norm_func):
         if i % 50 == 0 and i:
             X.eliminate_zeros()
         if i % 100 == 0:
-            log.info('Greedy, iteration %d, nnz=%d', i, X.nnz)
+            log.info('Single best, iteration %d, nnz=%d', i, X.nnz)
         idx = np.argmax(X.data)  # makes this O(n^2); could be done with heap
         if X.data[idx] == 0:
             break
         l_true = np.searchsorted(X.indptr, idx, 'right') - 1
         l_pred = X.indices[idx]
         assert (l_true, l_pred) in by_cluster_pair
-        _match(X, by_cluster_pair, norm_func, 'Greedy iter %d' % (n_iter + 1),
+        _match(X, by_cluster_pair, norm_func, 'Single best, iter %d' % (n_iter + 1),
                fixes, [l_true], [l_pred], zero_on_del=True)
         if not by_cluster_pair:
             break
