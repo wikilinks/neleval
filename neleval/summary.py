@@ -832,11 +832,14 @@ class ComposeMeasures(object):
 
     def _process_system(self, in_file):
         # TODO: don't be so implicit about header
+        output_names = set('{}/{}'.format(m1, m2) for m1, m2 in self.ratios)
+
         out = []
         lookup = {}
         for l in in_file:
             l = l.rstrip().split('\t')
-            out.append(l)
+            if l[-1] not in output_names:
+                out.append(l)
             lookup[l[-1]] = l[:-1]
         for m1, m2 in self.ratios:
             row = []

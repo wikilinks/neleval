@@ -31,7 +31,7 @@ get_top() {
 
 ALL_EDL=$EDL_DIR/*.evaluation
 ALL_EL=$EL_DIR/*.evaluation
-#./nel compose-measures -r strong_all_match strong_mention_match -r strong_typed_mention_match strong_mention_match $ALL_EDL
+./nel compose-measures -r strong_all_match strong_mention_match -r strong_typed_mention_match strong_mention_match $ALL_EDL
 d=$EL_DIR; ./scripts/merge_evaluations.py --label-re='[^/]+/?$' --out-extension eval_prefixed -l =$(basename $d) -l 1lang=00monolingual -l 3lang=00trilingual --out-dir $d $d $(find $d/00filtered/ -type d ) $d/00trilingual $d/00monolingual
 tmpd=$(mktemp -d weakXXXXXX)
 d=$EDL_DIR-weakmatch; ./scripts/merge_evaluations.py --label-re='[^/]+/?$' --out-extension evaluation -l =$(basename $d) --out-dir $tmpd $d $(find $d/00filtered/ -type d )
