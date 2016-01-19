@@ -32,6 +32,10 @@ def _swap_ext(name, new_ext):
     return name + '.' + new_ext
 
 
+nonexist = [path for path in args.paths if not os.path.exists(path)]
+if nonexist:
+    ap.error('Paths do not exist: %r' % nonexist)
+
 is_dir = [os.path.isdir(path) for path in args.paths]
 if all(is_dir):
     if args.out_dir is None:
@@ -49,8 +53,9 @@ elif not any(is_dir):
     input_paths = {'all': args.paths}
     outputs = {'all': sys.stdout}
 else:
-    ap.error('Got mixture of directories and files')
+    ap.error('Got mixture of directories (e.g. %r) and files (e.g. %r)' % (args.paths[is_dir.index(True)], args.paths[is_dir.index(False)]))
 
+seen_labels = set()
 labels = {src: dst for dst, src in args.labels or []}
 
 def get_label(path):
@@ -59,6 +64,7 @@ def get_label(path):
         match = args.label_re.search(name)
         if match is not None:
             name = match.group()
+    seen_labels.add(name)
     return labels.get(name, name)
 
 
@@ -90,3 +96,7 @@ for name in input_paths:
                 print(fmt.format(l, measure), file=fout)
     if opened:
         fout.close()
+
+unseen_labels = set(labels) - seen_labels
+if unseen_labels:
+    print('WARNING: did not see labels %r' % sorted(unseen_labels), file=sys.stderr)
