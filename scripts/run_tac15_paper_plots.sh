@@ -77,14 +77,14 @@ plot_edl() {
     prefix=$1
     shift
     systems=$(echo $@ | sed s/\.evaluation/.eval_prefixed/g)
-    ./nel plot-systems "$LABELMAP" "$STYLEMAP" -o $PLOTS_DIR/edl$prefix-{}.pdf $systems --lines -m typed_mention_ceaf -m mention_ceaf -m typed_mention_ceaf_plus --prf --figsize 8,4 --limits .2,.95
-    ./nel plot-systems "$LABELMAP" "$STYLEMAP" -o $PLOTS_DIR/edl$prefix-{}-ci90.pdf $(echo $systems | sed s/\.eval_prefixed/.confidence/g) --input-type confidence --ci 90 --lines -m strong_all_match -m strong_typed_all_match --prf --figsize 8,4 --limits .2,.95
-    ./nel plot-systems "$LABELMAP" "$STYLEMAP" -o $PLOTS_DIR/edl$prefix-detection.pdf --single-plot $systems --lines --legend-ncol 2 --figsize 8,4 --limits 0.2,.95 -m weak/strong_mention_match -m strong_mention_match -m strong_typed_mention_match -m strong_all_match -m strong_typed_all_match -m entity_match
-    ./nel plot-systems "$LABELMAP" "$STYLEMAP" -o $PLOTS_DIR/edl$prefix-clustering.pdf --single-plot $systems --lines  --figsize 8,4 --limits 0.2,.95 -m strong_all_match -m mention_ceaf -m weak/mention_ceaf -m typed_mention_ceaf -m typed_mention_ceaf_plus
-    ./nel plot-systems "$LABELMAP" "$STYLEMAP" -o $PLOTS_DIR/edl$prefix-nil.pdf --single-plot $systems --lines  --figsize 8,4 --limits 0.2,.95 -m strong_all_match -m strong_typed_all_match -m strong_typed_link_match -m strong_typed_nil_match -m entity_match
+    ./nel plot-systems --anon "$LABELMAP" "$STYLEMAP" -o $PLOTS_DIR/edl$prefix-{}.pdf $systems --lines -m typed_mention_ceaf -m mention_ceaf -m typed_mention_ceaf_plus --prf --figsize 8,4 --limits .2,.95
+    ./nel plot-systems --anon "$LABELMAP" "$STYLEMAP" -o $PLOTS_DIR/edl$prefix-{}-ci90.pdf $(echo $systems | sed s/\.eval_prefixed/.confidence/g) --input-type confidence --ci 90 --lines -m strong_all_match -m strong_typed_all_match --prf --figsize 8,4 --limits .2,.95
+    ./nel plot-systems --anon "$LABELMAP" "$STYLEMAP" -o $PLOTS_DIR/edl$prefix-detection.pdf --single-plot $systems --lines --legend-ncol 2 --figsize 8,4 --limits 0.2,.95 -m weak/strong_mention_match -m strong_mention_match -m strong_typed_mention_match -m strong_all_match -m strong_typed_all_match -m entity_match
+    ./nel plot-systems --anon "$LABELMAP" "$STYLEMAP" -o $PLOTS_DIR/edl$prefix-clustering.pdf --single-plot $systems --lines  --figsize 8,4 --limits 0.2,.95 -m strong_all_match -m mention_ceaf -m weak/mention_ceaf -m typed_mention_ceaf -m typed_mention_ceaf_plus
+    ./nel plot-systems --anon "$LABELMAP" "$STYLEMAP" -o $PLOTS_DIR/edl$prefix-nil.pdf --single-plot $systems --lines  --figsize 8,4 --limits 0.2,.95 -m strong_all_match -m strong_typed_all_match -m strong_typed_link_match -m strong_typed_nil_match -m entity_match
     for m in typed_mention_ceaf strong_typed_all_match
     do
-        ./nel plot-systems "$LABELMAP" "$STYLEMAP" --heatmap $(echo $systems | ep_ext | sed 's|00filtered/.../||g') --cmap Reds_r $(filter_measures $m $prefix) --figsize 4,6 --run-code "$(cat /tmp/run_code)" --run-code 'fig.savefig("'$PLOTS_DIR'/edl'$prefix'-filtered-'$m'.pdf")'
+        ./nel plot-systems --anon "$LABELMAP" "$STYLEMAP" --heatmap $(echo $systems | ep_ext | sed 's|00filtered/.../||g') --cmap Reds_r $(filter_measures $m $prefix) --figsize 4,6 --run-code "$(cat /tmp/run_code)" --run-code 'fig.savefig("'$PLOTS_DIR'/edl'$prefix'-filtered-'$m'.pdf")'
     done
 }
 
@@ -92,10 +92,10 @@ plot_el() {
     prefix=$1
     shift
     systems=$@
-    ./nel plot-systems "$LABELMAP" "$STYLEMAP" -o $PLOTS_DIR/el$prefix-selected.pdf --single-plot $systems --lines -m mention_ceaf -m strong_all_match -m entity_match --figsize 8,4 --limits 0,1
+    ./nel plot-systems --anon "$LABELMAP" "$STYLEMAP" -o $PLOTS_DIR/el$prefix-selected.pdf --single-plot $systems --lines -m mention_ceaf -m strong_all_match -m entity_match --figsize 8,4 --limits 0,1
     for m in typed_mention_ceaf strong_typed_all_match
     do
-        ./nel plot-systems "$LABELMAP" "$STYLEMAP" --heatmap $(echo $systems | ep_ext | sed 's|00filtered/.../||g') --cmap Reds_r $(filter_measures $m $prefix) --figsize 4,6 --run-code "$(cat /tmp/run_code)" --run-code 'fig.savefig("'$PLOTS_DIR'/el'$prefix'-filtered-'$m'.pdf")'
+        ./nel plot-systems --anon "$LABELMAP" "$STYLEMAP" --heatmap $(echo $systems | ep_ext | sed 's|00filtered/.../||g') --cmap Reds_r $(filter_measures $m $prefix) --figsize 4,6 --run-code "$(cat /tmp/run_code)" --run-code 'fig.savefig("'$PLOTS_DIR'/el'$prefix'-filtered-'$m'.pdf")'
     done
 }
 
@@ -189,13 +189,13 @@ report_table "-m strong_typed_mention_match -m strong_typed_all_match -m strong_
 	4 5 10 4 \
 	> $PLOTS_DIR/el-report.tex
 
-./nel plot-systems "$LABELMAP" "$STYLEMAP" --prf -o $PLOTS_DIR/edl-pernom-detection.pdf $(get_top 4 PERNOM/strong_mention_match $(echo $ALL_EDL| ep_ext)) --lines  --figsize 8,4 --limits 0.0,.95 -m PERNOM/strong_mention_match
-./nel plot-systems "$LABELMAP" "$STYLEMAP" --single-plot -o $PLOTS_DIR/edl-pernom-link.pdf $(get_top 4 PERNOM/strong_mention_match $(echo $ALL_EDL| ep_ext)) --lines  --figsize 8,4 --limits 0.0,.95 -m PERNOM/strong_mention_match -m PERNOM/strong_all_match
+./nel plot-systems --anon "$LABELMAP" "$STYLEMAP" --prf -o $PLOTS_DIR/edl-pernom-detection.pdf $(get_top 4 PERNOM/strong_mention_match $(echo $ALL_EDL| ep_ext)) --lines  --figsize 8,4 --limits 0.0,.95 -m PERNOM/strong_mention_match
+./nel plot-systems --anon "$LABELMAP" "$STYLEMAP" --single-plot -o $PLOTS_DIR/edl-pernom-link.pdf $(get_top 4 PERNOM/strong_mention_match $(echo $ALL_EDL| ep_ext)) --lines  --figsize 8,4 --limits 0.0,.95 -m PERNOM/strong_mention_match -m PERNOM/strong_all_match
 
 for m in strong_typed_all_match strong_typed_mention_match
 do
-	./nel plot-systems --label-map='{"fscore":"$F_1$","'$m'":"all","CMN/'$m'":"Chinese", "ENG/'$m'":"English", "SPA/'$m'":"Spanish"}' "$STYLEMAP" -o $PLOTS_DIR/edl-languages-$m.pdf -m $m -m CMN/$m -m ENG/$m -m SPA/$m --single-plot $(echo $TOP_EDL | ep_ext) --lines  --figsize 8,4 --limits 0.0,.95
-	./nel plot-systems --legend-ncol=2 --label-map='{"fscore":"$F_1$","'$m'":"all","FAC/'$m'":"FAC/NAM", "GPE/'$m'":"GPE/NAM", "LOC/'$m'":"LOC/NAM", "ORG/'$m'":"ORG/NAM", "PERNAM/'$m'":"PER/NAM", "PERNOM/'$m'":"PER/NOM"}' "$STYLEMAP" -o $PLOTS_DIR/edl-types-$m.pdf -m $m -m FAC/$m -m GPE/$m -m LOC/$m -m ORG/$m -m PERNAM/$m -m PERNOM/$m --single-plot $(echo $TOP_EDL | ep_ext) --lines  --figsize 8,4 --limits 0.0,.95
+	./nel plot-systems --anon --label-map='{"fscore":"$F_1$","'$m'":"all","CMN/'$m'":"Chinese", "ENG/'$m'":"English", "SPA/'$m'":"Spanish"}' "$STYLEMAP" -o $PLOTS_DIR/edl-languages-$m.pdf -m $m -m CMN/$m -m ENG/$m -m SPA/$m --single-plot $(echo $TOP_EDL | ep_ext) --lines  --figsize 8,4 --limits 0.0,.95
+	./nel plot-systems --anon --legend-ncol=2 --label-map='{"fscore":"$F_1$","'$m'":"all","FAC/'$m'":"FAC/NAM", "GPE/'$m'":"GPE/NAM", "LOC/'$m'":"LOC/NAM", "ORG/'$m'":"ORG/NAM", "PERNAM/'$m'":"PER/NAM", "PERNOM/'$m'":"PER/NOM"}' "$STYLEMAP" -o $PLOTS_DIR/edl-types-$m.pdf -m $m -m FAC/$m -m GPE/$m -m LOC/$m -m ORG/$m -m PERNAM/$m -m PERNOM/$m --single-plot $(echo $TOP_EDL | ep_ext) --lines  --figsize 8,4 --limits 0.0,.95
 done
-./nel plot-systems "$LABELMAP" "$STYLEMAP" --recall-only -o $PLOTS_DIR/edl-crossling-recall.pdf --single-plot $(echo $TOP_EDL | ep_ext) --lines  --figsize 8,4 --limits 0.0,.95 --legend-ncol 3 -m strong_typed_link_match -m strong_typed_nil_match -m 1lang/strong_typed_link_match -m 1lang/strong_typed_nil_match -m 3lang/strong_typed_link_match -m 3lang/strong_typed_nil_match
-./nel plot-systems "$LABELMAP" "$STYLEMAP" --recall-only --legend-ncol 3 -o $PLOTS_DIR/el-crossling-recall.pdf --single-plot $(echo $TOP_EL | ep_ext) --lines  --figsize 8,4 --limits 0.0,.95 -m strong_typed_link_match -m strong_typed_nil_match -m 1lang/strong_typed_link_match -m 1lang/strong_typed_nil_match -m 3lang/strong_typed_link_match -m 3lang/strong_typed_nil_match
+./nel plot-systems --anon "$LABELMAP" "$STYLEMAP" --recall-only -o $PLOTS_DIR/edl-crossling-recall.pdf --single-plot $(echo $TOP_EDL | ep_ext) --lines  --figsize 8,4 --limits 0.0,.95 --legend-ncol 3 -m strong_typed_link_match -m strong_typed_nil_match -m 1lang/strong_typed_link_match -m 1lang/strong_typed_nil_match -m 3lang/strong_typed_link_match -m 3lang/strong_typed_nil_match
+./nel plot-systems --anon "$LABELMAP" "$STYLEMAP" --recall-only --legend-ncol 3 -o $PLOTS_DIR/el-crossling-recall.pdf --single-plot $(echo $TOP_EL | ep_ext) --lines  --figsize 8,4 --limits 0.0,.95 -m strong_typed_link_match -m strong_typed_nil_match -m 1lang/strong_typed_link_match -m 1lang/strong_typed_nil_match -m 3lang/strong_typed_link_match -m 3lang/strong_typed_nil_match

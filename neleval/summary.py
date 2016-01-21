@@ -119,7 +119,7 @@ class PlotSystems(object):
                  sort_by=None, at_most=None, limits=(0, 1),
                  out_fmt=DEFAULT_OUT_FMT, figsize=(8, 6), legend_ncol=None,
                  label_map=None, style_map=None, cmap=CMAP,
-                 run_code=None, interactive=False):
+                 run_code=None, interactive=False, anon=False):
         _optional_imports()
         if plt is None:
             raise ImportError('PlotSystems requires matplotlib to be installed')
@@ -167,6 +167,8 @@ class PlotSystems(object):
 
         if self.figures_by == 'single' and self.group_re and self.best_in_group in (False, True):
             raise ValueError('Single plot does not support grouping without --best-in-group')
+
+        self.anon = anon
 
     def _plot(self, ax, x, y, *args, **kwargs):
         # uses errorbars where appropriate
@@ -232,7 +234,7 @@ class PlotSystems(object):
             return {}
         return json.loads(s.split('/', 2)[-1])
 
-    def _plot1d(self, ax, data, group_sizes, tick_labels, score_label):
+    def _plot1d(self, ax, data, group_sizes, tick_labels, score_label, sys_label=None):
         small_font = make_small_font()
         ordinate = np.repeat(np.arange(len(group_sizes)), group_sizes)
         for scores, kwargs in data:
@@ -255,18 +257,22 @@ class PlotSystems(object):
             self._set_lim(plt.xlim)
             plt.ylim(-.5, len(tick_labels) - .5)
             plt.xlabel(score_label)
+            if sys_label is not None:
+                plt.ylabel(self._t(sys_label))
         elif self.secondary == 'columns':
             plt.xticks(ticks, tick_labels, fontproperties=small_font, **XTICK_ROTATION)
             plt.xlim(-.5, len(tick_labels) - .5)
             self._set_lim(plt.ylim)
             plt.ylabel(score_label)
+            if sys_label is not None:
+                plt.xlabel(self._t(sys_label))
         else:
             raise ValueError('Unexpected secondary: {!r}'.format(self.secondary))
         plt.tight_layout()
         if len(data) > 1:
             plt.legend(loc='best', prop=small_font, ncol=self._ncol(len(data)))
 
-    def _regroup(self, iterable, key, best_system=False, sort_by='name'):
+    def _regroup(self, iterable, key, best_system=False, sort_by='name', **kwargs):
         iterable = list(iterable)
         out = [(k, list(it)) for k, it in itertools.groupby(sorted(iterable, key=key), key=key)]
         if best_system == True:
@@ -381,16 +387,25 @@ class PlotSystems(object):
                                'sort_by': 'measure',}
             secondary_regroup = {'key': operator.attrgetter('group'),
                                  'best_system': self.best_in_group,
-                                 'sort_by': sort_by,}
+                                 'sort_by': sort_by,
+                                 'label': 'System',}
         elif self.figures_by == 'system':
             if sort_by == 'none':
                 sort_by = lambda results: self.measures.index(results[0].measure)
             primary_regroup = {'key': operator.attrgetter('group'),
-                               'best_system': self.best_in_group}
+                               'best_system': self.best_in_group,
+                               'label': 'System'}
             secondary_regroup = {'key': operator.attrgetter('measure'),
-                                 'sort_by': sort_by,}
+                                 'sort_by': sort_by,
+                                 'label': 'Measure',}
         else:
             raise ValueError('Unexpected figures_by: {!r}'.format(self.figures_by))
+
+        # HACK!
+        if self.anon:
+            for result in all_results:
+                self.label_map[result.group] = ''
+                self.label_map[result.system] = ''
 
         if self.interactive or self.run_code:
             figures = {}
@@ -455,6 +470,10 @@ class PlotSystems(object):
                    fontproperties=small_font)
         plt.xticks(np.arange(len(column_names)), [self._t(name) for name in column_names],
                    fontproperties=small_font, **XTICK_ROTATION)
+        if 'label' in primary_regroup:
+            plt.ylabel(self._t(primary_regroup['label']))
+        if 'label' in secondary_regroup:
+            plt.xlabel(self._t(secondary_regroup['label']))
         ax.set_xlim(-.5, len(column_names) - .5)
         figure.colorbar(im)
         figure.tight_layout()
@@ -474,6 +493,7 @@ class PlotSystems(object):
 
         fig = plt.figure(figure_name, figsize=self.figsize)
         ax = fig.add_subplot(1, 1, 1)
+
         def _dict_mrg(*ds):
             out = {}
             for d in ds:
@@ -485,7 +505,7 @@ class PlotSystems(object):
                                 self._further_style(measure)))
                 for col, measure, color, marker
                 in zip(matrix, measure_names, colors, self._marker_cycle())]
-        self._plot1d(ax, data, np.ones(len(sys_names), dtype=int), sys_names, metric)
+        self._plot1d(ax, data, np.ones(len(sys_names), dtype=int), sys_names, metric, secondary_regroup.get('label'))
         plt.grid(axis='x' if self.secondary == 'rows' else 'y')
         return figure_name, fig, {}
 
@@ -523,7 +543,7 @@ class PlotSystems(object):
                 axis_label = '{} {}'.format(self._t(figure_name), self._t(axis_label))
 
                 self._plot1d(ax, [(scores[..., c], kwargs) for c, kwargs in self._metric_data()],
-                             [len(group) for group in figure_data], secondary_names, axis_label)
+                             [len(group) for group in figure_data], secondary_names, axis_label, secondary_regroup.get('label'))
 
             plt.grid(axis='x' if self.secondary == 'rows' else 'y')
             yield figure_name, fig, {}
@@ -614,6 +634,8 @@ class PlotSystems(object):
 
         p.add_argument('--label-map', help='JSON (or file) mapping internal labels to display labels')
         p.add_argument('--style-map', help='JSON (or file) mapping labels to <color>/<marker> settings')
+
+        p.add_argument('--anon', action='store_true', default=False, help='Hide system/team names')
 
         p.set_defaults(cls=cls)
         return p
@@ -755,13 +777,20 @@ class CompareMeasures(object):
             plt.close(fig)
 
         fig, ax = plt.subplots(figsize=self.figsize)
-        ax.boxplot(all_results[:, ::-1], 0, 'rs', 0,
+        ax.boxplot(all_results[:, ::-1], notch=False, sym='rs', vert=False,
                    labels=disp_measures[::-1])
         plt.yticks(fontproperties=small_font)
         plt.tight_layout()
         plt.savefig(self.out_fmt.format('spread'))
 
-        return 'Saved to %s' % self.out_fmt.format('{pearson,spearman,kendall,spread}')
+        fig, ax = plt.subplots(figsize=self.figsize)
+        ax.violinplot(all_results[:, ::-1], vert=False, showmedians=True)
+        plt.yticks(range(1, 1 + len(disp_measures)), disp_measures[::-1], fontproperties=small_font)
+        plt.tight_layout()
+        plt.ylim(0, 1 + len(disp_measures))
+        plt.savefig(self.out_fmt.format('violin'))
+
+        return 'Saved to %s' % self.out_fmt.format('{pearson,spearman,kendall,spread,violin}')
 
 
     FMTS = {
