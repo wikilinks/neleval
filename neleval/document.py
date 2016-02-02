@@ -6,6 +6,7 @@ from __future__ import print_function
 from collections import OrderedDict
 import warnings
 import sys
+import argparse
 
 from .annotation import Annotation
 
@@ -25,7 +26,7 @@ class Document(object):
     # May be 'ignore', 'warn', 'error'
     VALIDATION = {
         'nested': 'ignore',
-        'crossing': 'warn',
+        'crossing': 'ignore',
         'duplicate': 'ignore',
     }
 
@@ -139,3 +140,33 @@ class Reader(object):
         "Yield Annotation objects"
         for line in self.fh:
             yield Annotation.from_string(line.rstrip('\n').decode(ENC))
+
+
+class ValidateSpans(object):
+    """Identify duplicate, crossing and nested spans
+
+    Will output warnings or errors as determined by options.
+    """
+    def __init__(self, system, duplicate='error', crossing='warn', nested='ignore'):
+        self.system = system
+        self.duplicate = duplicate
+        self.crossing = crossing
+        self.nested = nested
+
+    def __call__(self):
+        # HACK (not concurrency-safe)
+        OLD_VALIDATION = Document.VALIDATION
+        Document.VALIDATION = {k: getattr(self, k)
+                               for k in OLD_VALIDATION}
+        list(Reader(self.system))
+        Document.VALIDATION = OLD_VALIDATION
+
+    @classmethod
+    def add_arguments(cls, p):
+        CHOICES = ['ignore', 'warn', 'error']
+        p.add_argument('system', nargs='?', default=sys.stdin, type=argparse.FileType('r'), metavar='FILE')
+        p.add_argument('--duplicate', default='error', choices=CHOICES)
+        p.add_argument('--crossing', default='warn', choices=CHOICES)
+        p.add_argument('--nested', default='ignore', choices=CHOICES)
+        p.set_defaults(cls=cls)
+        return p
