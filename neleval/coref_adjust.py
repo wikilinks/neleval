@@ -2,6 +2,7 @@ from __future__ import division, print_function
 
 from collections import defaultdict, OrderedDict, Counter
 import warnings
+import itertools
 
 import numpy as np
 from scipy import sparse
@@ -36,7 +37,7 @@ def summarise(true, pred, candidates):
             d = defaultdict(list)
             for other_m, other_l in other_ms:
                 d[other_l].append(other_m)
-            print(prefix, l, m, len(d), {l: len(ms) for l, ms in d.items()}, '\t'.join('{}\t{}\t{}'.format(other_l, 'excl' if len(set(l3 for _, l3 in rev[other_m, other_l])) == 1 else 'shared', other_m) for other_m, other_l in other_ms), sep='\t')
+            print(prefix, l, m.docid, m.start, m.end, m.link, len(d), {l: len(ms) for l, ms in d.items()}, '\t'.join('{}\t{}\t{}'.format(other_l, 'excl' if len(set(l3 for _, l3 in rev[other_m, other_l])) == 1 else 'shared', other_m) for other_m, other_l in other_ms), sep='\t')
 
     # Tricky case is where (sys_label A, gold_mention) repeated where (sys_label B, gold_mention) also
 
@@ -105,8 +106,9 @@ def fix_unaligned(true, pred, candidates, similarity=overlap,
     else:
         raise ValueError('Unknown method: %r' % method)
 
-    true = OrderedDict(true)
-    pred = OrderedDict(pred)
+    # XXX: it's unideal for determinism to be based on arbitrary cluster labels!
+    true = OrderedDict(sorted(true.items()))
+    pred = OrderedDict(sorted(pred.items()))
     true_to_ind = {label: i for i, label in enumerate(true)}
     pred_to_ind = {label: i for i, label in enumerate(pred)}
     candidates = [((m_true, true_to_ind[l_true]),
@@ -164,20 +166,47 @@ def _match(X, by_cluster_pair, norm_func, method_str,
 
     # Delete candidates for matched clusters
     X[true_match, pred_match] = 0
+
     true_fixed = set()
     pred_fixed = set()
     for l_true, l_pred in zip(true_match, pred_match):
         mention_mat = by_cluster_pair.pop((l_true, l_pred), None)
         if mention_mat is None:
             continue
-        # FIXME: Should select least confused mentions to benefit later entity pairs.
-        #        Intended method is described in paper, using additional epsilon-edges.
-        #        Effectively involves moving up code below that finds confused edges.
+
+        # XXX: could perhaps avoid nested loop
+        epsilon_rows = []
+        epsilon_cols = []
+        for (o_true, o_pred), o_mention_mat in by_cluster_pair.items():
+            if o_true == l_true or o_pred == l_pred:
+                epsilon_rows.append(o_mention_mat.row)
+                epsilon_cols.append(o_mention_mat.col)
+
+        max_n_fixes = mention_mat.nnz
+        if epsilon_rows:
+            epsilon_rows = np.concatenate(epsilon_rows)
+            epsilon_cols = np.concatenate(epsilon_cols)
+            idx = np.flatnonzero(np.logical_or(np.in1d(epsilon_rows, mention_mat.row),
+                                               np.in1d(epsilon_cols, mention_mat.col)))
+            mention_mat.row = np.concatenate([mention_mat.row, epsilon_rows.take(idx, mode='clip')])
+            mention_mat.col = np.concatenate([mention_mat.col, epsilon_cols.take(idx, mode='clip')])
+###        mention_mat.row = np.concatenate([mention_mat.row] + epsilon_rows)
+###        mention_mat.col = np.concatenate([mention_mat.col] + epsilon_cols)
+        n_eps = mention_mat.row.size - max_n_fixes
+        eps = .9 / (max_n_fixes + n_eps)
+        mention_mat.data = np.concatenate([mention_mat.data, np.ones(n_eps) * eps])
+
+        # XXX: rewite nicely?
         _, true_fixed_pair, pred_fixed_pair = _disjoint_max_assignment(mention_mat)
-        for m_true, m_pred in zip(true_fixed_pair, pred_fixed_pair):
-            fixes.append((method_str, m_true, m_pred))
-            true_fixed.add(m_true)
-            pred_fixed.add(m_pred)
+        if n_eps:
+            vals = mention_mat.tocsr()[true_fixed_pair, pred_fixed_pair].flat
+        else:
+            vals = itertools.repeat(1)
+        for m_true, m_pred, val in zip(true_fixed_pair, pred_fixed_pair, vals):
+            if val > eps:
+                fixes.append((method_str, m_true, m_pred))
+                true_fixed.add(m_true)
+                pred_fixed.add(m_pred)
 
     true_fixed = np.array(sorted(true_fixed))
     pred_fixed = np.array(sorted(pred_fixed))
@@ -191,7 +220,7 @@ def _match(X, by_cluster_pair, norm_func, method_str,
             if len(idx) == mention_mat.nnz:
                 continue
 
-            # TODO: remember previous assignment
+            # XXX: could remember previous assignment
             diff = _disjoint_max_assignment(mention_mat, return_mapping=False)
             mention_mat.row = mention_mat.row.take(idx, mode='clip')
             mention_mat.col = mention_mat.col.take(idx, mode='clip')
@@ -212,7 +241,7 @@ def _max_assignment(X, n_iter, by_cluster_pair, norm_func):
         n_iter = max_n_iter
     fixes = []
     for i in range(min(n_iter, max_n_iter)):
-        log.info('Maximising, iteration %d, nnz=%d', i, X.nnz)
+        log.info('Maximising, iteration %d, nnz=%d', i + 1, X.nnz)
         _, trues, preds = _disjoint_max_assignment(X)
         _match(X, by_cluster_pair, norm_func, 'RMA iter %d' % (n_iter + 1),
                fixes, trues, preds)
@@ -254,8 +283,8 @@ def _single_best(X, n_iter, by_cluster_pair, norm_func):
 def _unambiguous(X, n_iter, by_cluster_pair, norm_func):
     g_candidates = defaultdict(list)
     s_candidates = defaultdict(list)
-    for (g_l, s_l), mention_pairs in by_cluster_pair.items():
-        for g_m, s_m in mention_pairs:
+    for (g_l, s_l), mention_mat in by_cluster_pair.items():
+        for g_m, s_m in zip(*mention_mat.nonzero()):
             g_candidates[g_m].append(s_m)
             s_candidates[s_m].append(g_m)
     for g_m, cands in g_candidates.items():
