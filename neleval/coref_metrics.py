@@ -78,7 +78,9 @@ def _get_reference_coref_scorer_path():
         return None
     if os.path.isdir(path):
         path = os.path.join(path, 'scorer.pl')
-    if not os.path.isfile(path):
+    if os.path.isfile(path):
+        warnings.warn('Using coreference metric debug mode!')
+    else:
         warnings.warn('Not using coreference metric debug mode:'
                       '{} is not a file'.format(path))
     return path
@@ -127,7 +129,7 @@ def _run_reference_coref_scorer(true, pred, metric='all'):
     start = time.time()
     output = subprocess.check_output([REFERENCE_COREF_SCORER_PATH,
                                       metric, true_file.name,
-                                      pred_file.name])
+                                      pred_file.name, 'none'])
     their_time = time.time() - start
     #print('Ran perl scorer', metric, 'in ', their_time, file=sys.stderr)
     #print(output[-400:], file=sys.stderr)
