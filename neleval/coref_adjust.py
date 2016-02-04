@@ -240,14 +240,19 @@ def _max_assignment(X, n_iter, by_cluster_pair, norm_func):
     if n_iter is None:
         n_iter = max_n_iter
     fixes = []
+    next_log = 1
+    i = 0
     for i in range(min(n_iter, max_n_iter)):
-        log.info('Maximising, iteration %d, nnz=%d', i + 1, X.nnz)
+        if next_log == i:
+            next_log = next_log * 2
+            log.info('Maximising, iteration %d, nnz=%d', i + 1, X.nnz)
         _, trues, preds = _disjoint_max_assignment(X)
         _match(X, by_cluster_pair, norm_func, 'RMA iter %d' % (n_iter + 1),
                fixes, trues, preds)
         X.eliminate_zeros()
         if not by_cluster_pair:
             break
+    log.info('Completed %d iterations', i + 1)
     return fixes
 
 
