@@ -330,9 +330,9 @@ class FixSpans(object):
     def add_arguments(cls, p):
         p.add_argument('system_in', metavar='FILE')
         p.add_argument('-o', '--system-out', metavar='FILE',
-                       help='Path to write fixed annotations')
+                       help='Path to write fixed annotations', required=True)
         p.add_argument('-G', '--gold-out', metavar='FILE',
-                       help='Path to write adjusted gold annotations')
+                       help='Path to write adjusted gold annotations (for --by-doc)')
         p.add_argument('-d', '--diff-out', help='Path to write diff of fixes')
         p.add_argument('-g', '--gold', required=True)
 
