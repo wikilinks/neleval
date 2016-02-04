@@ -39,7 +39,7 @@ class Annotation(object):
 
     def __cmp__(self, other):
         assert isinstance(other, Annotation)
-        return cmp((self.start, -self.end), (other.start, -other.end))
+        return cmp((self.docid, self.start, -self.end), (other.docid, other.start, -other.end))
 
     def compare_spans(self, other):
         assert self.start <= self.end, 'End is before start: {!r}'.format(self)

@@ -206,35 +206,39 @@ def read_conll_coref(f):
     res = defaultdict(set)
     # TODO: handle annotations over document boundary
     i = 0
-    stack = []
+    opened = defaultdict(list)
     for l in f:
         if l.startswith('#'):
             continue
         l = l.split()
         if not l:
-            assert not stack
+            assert not opened
             continue
 
         i += 1
         tag = l[-1]
-        text = l[0] if len(l) > 1 else ''
+        text = l[-2] if len(l) > 1 else ''
 
         closed_here = []
-        for match in re.finditer(r'\(?[0-9]+\)?', tag):
+        for match in re.finditer(r'\(?[^()|]+\)?', tag):
             match = match.group()
             cid = match.strip('()')
             if match.startswith('('):
-                stack.append((cid, (text, i)))
+                opened[cid].append((text, i))
             if match.endswith(')'):
-                start_cid, start = stack.pop()
-                assert start_cid == cid
+                start = opened[cid].pop()
+                if not opened[cid]:
+                    del opened[cid]
+                #assert start_cid == cid, 'Found %r, expected %r at %d' % (cid, start_cid, i)
                 closed_here.append((cid, start))
 
         # keep only one mention of those with identical spans
         for _, mentions in itertools.groupby(closed_here,
                                              operator.itemgetter(1)):
             cid, start = list(mentions)[-1]  # keep the outermost
-            res[cid].add((start, i))
+            res[cid].add((start[1], i))
+
+    assert not opened
 
     res.default_factory = None  # disable defaulting
     return res
