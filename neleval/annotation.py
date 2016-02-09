@@ -366,10 +366,9 @@ class Measure(object):
     def count_overlap(self, system, gold, gold_mode='sum', sys_mode='sum'):
         # XXX: note by convention modes are gold then sys!
         overlaps_sys, overlaps_gold = self.get_overlapping(system, gold)
-        tp = self.measure_overlap(overlaps_gold, gold_mode)
         fp = len(overlaps_sys) - self.measure_overlap(overlaps_sys, sys_mode)
-        fn = len(overlaps_gold) - tp
-        return tp, fp, fn
+        fn = len(overlaps_gold) - self.measure_overlap(overlaps_gold, gold_mode)
+        return fp, fn
 
     def count_clustering(self, system, gold):
         from . import coref_metrics
@@ -399,9 +398,9 @@ class Measure(object):
             return tp, fp, tp, fn
         elif self.agg.startswith('overlap-') and self.agg.endswith('-micro'):
             params = self.agg[len('overlap-'):-len('-micro')]
-            tp, fp, fn = self.count_overlap(system, gold,
-                                            params[:3], params[3:])
-            return tp, fp, tp, fn
+            fp, fn = self.count_overlap(system, gold,
+                                        params[:3], params[3:])
+            return len(system) - fp, fp, len(gold) - fn, fn
         else:
             # This should not be reachable
             raise ValueError('Unexpected value for agg: %r' % self.agg)
