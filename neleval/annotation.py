@@ -295,7 +295,7 @@ class Measure(object):
         """
         key_fields = self.key
         if 'span' in key_fields:
-            key_fields = [f for f in key_fields] + ['docid']
+            key_fields = [f for f in key_fields if f != 'span'] + ['docid']
 
         overlaps_sys = {ann: [] for ann in system}
         overlaps_gold = {ann: [] for ann in gold}
@@ -320,8 +320,7 @@ class Measure(object):
 
     @staticmethod
     def measure_overlap(overlaps, mode):
-        # TODO: perhaps use Fraction
-        total = Fraction()
+        total = 0.
         if mode == 'sum':
             for ref, cands in overlaps.items():
                 if not cands:
@@ -348,7 +347,7 @@ class Measure(object):
                             opened = None
                 assert n_open == 0
                 assert opened is None
-                total += Fraction(n_chars, ref.end - ref.start + 1)
+                total += n_chars / (ref.end - ref.start + 1)
 
         elif mode == 'max':
             for ref, cands in overlaps.items():
@@ -358,7 +357,7 @@ class Measure(object):
                 end = ref.end
                 most = max(min(end, ann.end) - max(start, ann.start)
                            for ann in cands)
-                total += Fraction(most + 1, end - start + 1)
+                total += (most + 1) / (end - start + 1)
         else:
             raise ValueError('Unexpected overlap measurement mode: %r' % mode)
 
