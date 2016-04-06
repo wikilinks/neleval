@@ -1,7 +1,7 @@
 Entity linking evaluation
 =========================
 
-Python evaluation scripts for [TAC](http://www.nist.gov/tac/) entity linking (and related wikification, named entity disambiguation and cross-document coreference tasks).
+Python evaluation scripts for [TAC](http://www.nist.gov/tac/) entity linking and related wikification, named entity disambiguation, and within- and cross-document coreference tasks.
 
 Requires that `python` (2.7, with Py3k support experimental/partial) be installed on your system with `numpy` (and preferably `scipy` for fast CEAF calculation) and `joblib`. `matplotlib` is required for the `plot-systems` command.
 
@@ -41,7 +41,7 @@ References
 
 This project extends the work described in:
 
-* Ben Hachey, Joel Nothman and Will Radford (2014), "(Cheap and easy entity evaluation)[https://aclweb.org/anthology/P/P14/P14-2076]". In Proceedings of ACL.
+* Ben Hachey, Joel Nothman and Will Radford (2014), "[Cheap and easy entity evaluation](https://aclweb.org/anthology/P/P14/P14-2076)". In Proceedings of ACL.
 
 It was used as the official scorer for Entity (Discovery and) Linking in 2014 and 2015:
 
