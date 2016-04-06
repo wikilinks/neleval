@@ -240,4 +240,4 @@ class PrepareTac15(object):
                  'from {}'.format(n_candidates, n_annotations, n_excluded,
                                   self.system.name))
 
-    KEY_RE = re.compile(ur'^(\S+): ?(\d+) ?[-\u2013] ?(\d+)$')
+    KEY_RE = re.compile(u'^(\\S+): ?(\\d+) ?[-\u2013] ?(\\d+)$')

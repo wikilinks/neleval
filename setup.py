@@ -16,6 +16,12 @@ setup(name='neleval',
           'significance': [
             'joblib',
           ],
+          'ceaf': [
+            'scipy',
+          ],
+          'plots': [
+            'matplotlib',
+          ],
           'dev': [
             'pyflakes',
             'nose',

@@ -73,7 +73,11 @@ def main(args=sys.argv[1:]):
 
     namespace = vars(p.parse_args(args))
     logging.basicConfig(level=namespace.pop('log_level'), format='%(levelname)s\t%(asctime)s\t%(message)s')
-    cls = namespace.pop('cls')
+    try:
+        cls = namespace.pop('cls')
+    except KeyError:
+        p.print_help()
+        return
     try:
         obj = cls(**namespace)
     except ValueError as e:

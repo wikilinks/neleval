@@ -140,11 +140,13 @@ class Significance(object):
                     'stats': self.significance(measure_counts[sys1], measure_counts[sys2])}
                    for sys1, sys2 in itertools.combinations(self.systems, 2)
                    for measure, measure_counts in sorted(all_counts.iteritems(),
-                                                     key=lambda (k, v): self.measures.index(k))]
+                                                     key=lambda tup: self.measures.index(tup[0]))]
 
         return self.fmt(self, results)
 
-    def significance(self, (per_doc1, overall1), (per_doc2, overall2)):
+    def significance(self, pair1, pair2):
+        per_doc1, overall1 = pair1
+        per_doc2, overall2 = pair2
         # TODO: limit to metrics
         base_diff = _result_diff(overall1, overall2)
         randomized_diffs = functools.partial(self.METHODS[self.method],
@@ -312,7 +314,7 @@ class Confidence(object):
                     'overall': {k: v for k, v in overall.results.items() if k in self.metrics},
                     'intervals': self.intervals(per_doc)}
                    for measure, (per_doc, overall) in sorted(counts.iteritems(),
-                                                             key=lambda (k, v): self.measures.index(k))]
+                                                             key=lambda tup: self.measures.index(tup[0]))]
         return results
 
     def __call__(self):

@@ -424,7 +424,7 @@ class PlotSystems(object):
             if self.run_code:
                 for code in self.run_code:
                     # ns can be updated
-                    exec code in __builtins__, ns
+                    exec(code, __builtins__, ns)
             if self.interactive:
                 embed_shell(ns, shell=None if self.interactive is True else self.interactive)
         else:
