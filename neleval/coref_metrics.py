@@ -76,7 +76,9 @@ def _get_reference_coref_scorer_path():
         return None
     if os.path.isdir(path):
         path = os.path.join(path, 'scorer.pl')
-    if not os.path.isfile(path):
+    if os.path.isfile(path):
+        warnings.warn('Using coreference metric debug mode!')
+    else:
         warnings.warn('Not using coreference metric debug mode:'
                       '{} is not a file'.format(path))
     return path
@@ -125,7 +127,7 @@ def _run_reference_coref_scorer(true, pred, metric='all'):
     start = time.time()
     output = subprocess.check_output([REFERENCE_COREF_SCORER_PATH,
                                       metric, true_file.name,
-                                      pred_file.name])
+                                      pred_file.name, 'none'])
     their_time = time.time() - start
     #print('Ran perl scorer', metric, 'in ', their_time, file=sys.stderr)
     #print(output[-400:], file=sys.stderr)
@@ -189,35 +191,39 @@ def read_conll_coref(f):
     res = defaultdict(set)
     # TODO: handle annotations over document boundary
     i = 0
-    stack = []
+    opened = defaultdict(list)
     for l in f:
         if l.startswith('#'):
             continue
         l = l.split()
         if not l:
-            assert not stack
+            assert not opened
             continue
 
         i += 1
         tag = l[-1]
-        text = l[0] if len(l) > 1 else ''
+        text = l[-2] if len(l) > 1 else ''
 
         closed_here = []
-        for match in re.finditer(r'\(?[0-9]+\)?', tag):
+        for match in re.finditer(r'\(?[^()|]+\)?', tag):
             match = match.group()
             cid = match.strip('()')
             if match.startswith('('):
-                stack.append((cid, (text, i)))
+                opened[cid].append((text, i))
             if match.endswith(')'):
-                start_cid, start = stack.pop()
-                assert start_cid == cid
+                start = opened[cid].pop()
+                if not opened[cid]:
+                    del opened[cid]
+                #assert start_cid == cid, 'Found %r, expected %r at %d' % (cid, start_cid, i)
                 closed_here.append((cid, start))
 
         # keep only one mention of those with identical spans
         for _, mentions in itertools.groupby(closed_here,
                                              operator.itemgetter(1)):
             cid, start = list(mentions)[-1]  # keep the outermost
-            res[cid].add((start, i))
+            res[cid].add((start[1], i))
+
+    assert not opened
 
     res.default_factory = None  # disable defaulting
     return res
@@ -669,7 +675,9 @@ if REFERENCE_COREF_SCORER_PATH is not None:
 
 if __name__ == '__main__':
     import argparse
-    ap = argparse.ArgumentParser(description='CoNLL2011-2 coreference evaluator')
+    descr = ('CoNLL2011-2 coreference evaluator: use neleval\'s '
+             'prepare-conll-coref and evaluate commands for more control')
+    ap = argparse.ArgumentParser(description=descr)
     ap.add_argument('key_file', type=argparse.FileType('r'))
     ap.add_argument('response_file', type=argparse.FileType('r'))
     args = ap.parse_args()
@@ -685,4 +693,5 @@ if __name__ == '__main__':
     response = read_conll_coref(args.response_file)
     print('Metric', 'P', 'R', 'F1', sep='\t')
     for name, fn in sorted(METRICS.items()):
-        print(name, *('{:0.2f}'.format(100 * x) for x in _prf(*fn(key, response))), sep='\t')
+        print(name, *('{:0.2f}'.format(100 * x)
+                      for x in _prf(*fn(key, response))), sep='\t')

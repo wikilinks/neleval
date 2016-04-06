@@ -6,6 +6,7 @@ import textwrap
 import re
 import sys
 import traceback
+import logging
 
 #from .prepare import Prepare
 from .evaluate import Evaluate
@@ -17,6 +18,7 @@ from .significance import Significance, Confidence
 #from .rcv import ReutersCodes
 from .tac import PrepareTac, PrepareTac15
 from .brat import PrepareBrat
+from .import_ import PrepareConllCoref
 from .configs import ListMeasures
 from .summary import CompareMeasures, PlotSystems, ComposeMeasures, RankSystems
 from .weak import ToWeak
@@ -38,6 +40,7 @@ APPS = [
     PrepareTac,
     PrepareTac15,
     PrepareBrat,
+    PrepareConllCoref,
     CompareMeasures,
     RankSystems,
     PlotSystems,
@@ -50,6 +53,10 @@ APPS = [
 def main(args=sys.argv[1:]):
     p = argparse.ArgumentParser(prog='neleval',
                                 description='Evaluation tools for Named Entity Linking output.')
+    p.add_argument('--verbose', dest='log_level', action='store_const',
+                   const=logging.DEBUG, default=logging.INFO)
+    p.add_argument('--quiet', dest='log_level', action='store_const',
+                   const=logging.ERROR)
     sp = p.add_subparsers()
     subparsers = {}
     for cls in APPS:
@@ -65,6 +72,7 @@ def main(args=sys.argv[1:]):
         subparsers[cls] = csp
 
     namespace = vars(p.parse_args(args))
+    logging.basicConfig(level=namespace.pop('log_level'), format='%(levelname)s\t%(asctime)s\t%(message)s')
     cls = namespace.pop('cls')
     try:
         obj = cls(**namespace)
