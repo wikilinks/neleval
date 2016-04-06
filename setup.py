@@ -1,6 +1,6 @@
 from setuptools import setup
 setup(name='neleval',
-      version='0.2',
+      version='3.0',
       description='Evaluation utilities named entity linking and cross-document coreference',
       packages=['neleval'],
       url='https://github.com/wikilinks/neleval',
