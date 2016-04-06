@@ -3,10 +3,20 @@ Entity linking evaluation
 
 Python evaluation scripts for [TAC](http://www.nist.gov/tac/) entity linking (and related wikification, named entity disambiguation and cross-document coreference tasks).
 
-TAC14 quickstart
-================
+Requires that `python` (2.7, with Py3k support experimental/partial) be installed on your system with `numpy` (and preferably `scipy` for fast CEAF calculation) and `joblib`. `matplotlib` is required for the `plot-systems` command.
 
-Assumes that `python` (2.7, with Py3k support soon) is installed on your system with `numpy` (and preferably `scipy` for fast CEAF calculation) and `joblib`.
+See a list of commands with:
+```bash
+./nel --help
+```
+
+Or install onto your Python path (e.g. with `pip install git+https://github.com/wikilinks/neleval`) then
+```bash
+python -m neleval --help
+```
+
+TAC-KBP 2014 EDL quickstart
+===========================
 
 ```bash
 ./scripts/run_tac14_evaluation.sh \
@@ -19,4 +29,21 @@ Assumes that `python` (2.7, with Py3k support soon) is installed on your system 
 
 Each file in in the system output directory is scored against gold.tab.
 
+Similar facility is available for TAC-KBP'15 EDL.
+
+More details
+============
+
 See [the project wiki](../../wiki) for more details.
+
+References
+==========
+
+This project extends the work described in:
+
+* Ben Hachey, Joel Nothman and Will Radford (2014), "(Cheap and easy entity evaluation)[https://aclweb.org/anthology/P/P14/P14-2076]". In Proceedings of ACL.
+
+It was used as the official scorer for Entity (Discovery and) Linking in 2014 and 2015:
+
+* Heng Ji, Joel Nothman and Ben Hachey (2014), "Overview of TAC-KBP2014 Entity Discovery and Linking Tasks", In Proceedings of the Text Analysis Conference.
+* Heng Ji, Joel Nothman, Ben Hachey and Radu Florian (2015), "Overview of TAC-KBP2015 Tri-lingual Entity Discovery and Linking Tasks", In Proceedings of the Text Analysis Conference.
