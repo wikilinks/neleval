@@ -15,8 +15,8 @@ def read_markdown(path):
 
 
 setup(name='neleval',
-      version='3.0.0',
-      download_url='https://github.com/wikilinks/neleval/tree/v3.0.0',
+      version='3.0.1',
+      download_url='https://github.com/wikilinks/neleval/tree/v3.0.1',
 
       description='Evaluation utilities for named entity linking and (cross-document) coreference resolution',
       author='Joel Nothman, Ben Hachey, Will Radford',
