@@ -1,9 +1,15 @@
 from __future__ import print_function
 import sys
+import os
 from setuptools import setup
 
 
-def read_markdown(path):
+def read_markdown(filename):
+    path = os.path.join(os.path.dirname(__file__), filename)
+    if not os.path.exists(path):
+        if 'sdist' in sys.argv:
+            print('WARNING: did not find %r' % filename, file=sys.stderro)
+        return
     try:
         import pypandoc
     except ImportError:
@@ -14,9 +20,11 @@ def read_markdown(path):
     return pypandoc.convert(path, 'rst')
 
 
+VERSION = '3.0.3'
+
 setup(name='neleval',
-      version='3.0.1',
-      download_url='https://github.com/wikilinks/neleval/tree/v3.0.1',
+      version=VERSION,
+      download_url='https://github.com/wikilinks/neleval/tree/v' + VERSION,
 
       description='Evaluation utilities for named entity linking and (cross-document) coreference resolution',
       author='Joel Nothman, Ben Hachey, Will Radford',
