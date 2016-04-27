@@ -26,6 +26,7 @@ from .document import ValidateSpans
 
 APPS = [
     Evaluate,
+    ValidateSpans,
     ListMeasures,
     Analyze,
     Significance,
@@ -46,7 +47,6 @@ APPS = [
     PlotSystems,
     ComposeMeasures,
     ToWeak,
-    ValidateSpans,
 ]
 
 
