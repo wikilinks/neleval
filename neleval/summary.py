@@ -20,6 +20,7 @@ from .document import Reader
 from .evaluate import Evaluate
 from .significance import Confidence
 from .interact import embed_shell
+from .utils import utf8_open, json_dumps
 
 DEFAULT_OUT_FMT = '.%s{}.pdf' % os.path.sep
 MAX_LEGEND_PER_COL = 20
@@ -313,7 +314,7 @@ class PlotSystems(object):
                                                                                       ('lo', float),
                                                                                       ('hi', float)])
             for system, sys_results in zip(self.systems, all_results):
-                result_dict = {entry['measure']: entry for entry in Confidence.read_tab_format(open(system))}
+                result_dict = {entry['measure']: entry for entry in Confidence.read_tab_format(utf8_open(system))}
                 # XXX: this is an ugly use of list comprehensions
                 mat = [[(result_dict[measure]['overall'][metric], 0 if self.confidence is None else result_dict[measure]['intervals'][metric][self.confidence][0], 0 if self.confidence is None else result_dict[measure]['intervals'][metric][self.confidence][1])
                         for metric in ('precision', 'recall', 'fscore')]
@@ -326,7 +327,7 @@ class PlotSystems(object):
         else:
             all_results = np.empty((len(self.systems), len(measures), 3), dtype=[('score', float)])
             for system, sys_results in zip(self.systems, all_results):
-                result_dict = Evaluate.read_tab_format(open(system))
+                result_dict = Evaluate.read_tab_format(utf8_open(system))
                 try:
                     sys_results[...] = [[(result_dict[measure][metric],) for metric in ('precision', 'recall', 'fscore')]
                                         for measure in measures]
@@ -420,15 +421,19 @@ class PlotSystems(object):
                 plt.close(figure)
 
         if self.run_code or self.interactive:
-            ns = {'figures': figures, 'results': all_results}
-            if self.run_code:
-                for code in self.run_code:
-                    # ns can be updated
-                    exec(code, __builtins__, ns)
-            if self.interactive:
-                embed_shell(ns, shell=None if self.interactive is True else self.interactive)
+            self._run_code(figures, all_results)
         else:
             return 'Saved to %s' % self.out_fmt.format('{%s}' % ','.join(figure_names))
+
+    def _run_code(self, figures, all_results):
+        ns = {'figures': figures, 'results': all_results}
+        if self.run_code:
+            for code in self.run_code:
+                # ns can be updated
+                exec(code, __builtins__, ns)
+        if self.interactive:
+            embed_shell(ns, shell=None if self.interactive is True else self.interactive)
+        return ns
 
     def _generate_figures(self, *args):
         if self.secondary == 'heatmap':
@@ -655,7 +660,7 @@ class CompareMeasures(object):
         self.systems = systems
         if gold:
             assert not evaluation_files
-            self.gold = list(Reader(open(gold)))
+            self.gold = list(Reader(utf8_open(gold)))
         else:
             assert evaluation_files
             self.gold = None
@@ -674,7 +679,7 @@ class CompareMeasures(object):
         # TODO: parallelise?
         for system, sys_results in zip(self.systems, all_results):
             if self.gold is None:
-                result_dict = Evaluate.read_tab_format(open(system))
+                result_dict = Evaluate.read_tab_format(utf8_open(system))
             else:
                 result_dict = Evaluate(system, self.gold, measures=self.measures, fmt='none')()
             sys_results[...] = [result_dict[measure]['fscore'] for measure in self.measures]
@@ -714,7 +719,7 @@ class CompareMeasures(object):
         return "\n".join(fmt.format(*row) for row in rows)
 
     def json_format(self, results):
-        return json.dumps(results, sort_keys=True, indent=4)
+        return json_dumps(results)
 
     def no_format(self, results):
         return results
@@ -854,7 +859,7 @@ class ComposeMeasures(object):
                     basename, ext = os.path.splitext(basename)
                 out_path = self.out_fmt.format(dir=dirname, base=basename, ext=ext)
 
-            with open(path) as in_file:
+            with utf8_open(path) as in_file:
                 result = self._process_system(in_file)
             with open(out_path, 'w') as out_file:
                 print(result, file=out_file)
@@ -928,7 +933,7 @@ class RankSystems(object):
         short_names = _get_system_names(self.systems)
         for path, short in zip(self.systems, short_names):
             #print('opening', path, file=sys.stderr)
-            results = Evaluate.read_tab_format(open(path))
+            results = Evaluate.read_tab_format(utf8_open(path))
             system = short if self.short_names else path
             tuples.extend(Tup(system, _group(self.group_re, path), measure, metric, score)
                           for measure, measure_results in results.items() if measure in measures

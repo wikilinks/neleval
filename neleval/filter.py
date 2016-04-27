@@ -4,7 +4,7 @@ import re
 import itertools
 
 from .data import Reader, Writer, Mention
-from .utils import log
+from .utils import log, utf8_open
 
 # TODO: something with char encodings
 
@@ -80,7 +80,7 @@ class FilterMentions(object):
 
         n_mentions_in = n_mentions_out = 0
 
-        for doc in Reader(open(self.system)):
+        for doc in Reader(utf8_open(self.system)):
             if aux_reader:
                 aux_doc = next(aux_reader)
                 assert len(aux_doc) == doc.n_tokens, 'Expected same number of tokens, got {} in aux and {} in input'.format(len(aux_doc), doc.n_tokens)

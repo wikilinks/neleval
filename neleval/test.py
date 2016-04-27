@@ -16,7 +16,7 @@ from . import coref_metrics
 from .evaluate import Evaluate
 from .formats import Unstitch, Stitch
 from .tac import PrepareTac
-from .utils import normalise_link
+from .utils import normalise_link, utf8_open
 
 DIR = os.path.join(os.path.dirname(__file__))
 EXAMPLES = os.path.join(DIR, 'examples')
@@ -141,7 +141,7 @@ def test_annotation_validation():
     # TODO: test changing validation rules
 
 def test_conll_data():
-    d = list(Reader(open(CONLL_GOLD)))
+    d = list(Reader(utf8_open(CONLL_GOLD)))
     assert len(d) == 1
     doc = list(d)[0] 
     assert len(list(doc.iter_mentions())) == 2
@@ -152,14 +152,14 @@ def test_conll_read_write():
     for f in (CONLL_GOLD, CONLL_MULTISENT):
         out = BytesIO()
         w = Writer(out)
-        for doc in list(Reader(open(f))):
+        for doc in list(Reader(utf8_open(f))):
             w.write(doc)
         w_str = '\n'.join(l.rstrip('\t') for l in out.getvalue().split('\n'))
         assert w_str == open(f).read()
 
 def test_sentences():
     """ Checks that we can read contiguous sentences with the indices making sense. """
-    docs = list(Reader(open(CONLL_MULTISENT)))
+    docs = list(Reader(utf8_open(CONLL_MULTISENT)))
     for d in docs:
         last = None
         for s in d.sentences:

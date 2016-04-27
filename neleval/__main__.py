@@ -81,7 +81,7 @@ def main(args=sys.argv[1:]):
     try:
         obj = cls(**namespace)
     except ValueError as e:
-        subparsers[cls].error(e.message + "\n" + traceback.format_exc())
+        subparsers[cls].error(str(e) + "\n" + traceback.format_exc())
     result = obj()
     if result is not None:
         print(result)

@@ -4,7 +4,7 @@ import io
 
 from .coref_metrics import read_conll_coref
 from .annotation import Annotation, Candidate
-from .utils import log
+from .utils import log, unicode
 
 
 def _coref_to_annotations(clusters, docid, with_kb=False, cross_doc=False):

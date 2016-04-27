@@ -1,9 +1,11 @@
+from collections import Counter
+from collections import namedtuple
+
 from .document import ENC
 from .document import Reader
 from .document import by_mention
 from .evaluate import get_measure, Evaluate
-from collections import Counter
-from collections import namedtuple
+from .utils import utf8_open, unicode
 
 
 class _Missing(object):
@@ -53,8 +55,8 @@ class LinkingError(namedtuple('Error', 'doc_id gold system')):
 class Analyze(object):
     """Analyze errors"""
     def __init__(self, system, gold=None, unique=False, summary=False, with_correct=False):
-        self.system = list(Reader(open(system)))
-        self.gold = list(Reader(open(gold)))
+        self.system = list(Reader(utf8_open(system)))
+        self.gold = list(Reader(utf8_open(gold)))
         self.unique = unique
         self.summary = summary
         self.with_correct = with_correct
@@ -77,7 +79,7 @@ class Analyze(object):
             return '\n'.join('{1}\t{0}'.format(*tup)
                              for tup in counts.most_common())
         else:
-            return u'\n'.join(unicode(error) for error in _data()).encode(ENC)
+            return u'\n'.join(unicode(error) for error in _data())
 
     def iter_errors(self):
         for s, g in Evaluate.iter_pairs(self.system, self.gold):

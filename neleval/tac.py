@@ -7,13 +7,8 @@ from collections import defaultdict
 from xml.etree.cElementTree import iterparse
 
 from .annotation import Annotation, Candidate
-from .data import ENC
-from .utils import normalise_link
+from .utils import normalise_link, log, unicode, utf8_open
 
-
-from .annotation import Annotation, Candidate
-from .data import ENC
-from .utils import normalise_link, log
 
 # TODO add reader for TAC before 2014
 
@@ -51,7 +46,7 @@ class PrepareTac(object):
         self.mapping = read_mapping(mapping)
 
     def __call__(self):
-        return u'\n'.join(unicode(a) for a in self.annotations()).encode(ENC)
+        return u'\n'.join(unicode(a) for a in self.annotations())
 
     @classmethod
     def add_arguments(cls, p):
@@ -89,9 +84,9 @@ def read_mapping(mapping):
     if not mapping:
         return None
     redirects = {}
-    with open(mapping) as f:
+    with utf8_open(mapping) as f:
         for l in f:
-            bits = l.decode('utf8').rstrip().split('\t')
+            bits = l.rstrip().split('\t')
             title = bits[0].replace(' ', '_')
             for r in bits[1:]:
                 r = r.replace(' ', '_')
@@ -142,8 +137,8 @@ class TacReader(object):
     def read_candidates(self):
         "Return {qid: [(score, kbid, type)]} dictionary"
         d = defaultdict(list)
-        for line in open(self.links_file):
-            cols = line.decode(ENC).strip().split('\t')
+        for line in utf8_open(self.links_file):
+            cols = line.strip().split('\t')
             if len(cols) < 3:
                 continue
             if cols[0] == 'query_id':
@@ -195,7 +190,7 @@ class PrepareTac15(object):
         self.mapping = read_mapping(mapping)
 
     def __call__(self):
-        return u'\n'.join(unicode(a) for a in self.read_annotations(self.system)).encode(ENC)
+        return u'\n'.join(unicode(a) for a in self.read_annotations(self.system))
 
     @classmethod
     def add_arguments(cls, p):

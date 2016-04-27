@@ -1,25 +1,27 @@
 #!/usr/bin/env python
-from .annotation import Annotation, Candidate
-from .data import ENC
-from .utils import normalise_link
 from collections import defaultdict
 from glob import glob
 import os
 import urllib
 
-EXT = 'ann' # extension of brat annotation files
-SCORE = 1.0 # default disambiguation score
-WP = 'Wikipedia:' # likely wikipedia namespace
+from .annotation import Annotation, Candidate
+from .utils import normalise_link, unicode, utf8_open
+
+
+EXT = 'ann'  # extension of brat annotation files
+SCORE = 1.0  # default disambiguation score
+WP = 'Wikipedia:'  # likely wikipedia namespace
 WP_LEN = len(WP)
+
 
 class PrepareBrat(object):
     "Convert brat format for evaluation"
     def __init__(self, dir, mapping=None):
-        self.dir = dir # dir containing brat .ann files
+        self.dir = dir  # dir containing brat .ann files
         self.mapping = self.read_mapping(mapping)
 
     def __call__(self):
-        return u'\n'.join(unicode(a) for a in self.annotations()).encode(ENC)
+        return u'\n'.join(unicode(a) for a in self.annotations())
 
     @classmethod
     def add_arguments(cls, p):
@@ -47,15 +49,16 @@ class PrepareBrat(object):
         if not mapping:
             return None
         redirects = {}
-        with open(mapping) as f:
+        with utf8_open(mapping) as f:
             for l in f:
-                bits = l.decode('utf8').rstrip().split('\t')
+                bits = l.rstrip().split('\t')
                 title = bits[0].replace(' ', '_')
                 for r in bits[1:]:
                     r = r.replace(' ', '_')
                     redirects[r] = title
                 redirects[title] = title
         return redirects
+
 
 class BratReader(object):
     def __init__(self, dir, ext=EXT, score=SCORE):
@@ -74,13 +77,13 @@ class BratReader(object):
     def files(self):
         for f in glob(os.path.join(self.dir, '*.{}'.format(self.ext))):
             doc_id = os.path.basename(f)[:-self.len]
-            yield doc_id, open(f)
+            yield doc_id, utf8_open(f)
 
     def read(self, fh):
         mentions = []
         normalizations = defaultdict(list)
         for l in fh:
-            l = l.decode(ENC).strip()
+            l = l.strip()
             if l.startswith('T'):
                 # mention annotation line
                 annot_id, mention, name = l.split('\t', 2)
@@ -97,7 +100,9 @@ class BratReader(object):
         return self.unquote(self.rm_namespace(kb_id))
 
     def unquote(self, kb_id):
-        return urllib.unquote(kb_id.encode(ENC)).decode(ENC)
+        if hasattr(urllib, 'parse'):
+            return urllib.parse.unquote(kb_id)
+        return urllib.unquote(kb_id.encode('utf8')).decode('utf8')
 
     def rm_namespace(self, kb_id):
         if kb_id.startswith(WP):

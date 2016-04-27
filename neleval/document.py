@@ -9,6 +9,7 @@ import sys
 import argparse
 
 from .annotation import Annotation
+from .utils import unicode
 
 TEMPLATE = u'{}\t{}\t{}\t{}\t{}'
 ENC = 'utf8'
@@ -53,16 +54,12 @@ class Document(object):
                 continue
             if self.VALIDATION[issue] == 'error':
                 b, a = instances[0]
-                raise ValueError('Found annotations with {} span:\n{}\n{}'
-                                 .format(issue,
-                                         unicode(a).encode(ENC),
-                                         unicode(b).encode(ENC)))
+                raise ValueError(u'Found annotations with {} span:\n{}\n{}'
+                                 .format(issue, unicode(a), unicode(b)))
             elif self.VALIDATION[issue] == 'warn':
                 b, a = instances[0]
-                warnings.warn('Found annotations with {} span:\n{}\n{}'
-                              .format(issue,
-                                      unicode(a).encode(ENC),
-                                      unicode(b).encode(ENC)))
+                warnings.warn(u'Found annotations with {} span:\n{}\n{}'
+                              .format(issue, unicode(a), unicode(b)))
 
     def _set_fields(self):
         """Set fields on annotations that are relative to document"""
@@ -108,7 +105,7 @@ def by_document(annotations):
             d[a.docid].append(a)
         else:
             d[a.docid] = [a]
-    return d.iteritems()
+    return d.items()
 
 
 def by_mention(annotations):
@@ -139,7 +136,7 @@ class Reader(object):
     def annotations(self):
         "Yield Annotation objects"
         for line in self.fh:
-            yield Annotation.from_string(line.rstrip('\n').decode(ENC))
+            yield Annotation.from_string(line.rstrip('\n'))
 
 
 class ValidateSpans(object):

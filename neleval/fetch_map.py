@@ -6,7 +6,7 @@ from io import BytesIO
 import re
 
 from .document import Reader
-from .utils import normalise_link
+from .utils import normalise_link, utf8_open
 from .wikipedia import Wikipedia
 
 class FetchMapping(object):
@@ -18,7 +18,7 @@ class FetchMapping(object):
         self.seen = set()
 
     def __call__(self):
-        self.data = list(Reader(open(self.fname)))
+        self.data = list(Reader(utf8_open(self.fname)))
         self.redirects = dict(self.fetch())        
         out = BytesIO()
         for e, r in sorted(self.redirects.iteritems()):

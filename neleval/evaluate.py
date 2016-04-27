@@ -8,7 +8,7 @@ import json
 from .configs import (DEFAULT_MEASURE_SET, parse_measures,
                       MEASURE_HELP, get_measure)
 from .document import Document, Reader
-from .utils import log
+from .utils import log, utf8_open, json_dumps
 
 
 class StrictMetricWarning(Warning):
@@ -40,11 +40,11 @@ class Evaluate(object):
         """
         if not isinstance(system, list):
             log.debug('Reading system output..')
-            system = list(Reader(open(system)))
+            system = list(Reader(utf8_open(system)))
             log.debug('..done.')
         if not isinstance(gold, list):
             log.debug('Reading gold standard..')
-            gold = list(Reader(open(gold)))
+            gold = list(Reader(utf8_open(gold)))
             log.debug('..done.')
         self.system = system
         self.gold = gold
@@ -134,7 +134,7 @@ class Evaluate(object):
         return results
 
     def json_format(self, results):
-        return json.dumps(results, sort_keys=True, indent=4)
+        return json_dumps(results)
 
     def no_format(self, results):
         return results

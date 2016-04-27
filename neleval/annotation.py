@@ -4,6 +4,8 @@
 from collections import Sequence, defaultdict
 import operator
 
+from .utils import unicode
+
 
 try:
     keys = dict.viewkeys
@@ -24,7 +26,7 @@ class Annotation(object):
         self.candidates = candidates
 
     def __str__(self):
-        return unicode(self)
+        return self.__unicode__()
 
     def __unicode__(self):
         return u'{}\t{}\t{}\t{}'.format(
@@ -37,9 +39,9 @@ class Annotation(object):
     def __repr__(self):
         return 'Annotation({!r}, {!r}, {!r}, {!r})'.format(self.docid, self.start, self.end, self.candidates)
 
-    def __cmp__(self, other):
+    def __lt__(self, other):
         assert isinstance(other, Annotation)
-        return cmp((self.start, -self.end), (other.start, -other.end))
+        return (self.start, -self.end) < (other.start, -other.end)
 
     def compare_spans(self, other):
         assert self.start <= self.end, 'End is before start: {!r}'.format(self)
@@ -136,7 +138,7 @@ class Candidate(object):
         self.type = type
 
     def __str__(self):
-        return unicode(self)
+        return self.__unicode__()
 
     def __unicode__(self):
         return u'{}\t{}\t{}'.format(self.id,
@@ -146,9 +148,9 @@ class Candidate(object):
     def __repr__(self):
         return '<{!r}>'.format(self.id)
 
-    def __cmp__(self, other):
+    def __lt__(self, other):
         assert isinstance(other, Candidate)
-        return cmp(self.score, other.score)
+        return self.score < other.score
 
     # Parsing methods
     @classmethod
@@ -162,7 +164,7 @@ class Candidate(object):
             yield cls(cols[0], float(cols[1]))
         elif len(cols[3:]) % 3 == 0:
             # >=1 (id, score, type) candidate tuples
-            for i in xrange(0, len(cols), 3):
+            for i in range(0, len(cols), 3):
                 id, score, type = cols[i:i+3]
                 yield cls(id, float(score), type)
         else:

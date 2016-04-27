@@ -2,7 +2,7 @@ import re
 from io import BytesIO
 
 from .data import Reader, Writer
-from .utils import log, normalise_link
+from .utils import log, normalise_link, utf8_open
 
 class Prepare(object):
     """Map entity IDs to a different KB, normalises entity IDs, and select documents by doc-ID
@@ -13,7 +13,7 @@ class Prepare(object):
         self.mapping = self.read_mapping(mapping)
 
     def __call__(self):
-        docs = list(Reader(open(self.fname)))
+        docs = list(Reader(utf8_open(self.fname)))
         log.info('Read {} documents from {}'.format(len(docs), self.fname))
         out = BytesIO()
         w = Writer(out)
@@ -32,9 +32,9 @@ class Prepare(object):
         if not mapping:
             return None
         redirects = {}
-        with open(mapping) as f:
+        with utf8_open(mapping) as f:
             for l in f:
-                bits = l.decode('utf8').rstrip().split('\t')
+                bits = l.rstrip().split('\t')
                 title = bits[0].replace(' ', '_')
                 for r in bits[1:]:
                     r = r.replace(' ', '_')

@@ -3,8 +3,8 @@
 from __future__ import division, print_function
 from collections import defaultdict
 import itertools
-import random
 import operator
+import random
 import functools
 import json
 import csv
@@ -19,6 +19,7 @@ except ImportError:
 from .document import Reader
 from .configs import DEFAULT_MEASURE, parse_measures, MEASURE_HELP
 from .evaluate import Evaluate, Matrix
+from .utils import utf8_open
 
 
 # 2500 bootstraps gives a robust CI lower-bound estimate to 3 significant
@@ -45,7 +46,7 @@ def sum(it, start=0):
 def _result_diff(matrix1, matrix2):
     result1 = matrix1.results
     return {k: result1[k] - v
-            for k, v in matrix2.results.iteritems()}
+            for k, v in matrix2.results.items()}
 
 
 def _permutation_trial(per_doc1, per_doc2):
@@ -58,11 +59,11 @@ def _permutation_trial(per_doc1, per_doc2):
 
 
 def count_permutation_trials(per_doc1, per_doc2, base_diff, n_trials):
-    metrics, bases = zip(*base_diff.iteritems())
+    metrics, bases = zip(*base_diff.items())
     ops = [operator.le if base < 0 else operator.ge
            for base in bases]
     better = [0] * len(metrics)
-    for _ in xrange(n_trials):
+    for _ in range(n_trials):
         result = _permutation_trial(per_doc1, per_doc2)
         for i, metric in enumerate(metrics):
             better[i] += ops[i](result[metric], bases[i])
@@ -71,7 +72,7 @@ def count_permutation_trials(per_doc1, per_doc2, base_diff, n_trials):
 
 def _paired_bootstrap_trial(per_doc1, per_doc2):
     indices = [random.randint(0, len(per_doc1) - 1)
-               for i in xrange(len(per_doc1))]
+               for i in range(len(per_doc1))]
     pseudo1 = sum((per_doc1[i] for i in indices), Matrix())
     pseudo2 = sum((per_doc2[i] for i in indices), Matrix())
     return _result_diff(pseudo1, pseudo2)
@@ -79,10 +80,10 @@ def _paired_bootstrap_trial(per_doc1, per_doc2):
 
 def count_bootstrap_trials(per_doc1, per_doc2, base_diff, n_trials):
     # XXX: is this implementation correct?
-    metrics, bases = zip(*base_diff.iteritems())
+    metrics, bases = zip(*base_diff.items())
     signs = [base >= 0 for base in bases]
     same_sign = [0] * len(metrics)
-    for _ in xrange(n_trials):
+    for _ in range(n_trials):
         result = _paired_bootstrap_trial(per_doc1, per_doc2)
         for i, metric in enumerate(metrics):
             same_sign[i] += signs[i] == (result[metric] < 0)
@@ -126,11 +127,11 @@ class Significance(object):
 
     def __call__(self):
         all_counts = defaultdict(dict)
-        #gold = sorted(Reader(open(self.gold)))
-        gold = list(Reader(open(self.gold)))
+        #gold = sorted(Reader(utf8_open(self.gold)))
+        gold = list(Reader(utf8_open(self.gold)))
         for path in self.systems:
-            #system = sorted(Reader(open(path)))
-            system = list(Reader(open(path)))
+            #system = sorted(Reader(utf8_open(path)))
+            system = list(Reader(utf8_open(path)))
             doc_pairs = list(Evaluate.iter_pairs(system, gold))
             for measure, per_doc, overall in Evaluate.count_all(doc_pairs, self.measures):
                 all_counts[measure][path] = (per_doc, overall)
@@ -139,7 +140,7 @@ class Significance(object):
                     'measure': measure,
                     'stats': self.significance(measure_counts[sys1], measure_counts[sys2])}
                    for sys1, sys2 in itertools.combinations(self.systems, 2)
-                   for measure, measure_counts in sorted(all_counts.iteritems(),
+                   for measure, measure_counts in sorted(all_counts.items(),
                                                      key=lambda tup: self.measures.index(tup[0]))]
 
         return self.fmt(self, results)
@@ -156,7 +157,7 @@ class Significance(object):
                                                for share in _job_shares(self.n_jobs, self.trials))
         all_counts = []
         for result in results:
-            metrics, counts = zip(*result.iteritems())
+            metrics, counts = zip(*result.items())
             all_counts.append(counts)
 
         return {metric: {'diff': base_diff[metric],
@@ -204,7 +205,7 @@ class Significance(object):
         ret = (fmt + u'\t{}' * len(metrics) * 2).format(*header)
         fmt += u''.join(u'\t{:+8.3f}\t{:8.3f}' for metric in metrics)
         ret += u''.join(u'\n' + fmt.format(*row) for row in rows)
-        return ret.encode('utf-8')
+        return ret
 
     FMTS = {
         'tab': tab_format,
@@ -218,9 +219,9 @@ class Significance(object):
 def bootstrap_trials(per_doc, n_trials, metrics):
     """Bootstrap results over a single system output"""
     history = defaultdict(list)
-    for _ in xrange(n_trials):
+    for _ in range(n_trials):
         indices = [random.randint(0, len(per_doc) - 1)
-                   for i in xrange(len(per_doc))]
+                   for i in range(len(per_doc))]
         result = sum((per_doc[i] for i in indices), Matrix()).results
         for metric in metrics:
             history[metric].append(result[metric])
@@ -300,8 +301,8 @@ class Confidence(object):
         return ret
 
     def _read_to_matrices(self):
-        gold = list(Reader(open(self.gold)))
-        system = list(Reader(open(self.system)))
+        gold = list(Reader(utf8_open(self.gold)))
+        system = list(Reader(utf8_open(self.system)))
         doc_pairs = list(Evaluate.iter_pairs(system, gold))
         counts = {}
         for measure, per_doc, overall in Evaluate.count_all(doc_pairs, self.measures):
@@ -313,7 +314,7 @@ class Confidence(object):
         results = [{'measure': measure,
                     'overall': {k: v for k, v in overall.results.items() if k in self.metrics},
                     'intervals': self.intervals(per_doc)}
-                   for measure, (per_doc, overall) in sorted(counts.iteritems(),
+                   for measure, (per_doc, overall) in sorted(counts.items(),
                                                              key=lambda tup: self.measures.index(tup[0]))]
         return results
 
@@ -352,7 +353,7 @@ class Confidence(object):
 
         ret = (fmt + u'\t{}' * len(formats)).format(*header)
         ret += u''.join(u'\n' + u'\t'.join(row) for row in rows)
-        return ret.encode('utf-8')
+        return ret
 
     @staticmethod
     def read_tab_format(file):
