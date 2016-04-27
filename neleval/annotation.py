@@ -404,7 +404,3 @@ class Measure(object):
         else:
             # This should not be reachable
             raise ValueError('Unexpected value for agg: %r' % self.agg)
-
-    def docs_to_contingency(self, system, gold):
-        return self.contingency([a for doc in system for a in doc.annotations],
-                                [a for doc in gold for a in doc.annotations])

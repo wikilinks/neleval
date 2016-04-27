@@ -4,6 +4,8 @@ Evaluate linker performance.
 """
 import warnings
 import json
+import itertools
+from collections import OrderedDict, defaultdict
 
 from .configs import (DEFAULT_MEASURE_SET, parse_measures,
                       MEASURE_HELP, get_measure)
@@ -31,7 +33,7 @@ class Evaluate(object):
 
     def __init__(self, system, gold=None,
                  measures=DEFAULT_MEASURE_SET,
-                 fmt='none'):
+                 fmt='none', group_by=None, no_groups=False):
         """
         system - system output
         gold - gold standard
@@ -51,6 +53,8 @@ class Evaluate(object):
         self.measures = parse_measures(measures or DEFAULT_MEASURE_SET)
         self.format = self.FMTS[fmt] if fmt is not callable else fmt
         self.doc_pairs = list(self.iter_pairs(self.system, self.gold))
+        self.group_by = group_by
+        self.no_groups = no_groups
 
     @classmethod
     def iter_pairs(self, system, gold):
@@ -65,10 +69,69 @@ class Evaluate(object):
         measures = (parse_measures(measures)
                     if measures is not None
                     else self.measures)
-        self.results = {measure: Matrix(*get_measure(measure).
-                                        docs_to_contingency(self.system,
-                                                            self.gold)).results
-                        for measure in measures}
+        self.results = OrderedDict()
+
+        # XXX: should avoid grouping by doc in the first place
+        system_annotations = [ann for doc in self.system
+                              for ann in doc.annotations]
+        gold_annotations = [ann for doc in self.gold
+                            for ann in doc.annotations]
+        if not self.group_by:
+            name_fmt = '{measure}'
+            system_grouped = {(): system_annotations}
+            gold_grouped = {(): gold_annotations}
+        else:
+            name_fmt = '{measure}'
+            for i, field in enumerate(self.group_by):
+                name_fmt += ';{}={{group[{}]}}'.format(field, i)
+            get_group = lambda ann: tuple(getattr(ann, field)
+                                          for field in self.group_by)
+
+            system_grouped = defaultdict(list)
+            for ann in system_annotations:
+                system_grouped[get_group(ann)].append(ann)
+
+            gold_grouped = defaultdict(list)
+            for ann in gold_annotations:
+                gold_grouped[get_group(ann)].append(ann)
+
+        n_fields = len(self.group_by)
+        group_vals = [sorted(set(group[i] for group in gold_grouped))
+                      for i in range(n_fields)]
+
+        for measure in measures:
+            measure_mats = []
+            for group in itertools.product(*group_vals):
+                # XXX should we only be accounting for groups that are non-empty in gold? non empty in either sys or gold?
+                mat = Matrix(*get_measure(measure).
+                             contingency(system_grouped[group],
+                                         gold_grouped[group])
+                             )
+                measure_mats.append((group, mat))
+
+                if self.group_by and not self.no_groups:
+                    name = name_fmt.format(measure=measure,
+                                           group=[json.dumps(v) for v in group])
+                    self.results[name] = mat.results
+
+            # Macro-averages for each field
+            micro_labels = ['<micro>'] * len(self.group_by)
+            for i in range(n_fields):
+                constituents = defaultdict(Matrix)
+                for group, mat in measure_mats:
+                    constituents[group[i]] += mat
+
+                labels = micro_labels[:]
+                labels[i] = '<macro>'
+                name = name_fmt.format(measure=measure, group=labels)
+                self.results[name] = macro_average(constituents.values())
+
+            # Overall micro-average
+            if self.group_by:
+                name = name_fmt.format(measure=measure, group=micro_labels)
+                self.results[name] = sum(constituents.values(),
+                                         Matrix()).results
+
         return self.format(self, self.results)
 
     @classmethod
@@ -78,6 +141,15 @@ class Evaluate(object):
         p.add_argument('-f', '--fmt', default='tab', choices=cls.FMTS.keys())
         p.add_argument('-m', '--measure', dest='measures', action='append',
                        metavar='NAME', help=MEASURE_HELP)
+        p.add_argument('-b', '--group-by', dest='group_by', action='append',
+                       metavar='FIELD',
+                       help='Report results per field-value, '
+                            'and micro/macro-averaged over these, '
+                            'Multiple --group-by may be used.  '
+                            'E.g. -b docid -b type.  '
+                            'NB: micro-average may not equal overall score.')
+        p.add_argument('--no-groups', default=False, action='store_true',
+                       help='With --group-by, report only overall, not per-group results')
         p.set_defaults(cls=cls)
         return p
 
@@ -100,7 +172,7 @@ class Evaluate(object):
 
     def tab_format(self, results, num_fmt='{:.3f}', delimiter='\t'):
         lines = [self._header(delimiter)]
-        for measure in self.measures:
+        for measure, measure_results in results.items():
             row = self.row(results, measure, num_fmt)
             lines.append(delimiter.join(row))
         return '\n'.join(lines)
@@ -206,3 +278,14 @@ class Matrix(object):
         p = self.precision
         r = self.recall
         return self.div(2*p*r, p+r)
+
+
+def macro_average(results_iter):
+    out = defaultdict(float)
+    for i, results in enumerate(results_iter):
+        if hasattr(results, 'results'):
+            # accept Matrix instances instead
+            results = results.results
+        for k, v in results.items():
+            out[k] += v
+    return {k: v / (i + 1) for k, v in out.items()}
