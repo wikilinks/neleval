@@ -78,8 +78,8 @@ class Evaluate(object):
                             for ann in doc.annotations]
         if not self.group_by:
             name_fmt = '{measure}'
-            system_grouped = {(): system_annotations}
-            gold_grouped = {(): gold_annotations}
+            system_grouped = {((),): system_annotations}
+            gold_grouped = {((),): gold_annotations}
         else:
             name_fmt = '{measure}'
             for i, field in enumerate(self.group_by):
@@ -95,9 +95,12 @@ class Evaluate(object):
             for ann in gold_annotations:
                 gold_grouped[get_group(ann)].append(ann)
 
-        n_fields = len(self.group_by)
-        group_vals = [sorted(set(group[i] for group in gold_grouped))
-                      for i in range(n_fields)]
+        if self.group_by:
+            n_fields = len(self.group_by)
+            group_vals = [sorted(set(group[i] for group in gold_grouped))
+                          for i in range(n_fields)]
+        else:
+            group_vals = [((),)]
 
         for measure in measures:
             measure_mats = []
@@ -109,25 +112,25 @@ class Evaluate(object):
                              )
                 measure_mats.append((group, mat))
 
-                if self.group_by and not self.overall:
+                if not self.group_by or not self.overall:
                     name = name_fmt.format(measure=measure,
                                            group=[json.dumps(v) for v in group])
                     self.results[name] = mat.results
 
-            # Macro-averages for each field
-            micro_labels = ['<micro>'] * len(self.group_by)
-            for i in range(n_fields):
-                constituents = defaultdict(Matrix)
-                for group, mat in measure_mats:
-                    constituents[group[i]] += mat
-
-                labels = micro_labels[:]
-                labels[i] = '<macro>'
-                name = name_fmt.format(measure=measure, group=labels)
-                self.results[name] = macro_average(constituents.values())
-
-            # Overall micro-average
             if self.group_by:
+                # Macro-averages for each field
+                micro_labels = ['<micro>'] * len(self.group_by)
+                for i in range(n_fields):
+                    constituents = defaultdict(Matrix)
+                    for group, mat in measure_mats:
+                        constituents[group[i]] += mat
+
+                    labels = micro_labels[:]
+                    labels[i] = '<macro>'
+                    name = name_fmt.format(measure=measure, group=labels)
+                    self.results[name] = macro_average(constituents.values())
+
+                # Overall micro-average
                 name = name_fmt.format(measure=measure, group=micro_labels)
                 self.results[name] = sum(constituents.values(),
                                          Matrix()).results
