@@ -33,7 +33,7 @@ class Evaluate(object):
 
     def __init__(self, system, gold=None,
                  measures=DEFAULT_MEASURE_SET,
-                 fmt='none', group_by=None, no_groups=False):
+                 fmt='none', group_by=None, overall=False):
         """
         system - system output
         gold - gold standard
@@ -54,7 +54,7 @@ class Evaluate(object):
         self.format = self.FMTS[fmt] if fmt is not callable else fmt
         self.doc_pairs = list(self.iter_pairs(self.system, self.gold))
         self.group_by = group_by
-        self.no_groups = no_groups
+        self.overall = overall
 
     @classmethod
     def iter_pairs(self, system, gold):
@@ -109,7 +109,7 @@ class Evaluate(object):
                              )
                 measure_mats.append((group, mat))
 
-                if self.group_by and not self.no_groups:
+                if self.group_by and not self.overall:
                     name = name_fmt.format(measure=measure,
                                            group=[json.dumps(v) for v in group])
                     self.results[name] = mat.results
@@ -148,7 +148,11 @@ class Evaluate(object):
                             'Multiple --group-by may be used.  '
                             'E.g. -b docid -b type.  '
                             'NB: micro-average may not equal overall score.')
-        p.add_argument('--no-groups', default=False, action='store_true',
+        p.add_argument('--by-doc', dest='group_by', action='append_const',
+                       const='docid', help='Alias for -b docid')
+        p.add_argument('--by-type', dest='group_by', action='append_const',
+                       const='type', help='Alias for -b type')
+        p.add_argument('--overall', default=False, action='store_true',
                        help='With --group-by, report only overall, not per-group results')
         p.set_defaults(cls=cls)
         return p
