@@ -241,7 +241,7 @@ class ListMeasures(object):
         ret += '\n\n'
         ret += _wrap('In all measures, a set of tuples corresponding to Key '
                      'Fields is produced from annotations matching Filter. '
-                     'Aggregation with sets-micro compares gold and predicted '
+                     'Aggregation with `sets\' compares gold and predicted '
                      'tuple sets directly; coreference aggregates compare '
                      'tuples clustered by their assigned entity ID.')
         ret += '\n\n'
