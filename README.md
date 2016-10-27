@@ -3,6 +3,8 @@ Entity linking evaluation
 
 Python evaluation scripts for [TAC](http://www.nist.gov/tac/) entity linking and related wikification, named entity disambiguation, and within- and cross-document coreference tasks.
 
+It aims for **fast** and **flexible** coreference resolution and **sophisticated** named entity recognition evaluation, such as partial scores for partial overlap between gold and system mentions. CEAF, in particular, is much faster to calculate here than in the [CoNLL-11/12 scorer](https://github.com/conll/reference-coreference-scorers). It boasts features such as [configurable metrics](https://github.com/wikilinks/neleval/wiki/Cheatsheet); accounting for or ignoring cross-document coreference (see the `evaluate --by-doc` flag); and bootstrap-based confidence interval calculation for document-wise evaluation metrics.
+
 Requires that `python` (2.7, with Py3k support experimental/partial) be installed on your system with `numpy` (and preferably `scipy` for fast CEAF calculation) and `joblib`. `matplotlib` is required for the `plot-systems` command.
 
 See a list of commands with:
@@ -34,7 +36,7 @@ Similar facility is available for TAC-KBP'15 EDL.
 More details
 ============
 
-See [the project wiki](../../wiki) for more details.
+See [the project wiki](https://github.com/wikilinks/neleval/wiki/Cheatsheet) for more details.
 
 References
 ==========
