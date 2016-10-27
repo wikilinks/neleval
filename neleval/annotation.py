@@ -4,7 +4,7 @@
 from __future__ import division, print_function
 from collections import Sequence, defaultdict
 import operator
-from fractions import Fraction
+import warnings
 
 from .utils import unicode
 
@@ -175,9 +175,7 @@ class Candidate(object):
 
 
 class Measure(object):
-    __slots__ = ['key', 'filter', 'filter_fn', 'agg']
-
-    def __init__(self, key, filter=None, agg='sets-micro'):
+    def __init__(self, key, filter=None, agg='sets'):
         """
         key : list of fields for mention comparison
         filter : a function or attribute name to select evaluated annotations
@@ -191,10 +189,18 @@ class Measure(object):
             assert isinstance(filter, str)
             filter = operator.attrgetter(filter)
         self.filter_fn = filter
+        if agg.endswith('-micro'):
+            self.display_agg = agg
+            agg = agg[:-6]
+            warnings.warn('`{}-micro\' aggregate has been renamed to '
+                          '`{}\' and will be removed in a future '
+                          'release.'.format(agg),
+                          DeprecationWarning)
         self.agg = agg
 
     def __str__(self):
-        return '{}:{}:{}'.format(self.agg, self.filter, '+'.join(self.key))
+        return '{}:{}:{}'.format(getattr(self, 'display_agg', self.agg),
+                                 self.filter, '+'.join(self.key))
 
     @classmethod
     def from_string(cls, s):
@@ -209,11 +215,10 @@ class Measure(object):
         return ('{0.__class__.__name__}('
                 '{0.key!r}, {0.filter!r}, {0.agg!r})'.format(self))
 
-    # TODO: variants macro-averaged across docs
-    NON_CLUSTERING_AGG = (['sets-micro'] +
-                          ['overlap-%s%s-micro' % (p1, p2)
-                           for p1 in ('sum', 'max')
-                           for p2 in ('sum', 'max')])
+    NON_CLUSTERING_AGG = ('sets',) + tuple(
+        ['overlap-%s%s' % (p1, p2)
+         for p1 in ('sum', 'max')
+         for p2 in ('sum', 'max')])
 
     @property
     def is_clustering(self):
@@ -404,7 +409,3 @@ class Measure(object):
         else:
             # This should not be reachable
             raise ValueError('Unexpected value for agg: %r' % self.agg)
-
-    def docs_to_contingency(self, system, gold):
-        return self.contingency([a for doc in system for a in doc.annotations],
-                                [a for doc in gold for a in doc.annotations])
