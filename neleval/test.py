@@ -5,7 +5,7 @@ import os
 import warnings
 from contextlib import contextmanager
 
-from nose.tools import assert_sequence_equal
+from nose.tools import assert_sequence_equal, assert_almost_equal
 
 from .document import Reader as AnnotationReader, Document
 from .data import Reader, Mention, Writer
@@ -17,6 +17,7 @@ from .evaluate import Evaluate
 from .formats import Unstitch, Stitch
 from .tac import PrepareTac
 from .utils import normalise_link, utf8_open
+from .annotation import Measure, Annotation
 
 DIR = os.path.join(os.path.dirname(__file__))
 EXAMPLES = os.path.join(DIR, 'examples')
@@ -858,3 +859,26 @@ def test_conll_multi_sysa():
     assert check_correct(EXPECTED_CONLL_MULTI_SYSA,
                          _get_stats(CONLL_MULTI_GOLD_UNSTITCHED,
                                     CONLL_MULTI_SYSA_UNSTITCHED))
+
+
+def test_measure_overlap():
+    def Ann(start, end):
+        return Annotation('', start, end, [])
+    ref = Ann(5, 14)  # 10 chars long
+    ref2 = Ann(2, 3)  # 10 chars long
+    assert_almost_equal(0., Measure.measure_overlap({ref: []}, 'max'))
+    assert_almost_equal(0., Measure.measure_overlap({ref: []}, 'sum'))
+    assert_almost_equal(.3, Measure.measure_overlap({ref: [Ann(1, 7)]}, 'max'))
+    assert_almost_equal(.3, Measure.measure_overlap({ref: [Ann(1, 7)]}, 'sum'))
+    assert_almost_equal(.4, Measure.measure_overlap({ref: [Ann(1, 7), Ann(11, 15)]}, 'max'))
+    assert_almost_equal(.7, Measure.measure_overlap({ref: [Ann(1, 7), Ann(11, 15)]}, 'sum'))
+    assert_almost_equal(.4, Measure.measure_overlap({ref: [Ann(1, 8), Ann(12, 15)]}, 'max'))
+    assert_almost_equal(.7, Measure.measure_overlap({ref: [Ann(1, 8), Ann(12, 15)]}, 'sum'))
+    assert_almost_equal(1., Measure.measure_overlap({ref: [Ann(5, 14)]}, 'max'))
+    assert_almost_equal(1., Measure.measure_overlap({ref: [Ann(5, 14)]}, 'sum'))
+    assert_almost_equal(1.4, Measure.measure_overlap({ref: [Ann(1, 8), Ann(12, 15)], ref2: [Ann(1, 8)]}, 'max'))
+    assert_almost_equal(1.7, Measure.measure_overlap({ref: [Ann(1, 8), Ann(12, 15)], ref2: [Ann(1, 8)]}, 'sum'))
+
+    # Overlapping is not officially supported, but we will test current behaviour
+    assert_almost_equal(.9, Measure.measure_overlap({ref: [Ann(1, 7), Ann(6, 15)]}, 'max'))
+    assert_almost_equal(1., Measure.measure_overlap({ref: [Ann(1, 7), Ann(6, 15)]}, 'sum'))

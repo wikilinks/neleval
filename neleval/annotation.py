@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 "Representation of link standoff annotation and measures over it"
 
+from __future__ import division, print_function
 from collections import Sequence, defaultdict
 import operator
+from fractions import Fraction
 
 from .utils import unicode
 
@@ -207,13 +209,17 @@ class Measure(object):
         return ('{0.__class__.__name__}('
                 '{0.key!r}, {0.filter!r}, {0.agg!r})'.format(self))
 
-    NON_CLUSTERING_AGG = ('sets-micro',)  # 'sets-macro')
+    # TODO: variants macro-averaged across docs
+    NON_CLUSTERING_AGG = (['sets-micro'] +
+                          ['overlap-%s%s-micro' % (p1, p2)
+                           for p1 in ('sum', 'max')
+                           for p2 in ('sum', 'max')])
 
     @property
     def is_clustering(self):
         return self.agg not in self.NON_CLUSTERING_AGG
 
-    def build_index(self, annotations):
+    def build_index(self, annotations, key_fields=None, multi=False):
         if isinstance(annotations, dict):
             # assume already built
             return annotations
@@ -221,9 +227,16 @@ class Measure(object):
 
         if self.filter is not None:
             annotations = filter(self.filter_fn, annotations)
-        key = self.key
-        return {tuple(getattr(ann, field) for field in key): ann
-                for ann in annotations}
+        key = self.key if key_fields is None else key_fields
+        if multi:
+            out = defaultdict(list)
+            for ann in annotations:
+                out[tuple(getattr(ann, field) for field in key)].append(ann)
+            out.default_factory = None
+            return out
+        else:
+            return {tuple(getattr(ann, field) for field in key): ann
+                    for ann in annotations}
 
     def build_clusters(self, annotations):
         if isinstance(annotations, dict):
@@ -273,6 +286,90 @@ class Measure(object):
         fn = [(gold_index[k], None) for k in gold_keys - shared]
         return tp, fp, fn
 
+    def get_overlapping(self, system, gold):
+        """
+        Returns: overlaps_sys, overlaps_gold
+            where each is a dict of sys/gold annotations mapped to a list
+            of sorted annotations that overlap and have the same key apart
+            from span.
+        """
+        key_fields = self.key
+        if 'span' in key_fields:
+            key_fields = [f for f in key_fields if f != 'span'] + ['docid']
+
+        overlaps_sys = {ann: [] for ann in system}
+        overlaps_gold = {ann: [] for ann in gold}
+        system = self.build_index(system, multi=True, key_fields=key_fields)
+        gold = self.build_index(gold, multi=True, key_fields=key_fields)
+        for key, sys_annots in system.items():
+            gold_annots = gold.pop(key, [])
+            sys_annots.sort()
+            gold_annots.sort()
+            while sys_annots and gold_annots:
+                rel = sys_annots[-1].compare_spans(gold_annots[-1])
+                if rel != 'non-overlapping':
+                    overlaps_sys[sys_annots[-1]].append(gold_annots[-1])
+                    overlaps_gold[gold_annots[-1]].append(sys_annots[-1])
+                if sys_annots[-1] > gold_annots[-1]:
+                    sys_annots.pop()
+                else:
+                    gold_annots.pop()
+
+        return ({k: list(reversed(v)) for k, v in overlaps_sys.items()},
+                {k: list(reversed(v)) for k, v in overlaps_gold.items()})
+
+    @staticmethod
+    def measure_overlap(overlaps, mode):
+        total = 0.
+        if mode == 'sum':
+            for ref, cands in overlaps.items():
+                if not cands:
+                    continue
+                # XXX: cands should not be overlapping, but just in case...
+                n_chars = 0
+                opened = None
+                n_open = 0
+                offsets = ([(ann.start, '(') for ann in cands] +
+                           [(ann.end, ')') for ann in cands])
+                offsets.sort()
+                for o, d in offsets:  # sorted
+                    if d == '(':
+                        if opened is None:
+                            opened = max(o, ref.start)
+                            n_open += 1
+                        else:
+                            n_open += 1
+                    else:
+                        assert n_open
+                        n_open -= 1
+                        if not n_open:
+                            n_chars += min(o, ref.end) - opened + 1
+                            opened = None
+                assert n_open == 0
+                assert opened is None
+                total += n_chars / (ref.end - ref.start + 1)
+
+        elif mode == 'max':
+            for ref, cands in overlaps.items():
+                if not cands:
+                    continue
+                start = ref.start
+                end = ref.end
+                most = max(min(end, ann.end) - max(start, ann.start)
+                           for ann in cands)
+                total += (most + 1) / (end - start + 1)
+        else:
+            raise ValueError('Unexpected overlap measurement mode: %r' % mode)
+
+        return total
+
+    def count_overlap(self, system, gold, gold_mode='sum', sys_mode='sum'):
+        # XXX: note by convention modes are gold then sys!
+        overlaps_sys, overlaps_gold = self.get_overlapping(system, gold)
+        fp = len(overlaps_sys) - self.measure_overlap(overlaps_sys, sys_mode)
+        fn = len(overlaps_gold) - self.measure_overlap(overlaps_gold, gold_mode)
+        return fp, fn
+
     def count_clustering(self, system, gold):
         from . import coref_metrics
         if not self.is_clustering:
@@ -296,9 +393,17 @@ class Measure(object):
             rtp = r_num
             fn = r_den - r_num
             return ptp, fp, rtp, fn
-        else:
+        elif self.agg == 'sets-micro':
             tp, fp, fn = self.count_matches(system, gold)
             return tp, fp, tp, fn
+        elif self.agg.startswith('overlap-') and self.agg.endswith('-micro'):
+            params = self.agg[len('overlap-'):-len('-micro')]
+            fp, fn = self.count_overlap(system, gold,
+                                        params[:3], params[3:])
+            return len(system) - fp, fp, len(gold) - fn, fn
+        else:
+            # This should not be reachable
+            raise ValueError('Unexpected value for agg: %r' % self.agg)
 
     def docs_to_contingency(self, system, gold):
         return self.contingency([a for doc in system for a in doc.annotations],
