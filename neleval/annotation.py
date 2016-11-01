@@ -398,11 +398,11 @@ class Measure(object):
             rtp = r_num
             fn = r_den - r_num
             return ptp, fp, rtp, fn
-        elif self.agg == 'sets-micro':
+        elif self.agg == 'sets':
             tp, fp, fn = self.count_matches(system, gold)
             return tp, fp, tp, fn
-        elif self.agg.startswith('overlap-') and self.agg.endswith('-micro'):
-            params = self.agg[len('overlap-'):-len('-micro')]
+        elif self.agg.startswith('overlap-'):
+            params = self.agg[len('overlap-'):]
             fp, fn = self.count_overlap(system, gold,
                                         params[:3], params[3:])
             return len(system) - fp, fp, len(gold) - fn, fn
