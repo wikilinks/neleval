@@ -69,11 +69,10 @@ class Document(object):
             a.is_first = eid not in seen
             seen.add(eid)
 
-    def __str__(self):
-        return unicode(self)
-
     def __unicode__(self):
         return u'\n'.join(unicode(a) for a in self.annotations)
+
+    __str__ = __unicode__
 
     # Accessing Spans.
     def _iter_mentions(self, link=True, nil=True):

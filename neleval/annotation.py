@@ -27,9 +27,6 @@ class Annotation(object):
         self.end = end
         self.candidates = candidates
 
-    def __str__(self):
-        return self.__unicode__()
-
     def __unicode__(self):
         return u'{}\t{}\t{}\t{}'.format(
             self.docid,
@@ -37,6 +34,8 @@ class Annotation(object):
             self.end,
             u'\t'.join([unicode(c) for c in self.candidates])
             )
+
+    __str__ = __unicode__
 
     def __repr__(self):
         return 'Annotation({!r}, {!r}, {!r}, {!r})'.format(self.docid, self.start, self.end, self.candidates)
@@ -139,13 +138,12 @@ class Candidate(object):
         self.score = score
         self.type = type
 
-    def __str__(self):
-        return self.__unicode__()
-
     def __unicode__(self):
         return u'{}\t{}\t{}'.format(self.id,
                                     self.score or '',
                                     self.type or '')
+
+    __str__ = __unicode__
 
     def __repr__(self):
         return '<{!r}>'.format(self.id)
