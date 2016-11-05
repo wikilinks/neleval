@@ -192,8 +192,8 @@ class Measure(object):
         if agg.endswith('-micro'):
             self.display_agg = agg
             agg = agg[:-6]
-            warnings.warn('`{}-micro\' aggregate has been renamed to '
-                          '`{}\' and will be removed in a future '
+            warnings.warn('`{0}-micro\' aggregate has been renamed to '
+                          '`{0}\' and will be removed in a future '
                           'release.'.format(agg),
                           DeprecationWarning)
         self.agg = agg
