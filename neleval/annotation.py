@@ -5,6 +5,7 @@ from __future__ import division, print_function
 from collections import Sequence, defaultdict
 import operator
 import warnings
+import json
 
 from .utils import unicode
 
@@ -19,6 +20,22 @@ except Exception:
 
 
 class Annotation(object):
+    """A name mention and its predicted candidates
+
+    Parameters
+    ----------
+
+    Attributes
+    ----------
+    TODO
+    is_first : bool or unset
+        Indicates if this annotation is the first in the document for this
+        eid.
+
+    * :
+        Other attributes are automatically adopted from the top candidate
+    """
+
     __slots__ = ['docid', 'start', 'end', 'candidates', 'is_first']
 
     def __init__(self, docid, start, end, candidates=[]):
@@ -71,41 +88,15 @@ class Annotation(object):
         if self.candidates:
             return self.candidates[0]
 
-    @property
-    def eid(self):
-        "Return link KB ID or NIL cluster ID (default cluster ID is None)"
-        if self.link is not None:
-            return self.link.id
-
-    @property
-    def kbid(self):
-        "Return link KB ID or None"
-        if self.is_linked:
-            return self.link.id
-
-    @property
-    def score(self):
-        "Return link score or None"
-        if self.is_linked:
-            return self.link.score
-
-    @property
-    def type(self):
-        "Return link type or None"
-        if self.link:
-            return self.link.type
-
-    @property
-    def is_nil(self):
-        if self.eid is None:
-            return True
-        if self.eid.startswith('NIL'):
-            return True
-        return False
-
-    @property
-    def is_linked(self):
-        return not self.is_nil
+    def __getattr__(self, name):
+        # Generally, return attributes from top candidate
+        # or None if there are no candidates
+        if name.startswith('_'):
+            # AttributeError
+            super(Annotation, self).__getattr__(name)
+        link = self.link
+        if link is not None:
+            return getattr(link, name)
 
     # Parsing methods
     @classmethod
@@ -125,18 +116,81 @@ class Annotation(object):
     @classmethod
     def list_fields(cls):
         ann = cls.from_string('a\t0\t1\tabc')
-        return [f for f in dir(ann)
+        return [f for f in dir(ann) + dir(ann.link)
                 if not f.startswith('_')
                 and not callable(getattr(ann, f, None))]
 
 
 class Candidate(object):
-    __slots__ = ['id', 'score', 'type']
+    """A candidate link
 
-    def __init__(self, id, score=None, type=None):
-        self.id = id
+    Parameters
+    ----------
+    eid : string
+        KB ID or NIL ID (begins "NIL")
+    score : numeric
+        Confidence
+    type : string or dict
+        If a string, the ``type`` attribute is set to this string.
+        If a dict, all keys are copied to attributes of the candidate
+
+    Attributes
+    ----------
+    eid : string
+    score : numeric
+    kbid : string or None
+        ``eid`` if it does not begin with "NIL"
+    is_nil : bool
+        True if ``eid`` begins with "NIL"
+    is_linked : bool
+        ``not is_nil``
+
+    Examples
+    --------
+    >>> cand = Candidate.from_string('NIL123')
+    >>> (cand.eid, cand.score, cand.kbid, cand.is_nil, cand.is_linked)
+    ('NIL123', None, None, True, False)
+    >>> cand = Candidate.from_string('E123\t1.5\tPER')
+    >>> (cand.eid, cand.score, cand.kbid, cand.is_nil, cand.is_linked)
+    ('E123', 1.5, 'E123', False, True)
+    >>> cand.type
+    'PER'
+    >>> cand = Candidate.from_string('E123\t1.5\t{"type":"PER","reftype":"NOM"}')
+    >>> cand.type
+    'PER'
+    >>> cand.reftype
+    'NOM'
+    """
+    __slots__ = ['eid',    # KB ID or NIL ID
+                 'score',  # confidence
+                 '__dict__',
+                 ]
+
+    def __init__(self, eid, score=None, type=None):
+        self.eid = eid
         self.score = score
-        self.type = type
+        if hasattr(type, 'items'):
+            self.__dict__.update(type)
+        else:
+            self.type = type
+
+    @property
+    def kbid(self):
+        "Return link KB ID or None"
+        if self.is_linked:
+            return self.eid
+
+    @property
+    def is_nil(self):
+        if self.eid is None:
+            return True
+        if self.eid.startswith('NIL'):
+            return True
+        return False
+
+    @property
+    def is_linked(self):
+        return not self.is_nil
 
     def __unicode__(self):
         return u'{}\t{}\t{}'.format(self.id,
@@ -146,7 +200,7 @@ class Candidate(object):
     __str__ = __unicode__
 
     def __repr__(self):
-        return '<{!r}>'.format(self.id)
+        return '<{!r}>'.format(self.eid)
 
     def __lt__(self, other):
         assert isinstance(other, Candidate)
@@ -166,6 +220,8 @@ class Candidate(object):
             # >=1 (id, score, type) candidate tuples
             for i in range(0, len(cols), 3):
                 id, score, type = cols[i:i+3]
+                if type.startswith('{'):
+                    type = json.loads(type)
                 yield cls(id, float(score), type)
         else:
             # undefined format

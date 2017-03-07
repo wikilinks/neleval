@@ -254,8 +254,10 @@ class ListMeasures(object):
                 '- clustering: %s' % (', '.join(sorted(Measure.NON_CLUSTERING_AGG)),
                                       ', '.join(sorted(COREF_METRICS))))
         ret += '\n\n'
-        ret += ('Available filter and key fields (roughly): %s' %
-                ', '.join(sorted(Annotation.list_fields())))
+        ret += _wrap('Available filter and key fields: %s.' %
+                     ', '.join(sorted(Annotation.list_fields())))
+        ret += '\n\n'
+        ret += _wrap('More fields can be stored dynamically by entering a candidate\'s type as a JSON key-value mapping.')
         return ret
 
     @classmethod
