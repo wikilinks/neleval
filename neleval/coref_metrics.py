@@ -429,6 +429,8 @@ def _disjoint_max_assignment(similarities):
         component_true = np.flatnonzero(mask[:similarities.shape[0]])
         component_pred = np.flatnonzero(mask[similarities.shape[0]:])
         component_sim = similarities[component_true, :][:, component_pred]
+        if 0 in component_sim.shape:
+            pass
         if component_sim.shape == (1, 1):
             total += component_sim[0, 0]
         else:
@@ -531,8 +533,8 @@ def cs_b_cubed(true, pred):
 
 def _positive_pairs(C):
     "Return pairs of instances across all clusters in C"
-    return frozenset(itertools.chain(
-        *[itertools.combinations(sorted(c), 2) for c in C]))
+    return frozenset(itertools.chain.from_iterable(
+        itertools.combinations(sorted(c), 2) for c in C))
 
 
 def _negative_pairs(C):
@@ -559,6 +561,8 @@ def pairwise(true, pred):
     ...         {1: {'b', 'c'}, 2: {'d', 'e'}})
     (1, 2, 1, 3)
     """
+    # Slow in some cases, perhaps, but much less memory consumed
+    return pairwise_slow(true, pred)
     return _pairwise(_positive_pairs(values(true)),
                      _positive_pairs(values(pred)))
 
