@@ -56,8 +56,12 @@ header $measures | tr "\n" "\t" | sed 's/.$//g'
 tmpf=$(mktemp $TMPDIR/XXXXX)
 for eval in $paths
 do
-    echo -n $(basename $eval | sed 's/\.[^.]*$//')'	'
-    cat $eval | get_eval_prf $measures
+    scores=$(cat $eval | get_eval_prf $measures)
+    if echo $scores | grep -q [1-9]
+    then
+        # not all scores are zero
+        echo $(basename $eval | sed 's/\.[^.]*$//')'	' "$scores"
+    fi
 done > $tmpf
 awk -F'\t' '
 FNR == 1 {
