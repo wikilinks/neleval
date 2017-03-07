@@ -102,7 +102,11 @@ class _Result(namedtuple('Result', 'system measure data group')):
 
 def _group(group_re, system):
     if group_re is not None:
-        return group_re.search(system).group()
+        try:
+            return group_re.search(system).group()
+        except AttributeError:
+            print('Failed to match {!r} to {!r}'.format(group_re.pattern, system), file=sys.stderr)
+            raise
 
 
 XTICK_ROTATION = {'rotation': 40, 'ha': 'right'}
@@ -333,6 +337,7 @@ class PlotSystems(object):
                                         for measure in measures]
                 except KeyError:
                     print('While processing', system, file=sys.stderr)
+                    print('measures available:', result_dict.keys(), file=sys.stderr)
                     raise
 
         # TODO: avoid legacy array intermediary
