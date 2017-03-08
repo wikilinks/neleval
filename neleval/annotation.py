@@ -193,9 +193,16 @@ class Candidate(object):
         return not self.is_nil
 
     def __unicode__(self):
-        return u'{}\t{}\t{}'.format(self.id,
+        type_ = self.__dict__
+        if not type_:
+            type_ = ''
+        elif len(type_) == 1 and 'type' in type_:
+            type_ = type_['type'] or ''
+        else:
+            type_ = json.dumps(type_)
+        return u'{}\t{}\t{}'.format(self.eid,
                                     self.score or '',
-                                    self.type or '')
+                                    type_)
 
     __str__ = __unicode__
 
