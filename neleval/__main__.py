@@ -8,7 +8,7 @@ import sys
 import traceback
 import logging
 
-#from .prepare import Prepare
+from .prepare import SelectAlternatives
 from .evaluate import Evaluate
 from .analyze import Analyze
 from .significance import Significance, Confidence
@@ -47,6 +47,7 @@ APPS = [
     PlotSystems,
     ComposeMeasures,
     ToWeak,
+    SelectAlternatives,
 ]
 
 
