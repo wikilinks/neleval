@@ -97,9 +97,9 @@ def read_mapping(mapping):
 
 def apply_mapping(mapping, candidates):
     for c in candidates:
-        kbid = normalise_link(c.id)
+        kbid = normalise_link(c.eid)
         if mapping:
-            c.id = mapping.get(kbid, kbid)
+            c.eid = mapping.get(kbid, kbid)
         yield c
 
 
