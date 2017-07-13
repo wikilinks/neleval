@@ -672,7 +672,7 @@ class CompareMeasures(object):
 
         self.measures = parse_measures(measures or DEFAULT_MEASURE_SET,
                                        allow_unknown=evaluation_files)
-        self.format = self.FMTS[fmt] if fmt is not callable else fmt
+        self.format = self.FMTS[fmt] if not callable(fmt) else fmt
         self.out_fmt = out_fmt
         self.figsize = figsize
         self.sort_by = sort_by

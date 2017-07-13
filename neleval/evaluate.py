@@ -51,7 +51,7 @@ class Evaluate(object):
         self.system = system
         self.gold = gold
         self.measures = parse_measures(measures or DEFAULT_MEASURE_SET)
-        self.format = self.FMTS[fmt] if fmt is not callable else fmt
+        self.format = self.FMTS[fmt] if not callable(fmt) else fmt
         self.doc_pairs = list(self.iter_pairs(self.system, self.gold))
         self.group_by = group_by
         self.overall = overall

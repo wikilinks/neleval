@@ -123,7 +123,7 @@ class Significance(object):
         self.n_jobs = n_jobs
         self.measures = parse_measures(measures or DEFAULT_MEASURE, incl_clustering=False)
         self.metrics = metrics
-        self.fmt = self.FMTS[fmt] if fmt is not callable else fmt
+        self.fmt = self.FMTS[fmt] if not callable(fmt) else fmt
 
     def __call__(self):
         all_counts = defaultdict(dict)
@@ -261,7 +261,7 @@ class Confidence(object):
                                      incl_clustering=False)
         self.metrics = metrics
         self.percentiles = percentiles
-        self.fmt = self.FMTS[fmt] if fmt is not callable else fmt
+        self.fmt = self.FMTS[fmt] if not callable(fmt) else fmt
 
     def calibrate_trials(self, trials=[100, 250, 500, 1000, 2500, 5000, 10000],
                          max_trials=20000):
