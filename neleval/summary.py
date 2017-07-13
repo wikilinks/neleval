@@ -473,6 +473,8 @@ class PlotSystems(object):
 
         if self.limits and self.limits != 'tight':
             kwargs = {'vmin': self.limits[0], 'vmax': self.limits[1]}
+        else:
+            kwargs = {}
         im = ax.imshow(matrix, interpolation='nearest',
                        cmap=self.cmap, **kwargs)
         small_font = make_small_font()
