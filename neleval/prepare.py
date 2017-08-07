@@ -65,7 +65,11 @@ class SelectAlternatives(object):
                     matched = keys.index(by_span[ann.span])
                 except (KeyError, IndexError):
                     # span not annotated or candidate not matched
-                    doc_keys = by_doc[ann.docid]
+                    try:
+                        doc_keys = by_doc[ann.docid]
+                    except KeyError:
+                        # no system annotations in this doc
+                        doc_keys = set()
                     collection_match = None
                     for i, key in enumerate(keys):
                         if key in doc_keys:
