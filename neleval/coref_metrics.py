@@ -346,7 +346,7 @@ def dice(a, b):
     "Entity-based" measure in CoNLL; #4 in CEAF paper
     """
     if a and b:
-        return len(a & b) / (len(a) + len(b))
+        return (2 * len(a & b)) / (len(a) + len(b))
     return 0.
 
 
@@ -361,7 +361,7 @@ def _vectorized_dice(true_matrix, pred_matrix):
 
     denom = np.repeat(true_sizes, np.diff(overlap.indptr))
     denom += pred_sizes.take(overlap.indices)
-    overlap.data /= denom
+    overlap.data *= 2 / denom
 
     return overlap
 
