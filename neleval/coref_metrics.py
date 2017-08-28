@@ -361,7 +361,7 @@ def _vectorized_dice(true_matrix, pred_matrix):
 
     denom = np.repeat(true_sizes, np.diff(overlap.indptr))
     denom += pred_sizes.take(overlap.indices)
-    overlap.data = (2 * overlap.data) / denom
+    overlap.data *= 2 / denom
 
     return overlap
 
