@@ -179,7 +179,7 @@ class Evaluate(object):
 
     def tab_format(self, results, num_fmt='{:.3f}', delimiter='\t'):
         lines = [self._header(delimiter)]
-        for measure, measure_results in results.items():
+        for measure, measure_results in sorted(results.items()):
             row = self.row(results, measure, num_fmt)
             lines.append(delimiter.join(row))
         return '\n'.join(lines)
