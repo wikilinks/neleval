@@ -8,7 +8,7 @@ import sys
 import traceback
 import logging
 
-from .prepare import SelectAlternatives
+from .prepare import SelectAlternatives, WeightsForHierarchy
 from .evaluate import Evaluate
 from .analyze import Analyze
 from .significance import Significance, Confidence
@@ -48,6 +48,7 @@ APPS = [
     ComposeMeasures,
     ToWeak,
     SelectAlternatives,
+    WeightsForHierarchy,
 ]
 
 
