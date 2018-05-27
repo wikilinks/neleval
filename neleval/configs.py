@@ -185,12 +185,14 @@ def parse_measures(in_measures, incl_clustering=True, allow_unknown=False):
     return measures
 
 
-def get_measure(name):
+def get_measure(name, weighting=None):
     if isinstance(name, Measure):
-        return name
-    if name.count(':') == 2:
-        return Measure.from_string(name)
-    return MEASURES[name]
+        measure = name
+    elif name.count(':') == 2:
+        measure = Measure.from_string(name)
+    else:
+        measure = MEASURES[name]
+    return measure.get_weighted(weighting)
 
 
 def get_measure_choices():

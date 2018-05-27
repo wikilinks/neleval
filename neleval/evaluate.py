@@ -28,12 +28,28 @@ METRICS = [
 ]
 
 
+class TypeWeighting:
+    def __init__(self, path):
+        self.values = {}
+        with open(path) as f:
+            for l in f:
+                gold, sys, weight = l.split('\t')
+                weight = float(weight)
+                self.values[gold, sys] = weight
+
+    def __call__(self, gold_type, sys_type):
+        if gold_type == sys_type:
+            return 1
+        return self.values.get((gold_type, sys_type), 0)
+
+
 class Evaluate(object):
     'Evaluate system output'
 
     def __init__(self, system, gold=None,
                  measures=DEFAULT_MEASURE_SET,
-                 fmt='none', group_by=None, overall=False):
+                 fmt='none', group_by=None, overall=False,
+                 type_weights=None):
         """
         system - system output
         gold - gold standard
@@ -55,6 +71,10 @@ class Evaluate(object):
         self.doc_pairs = list(self.iter_pairs(self.system, self.gold))
         self.group_by = group_by
         self.overall = overall
+        weighting = {}
+        if type_weights is not None:
+            weighting['type'] = TypeWeighting(type_weights)
+        self.weighting = weighting or None
 
     @classmethod
     def iter_pairs(self, system, gold):
@@ -106,7 +126,7 @@ class Evaluate(object):
             measure_mats = []
             for group in itertools.product(*group_vals):
                 # XXX should we only be accounting for groups that are non-empty in gold? non empty in either sys or gold?
-                mat = Matrix(*get_measure(measure).
+                mat = Matrix(*get_measure(measure, weighting=self.weighting).
                              contingency(system_grouped[group],
                                          gold_grouped[group])
                              )
@@ -157,6 +177,9 @@ class Evaluate(object):
                        const='type', help='Alias for -b type')
         p.add_argument('--overall', default=False, action='store_true',
                        help='With --group-by, report only overall, not per-group results')
+        p.add_argument('--type-weights', metavar='FILE', default=None,
+                       help='File mapping gold and sys types to a weight, '
+                       'such as produced by weights-for-hierarchy')
         p.set_defaults(cls=cls)
         return p
 
@@ -168,7 +191,7 @@ class Evaluate(object):
     @classmethod
     def count(cls, measure, doc_pairs):
         per_doc = []
-        measure = get_measure(measure)
+        measure = get_measure(measure, weighting=self.weighting)
         for sdoc, gdoc in doc_pairs:
             per_doc.append(Matrix(*measure.contingency(sdoc.annotations,
                                                        gdoc.annotations)))
