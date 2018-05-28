@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from .annotation import Annotation
 from .document import ENC
+from .utils import unicode
 
 class ToWeak(object):
     """Convert annotations to char-level for weak evaluation

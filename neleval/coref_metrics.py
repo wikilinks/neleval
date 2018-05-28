@@ -123,7 +123,7 @@ def _run_reference_coref_scorer(true, pred, metric='all'):
     write_conll_coref(true, pred, true_file, pred_file)
     true_file.close()
     pred_file.close()
-    start = time.time()
+    #start = time.time()
     output = subprocess.check_output([REFERENCE_COREF_SCORER_PATH,
                                       metric, true_file.name,
                                       pred_file.name, 'none'])
@@ -147,7 +147,7 @@ def _cross_check(metric):
 
         @functools.wraps(fn)
         def wrapper(true, pred):
-            start = time.time()
+            #start = time.time()
             our_results = fn(true, pred)
             #our_time = time.time() - start
             #print('Ran our', metric, 'in ', our_time, file=sys.stderr)
