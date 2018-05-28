@@ -8,7 +8,7 @@ cross-document coreference tasks.
 
 |version| |licence| |py-versions|
 
-|issues| |docs|
+|issues| |build| |docs| |coverage|
 
 
 It aims for **fast** and **flexible** coreference resolution and
