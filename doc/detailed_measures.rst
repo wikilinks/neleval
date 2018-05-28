@@ -1,4 +1,6 @@
 
+.. _detailed_measures:
+
 Measures in detail
 ~~~~~~~~~~~~~~~~~~
 
