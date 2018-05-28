@@ -2,7 +2,7 @@
 neleval
 ~~~~~~~
 
-Python evaluation scripts for TAC entity linking
+Python evaluation scripts for `TAC <http://www.nist.gov/tac/>`__ entity linking
 and related wikification, named entity disambiguation, and within- and
 cross-document coreference tasks.
 
