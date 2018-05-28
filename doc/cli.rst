@@ -36,8 +36,9 @@ Task definition and metric meddling
 
     commands/list-measures
     commands/compose-measures
-    commands/to-weak
     commands/select-alternatives
+    commands/to-weak
+    commands/weights-for-hierarchy
 
 Data preparation and validation
 -------------------------------
