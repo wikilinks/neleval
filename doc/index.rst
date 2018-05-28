@@ -31,10 +31,8 @@ Documentation
     install
     usage
     scripts
-    formats
-    basic_measures
-    coref_evaluation
     measures
+    formats
     cli
 
 References

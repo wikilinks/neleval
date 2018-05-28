@@ -1,6 +1,6 @@
 
-On Coreference Evaluation
-~~~~~~~~~~~~~~~~~~~~~~~~~
+Coreference Evaluation
+~~~~~~~~~~~~~~~~~~~~~~
 
 Pradhan et al. have published "Scoring Coreference Partitions of
 Predicted Mentions: A Reference Implementation" (ACL 2014) describing
