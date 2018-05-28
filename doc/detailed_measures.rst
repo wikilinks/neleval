@@ -103,6 +103,8 @@ Note that the *is\_first* filter is intended to provide clustering
 evaluation similar to the *entity\_match* evaluation of linking
 performance.
 
+.. _measure_aggregator:
+
 Aggregator
 ==========
 

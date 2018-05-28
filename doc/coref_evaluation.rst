@@ -1,5 +1,5 @@
 
-Coreference Evaluation
+Coreference evaluation
 ~~~~~~~~~~~~~~~~~~~~~~
 
 Pradhan et al. have published "Scoring Coreference Partitions of
