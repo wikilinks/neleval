@@ -86,31 +86,18 @@ Filter
 The filter defines what mentions are removed before precision, recall
 and f-score calculations.
 
-+---------+--------------+
-| Filter  | Description  |
-+=========+==============+
-| *is\_li | Only keep    |
-| nked*   | mentions     |
-|         | that are     |
-|         | resolved to  |
-|         | known KB     |
-|         | identifiers  |
-+---------+--------------+
-| *is\_ni | Only keep    |
-| l*      | mentions     |
-|         | that are not |
-|         | resolved to  |
-|         | known KB     |
-|         | identifiers  |
-+---------+--------------+
-| *is\_fi | Only keep    |
-| rst*    | the first    |
-|         | mention in a |
-|         | document of  |
-|         | a given      |
-|         | KB/NIL       |
-|         | identifier   |
-+---------+--------------+
++-----------------------+----------------------------------------------------+
+| Filter                | Description                                        |
++=======================+====================================================+
+| *is\_linked*          | Only keep mentions that are resolved to known KB   |
+|                       | identifiers                                        |
++-----------------------+----------------------------------------------------+
+| *is\_nil*             | Only keep mentions that are not resolved to known  |
+|                       | KB identifiers                                     |
++-----------------------+----------------------------------------------------+
+| *is\_first*           | Only keep the first mention in a document of a     |
+|                       | given KB/NIL identifier                            |
++-----------------------+----------------------------------------------------+
 
 Note that the *is\_first* filter is intended to provide clustering
 evaluation similar to the *entity\_match* evaluation of linking
@@ -122,148 +109,49 @@ Aggregator
 The aggregator defines how corpus-level scores are computed from
 individual instances.
 
-+-------------+--------------+
-| Aggregator  | Description  |
-+=============+==============+
-| **Mention,  |              |
-| linking,    |              |
-| tagging     |              |
-| evaluations |              |
-| **          |              |
-+-------------+--------------+
-| *sets*      | Take the     |
-|             | unique set   |
-|             | of tuples as |
-|             | defined by   |
-|             | **key**      |
-|             | across the   |
-|             | gold and     |
-|             | system data, |
-|             | then         |
-|             | micro-averag |
-|             | e            |
-|             | document-lev |
-|             | el           |
-|             | tp, fp and   |
-|             | fn counts.   |
-+-------------+--------------+
-| *overlap-{m | For tasks in |
-| ax,sum}{max | which the    |
-| ,sum}*      | gold and     |
-|             | system must  |
-|             | produce      |
-|             | non-overlapp |
-|             | ing          |
-|             | annotations, |
-|             | these scores |
-|             | account for  |
-|             | partial      |
-|             | overlap      |
-|             | between gold |
-|             | and system   |
-|             | mentions, as |
-|             | defined for  |
-|             | the `LoReHLT |
-|             | evaluation < |
-|             | https://www. |
-|             | nist.gov/sit |
-|             | es/default/f |
-|             | iles/documen |
-|             | ts/itl/iad/m |
-|             | ig/LoReHLT16 |
-|             | EvalPlan_v1- |
-|             | 01.pdf>`__.  |
-+-------------+--------------+
-| **Clusterin |              |
-| g           |              |
-| evaluation* |              |
-| *           |              |
-+-------------+--------------+
-| *muc*       | Count the    |
-|             | total number |
-|             | of edits     |
-|             | required to  |
-|             | translate    |
-|             | from the     |
-|             | gold to the  |
-|             | system       |
-|             | clustering   |
-+-------------+--------------+
-| *b\_cubed*  | Assess the   |
-|             | proportion   |
-|             | of each      |
-|             | mention's    |
-|             | cluster that |
-|             | is shared    |
-|             | between gold |
-|             | and system   |
-|             | clusterings  |
-+-------------+--------------+
-| *entity\_ce | Calculate    |
-| af*         | optimal      |
-|             | one-to-one   |
-|             | alignment    |
-|             | between      |
-|             | system and   |
-|             | gold         |
-|             | clusters     |
-|             | based on     |
-|             | Dice         |
-|             | coefficient, |
-|             | and get the  |
-|             | total        |
-|             | aligned      |
-|             | score        |
-|             | relative to  |
-|             | aligning     |
-|             | each cluster |
-|             | with itself  |
-+-------------+--------------+
-| *mention\_c | Calculate    |
-| eaf*        | optimal      |
-|             | one-to-one   |
-|             | alignment    |
-|             | between      |
-|             | system and   |
-|             | gold         |
-|             | clusters     |
-|             | based on     |
-|             | number of    |
-|             | overlapping  |
-|             | mentions,    |
-|             | and get the  |
-|             | total        |
-|             | aligned      |
-|             | score        |
-|             | relative to  |
-|             | aligning     |
-|             | each cluster |
-|             | with itself  |
-+-------------+--------------+
-| *pairwise*  | The          |
-|             | proportion   |
-|             | of true      |
-|             | co-clustered |
-|             | mention      |
-|             | pairs that   |
-|             | are          |
-|             | predicted,   |
-|             | etc., as     |
-|             | used in      |
-|             | computing    |
-|             | BLANC        |
-+-------------+--------------+
-| *pairwise\_ | The          |
-| negative*   | proportion   |
-|             | of true      |
-|             | *not*        |
-|             | co-clustered |
-|             | mention      |
-|             | pairs that   |
-|             | are          |
-|             | predicted,   |
-|             | etc., as     |
-|             | used in      |
-|             | computing    |
-|             | BLANC        |
-+-------------+--------------+
++------------------------------+----------------------------------------------------+
+| Aggregator                   | Description                                        |
++==============================+====================================================+
+| **Mention, linking,          |                                                    |
+| tagging evaluations**        |                                                    |
++------------------------------+----------------------------------------------------+
+| *sets*                       | Take the unique set of tuples as defined by        |
+|                              | **key** across the gold and system data, then      |
+|                              | micro-average document-level tp, fp and fn counts. |
++------------------------------+----------------------------------------------------+
+| *overlap-{max,sum}{max,sum}* | For tasks in which the gold and system must        |
+|                              | produce non-overlapping annotations, these scores  |
+|                              | account for partial overlap between gold and       |
+|                              | system mentions, as defined for the `LoReHLT`_     |
+|                              | evaluation.                                        |
++------------------------------+----------------------------------------------------+
+| **Clustering evaluation**    |                                                    |
+|                              |                                                    |
++------------------------------+----------------------------------------------------+
+| *muc*                        | Count the total number of edits required to        |
+|                              | translate from the gold to the system clustering   |
++------------------------------+----------------------------------------------------+
+| *b\_cubed*                   | Assess the proportion of each mention's cluster    |
+|                              | that is shared between gold and system clusterings |
++------------------------------+----------------------------------------------------+
+| *entity\_ceaf*               | Calculate optimal one-to-one alignment between     |
+|                              | system and gold clusters based on Dice             |
+|                              | coefficient, and get the total aligned score       |
+|                              | relative to aligning each cluster with itself      |
++------------------------------+----------------------------------------------------+
+| *mention\_ceaf*              | Calculate optimal one-to-one alignment between     |
+|                              | system and gold clusters based on number of        |
+|                              | overlapping mentions, and get the total aligned    |
+|                              | score relative to aligning each cluster with       |
+|                              | itself                                             |
++------------------------------+----------------------------------------------------+
+| *pairwise*                   | The proportion of true co-clustered mention pairs  |
+|                              | that are predicted, etc., as used in computing     |
+|                              | BLANC                                              |
++------------------------------+----------------------------------------------------+
+| *pairwise\_negative*         | The proportion of true *not* co-clustered mention  |
+|                              | pairs that are predicted, etc., as used in         |
+|                              | computing BLANC                                    |
++------------------------------+----------------------------------------------------+
+
+.. _LoReHLT: https://www.nist.gov/sites/default/files/documents/itl/iad/mig/LoReHLT16EvalPlan_v1-01.pdf
