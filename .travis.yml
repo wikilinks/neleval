@@ -11,7 +11,7 @@ install:
 script:
   - pytest neleval/
   - ./shell_test.sh
-  - pip install -r doc/requirements.txt && cd doc && SPHINXOPTS=-W make html
+  - pip install -r doc/requirements.txt sphinx_rtd_theme && cd doc && SPHINXOPTS=-W make html
   - pyflakes neleval/
 after_success:
   - coveralls
