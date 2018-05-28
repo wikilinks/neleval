@@ -1,9 +1,13 @@
 #!/usr/bin/env python
 from .annotation import Annotation
 from .document import ENC
+from .utils import unicode
 
 class ToWeak(object):
-    "Convert annotations to char-level for weak evaluation."
+    """Convert annotations to char-level for weak evaluation
+
+    A better approach is to use measures with partial overlap support.
+    """
     def __init__(self, fname):
         self.fname = fname
 

@@ -7,7 +7,6 @@ import operator
 import random
 import functools
 import json
-import csv
 
 # Attempt to import joblib, but don't fail.
 try:
@@ -258,7 +257,7 @@ class Confidence(object):
         self.trials = trials
         self.n_jobs = n_jobs
         self.measures = parse_measures(measures or DEFAULT_MEASURE,
-                                     incl_clustering=False)
+                                       incl_clustering=False)
         self.metrics = metrics
         self.percentiles = percentiles
         self.fmt = self.FMTS[fmt] if not callable(fmt) else fmt

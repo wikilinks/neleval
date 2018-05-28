@@ -38,6 +38,7 @@ def embed_shell(local, shell=None):
         options = [run_ipython, run_bpython, run_python]
     else:
         options = [lookup[shell]]
+    e = None
     for fn in options:
         try:
             fn(local)

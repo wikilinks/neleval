@@ -12,10 +12,6 @@ from .prepare import SelectAlternatives, WeightsForHierarchy
 from .evaluate import Evaluate
 from .analyze import Analyze
 from .significance import Significance, Confidence
-#from .formats import Unstitch, Stitch, Tagme
-#from .fetch_map import FetchMapping
-#from .filter import FilterMentions
-#from .rcv import ReutersCodes
 from .tac import PrepareTac, PrepareTac15
 from .brat import PrepareBrat
 from .import_ import PrepareConllCoref
@@ -31,13 +27,6 @@ APPS = [
     Analyze,
     Significance,
     Confidence,
-    #Prepare,
-    #FilterMentions,
-    #Unstitch,
-    #Stitch,
-    #Tagme,
-    #FetchMapping,
-    #ReutersCodes,
     PrepareTac,
     PrepareTac15,
     PrepareBrat,
