@@ -8,19 +8,45 @@ Command-line reference
 .. toctree::
 
     commands/main
+
+
+Evaluation and analysis of a single system
+------------------------------------------
+
+.. toctree::
+
     commands/evaluate
-    commands/validate-spans
-    commands/list-measures
     commands/analyze
     commands/significance
     commands/confidence
+
+Comparison of multiple systems' results
+---------------------------------------
+
+.. toctree::
+
+    commands/compare-measures
+    commands/rank-systems
+    commands/plot-systems
+
+Task definition and metric meddling
+-----------------------------------
+
+.. toctree::
+
+    commands/list-measures
+    commands/compose-measures
+    commands/to-weak
+    commands/select-alternatives
+
+Data preparation and validation
+-------------------------------
+
+.. toctree::
+
+    commands/validate-spans
     commands/prepare-tac
     commands/prepare-tac15
     commands/prepare-brat
     commands/prepare-conll-coref
-    commands/compare-measures
-    commands/rank-systems
-    commands/plot-systems
-    commands/compose-measures
-    commands/to-weak
-    commands/select-alternatives
+
