@@ -9,7 +9,7 @@ from nose.tools import assert_sequence_equal, assert_almost_equal
 
 from .document import Reader as AnnotationReader, Document
 from .data import Reader, Mention, Writer
-from .configs import MEASURE_SETS, TMP_MEASURES, LUO_MEASURES, CAI_STRUBE_MEASURES, ALL_MEASURES, parse_measures
+from .configs import LUO_MEASURES, ALL_MEASURES, parse_measures
 from .coref_metrics import mapping_to_sets, sets_to_mapping
 from .coref_metrics import _prf, muc
 from . import coref_metrics

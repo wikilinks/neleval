@@ -1,9 +1,7 @@
 from collections import Counter
 from collections import namedtuple
 
-from .document import ENC
 from .document import Reader
-from .document import by_mention
 from .evaluate import get_measure, Evaluate
 from .utils import utf8_open, unicode
 

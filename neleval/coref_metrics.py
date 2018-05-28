@@ -9,7 +9,6 @@ import subprocess
 import tempfile
 import warnings
 import time
-import sys
 import functools
 import array
 import signal
@@ -128,7 +127,7 @@ def _run_reference_coref_scorer(true, pred, metric='all'):
     output = subprocess.check_output([REFERENCE_COREF_SCORER_PATH,
                                       metric, true_file.name,
                                       pred_file.name, 'none'])
-    their_time = time.time() - start
+    #their_time = time.time() - start
     #print('Ran perl scorer', metric, 'in ', their_time, file=sys.stderr)
     #print(output[-400:], file=sys.stderr)
     os.unlink(true_file.name)
@@ -150,7 +149,7 @@ def _cross_check(metric):
         def wrapper(true, pred):
             start = time.time()
             our_results = fn(true, pred)
-            our_time = time.time() - start
+            #our_time = time.time() - start
             #print('Ran our', metric, 'in ', our_time, file=sys.stderr)
             ref_results = _prf(*_run_reference_coref_scorer(true, pred, metric))
 
