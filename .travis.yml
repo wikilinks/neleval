@@ -1,0 +1,19 @@
+language: python
+
+language: python
+python:
+  - "2.7"
+  - "3.4"
+  - "3.6"
+# command to install dependencies
+install:
+  - pip install -Ur test_requirements.txt
+  - pip install .
+# command to run tests
+script:
+  - pytest neleval/
+  - ./shell_test.sh
+  - cd doc && SPHINXOPTS=-W make html
+  - pyflakes neleval/
+after_success:
+  - coveralls
