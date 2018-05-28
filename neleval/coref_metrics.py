@@ -16,6 +16,7 @@ import signal
 
 try:
     from scipy import sparse
+    from scipy.sparse import csgraph
 except ImportError:
     sparse = None
 
@@ -410,7 +411,7 @@ def _disjoint_max_assignment(similarities):
     A = sparse.coo_matrix((np.ones(len(where_true)), (where_true, where_pred)),
                           shape=(n, n))
     try:
-        n_components, components = sparse.csgraph.connected_components(A, directed=False)
+        n_components, components = csgraph.connected_components(A, directed=False)
     except (AttributeError, TypeError):
         warnings.warn('Could not use scipy.sparse.csgraph.connected_components.'
                       'Please update your scipy installation. '
