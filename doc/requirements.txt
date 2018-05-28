@@ -1,0 +1,9 @@
+numpy
+scipy
+joblib
+matplotlib
+sphinxcontrib-programoutput
+numpydoc
+sphinx-issues
+nbsphinx
+ipykernel
