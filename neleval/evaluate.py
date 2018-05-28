@@ -191,7 +191,7 @@ class Evaluate(object):
     @classmethod
     def count(cls, measure, doc_pairs):
         per_doc = []
-        measure = get_measure(measure, weighting=self.weighting)
+        measure = get_measure(measure)
         for sdoc, gdoc in doc_pairs:
             per_doc.append(Matrix(*measure.contingency(sdoc.annotations,
                                                        gdoc.annotations)))
