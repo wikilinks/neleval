@@ -42,7 +42,7 @@ TAC data
 
 The TAC entity linking data is available to participants in the `entity
 linking track <http://nlp.cs.rpi.edu/kbp/2014/>`__ of `NIST's knowledge
-base population shared task <http://www.nist.gov/tac/2014/KBP/>`__. The
+base population shared task <http://tac.nist.gov/2014/KBP/>`__. The
 data format is described briefly below. For more details, see `the
 entity linking task
 definition <http://nlp.cs.rpi.edu/kbp/2014/task.html>`__.
@@ -113,8 +113,8 @@ Before 2014, the mention ``xml`` was provided and systems only need to
 output a tab-separated link ID file containing ``query_id``,
 ``kb_or_nil_id``, and ``score`` fields. To evaluate on these data sets,
 first add a ``ne_type`` field as per the 2014 format. Then use the gold
-``xml`` file when `converting system output to evaluation
-format <https://github.com/wikilinks/neleval/wiki/Usage#convert-gold-standard-to-evaluation-format>`__.
+``xml`` file when converting system output to evaluation
+format with :ref:`command_prepare_tac`.
 
 Note that when using 2011 data, the end offset is the first character
 that is not part of the span (rather than the last character that is

@@ -9,7 +9,6 @@ import subprocess
 import tempfile
 import warnings
 import time
-import sys
 import functools
 import array
 import signal
@@ -17,6 +16,7 @@ import signal
 
 try:
     from scipy import sparse
+    from scipy.sparse import csgraph
 except ImportError:
     sparse = None
 
@@ -124,11 +124,11 @@ def _run_reference_coref_scorer(true, pred, metric='all'):
     write_conll_coref(true, pred, true_file, pred_file)
     true_file.close()
     pred_file.close()
-    start = time.time()
+    #start = time.time()
     output = subprocess.check_output([REFERENCE_COREF_SCORER_PATH,
                                       metric, true_file.name,
                                       pred_file.name, 'none'])
-    their_time = time.time() - start
+    #their_time = time.time() - start
     #print('Ran perl scorer', metric, 'in ', their_time, file=sys.stderr)
     #print(output[-400:], file=sys.stderr)
     os.unlink(true_file.name)
@@ -148,9 +148,9 @@ def _cross_check(metric):
 
         @functools.wraps(fn)
         def wrapper(true, pred):
-            start = time.time()
+            #start = time.time()
             our_results = fn(true, pred)
-            our_time = time.time() - start
+            #our_time = time.time() - start
             #print('Ran our', metric, 'in ', our_time, file=sys.stderr)
             ref_results = _prf(*_run_reference_coref_scorer(true, pred, metric))
 
@@ -411,7 +411,7 @@ def _disjoint_max_assignment(similarities):
     A = sparse.coo_matrix((np.ones(len(where_true)), (where_true, where_pred)),
                           shape=(n, n))
     try:
-        n_components, components = sparse.csgraph.connected_components(A, directed=False)
+        n_components, components = csgraph.connected_components(A, directed=False)
     except (AttributeError, TypeError):
         warnings.warn('Could not use scipy.sparse.csgraph.connected_components.'
                       'Please update your scipy installation. '

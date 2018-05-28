@@ -1,0 +1,7 @@
+numpy
+scipy
+flake8
+pytest
+pytest-runner
+pytest-cov
+python-coveralls

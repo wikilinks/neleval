@@ -2,13 +2,13 @@
 neleval
 ~~~~~~~
 
-Python evaluation scripts for `TAC <http://www.nist.gov/tac/>`__ entity linking
+Python evaluation scripts for `TAC <http://tac.nist.gov>`__ entity linking
 and related wikification, named entity disambiguation, and within- and
 cross-document coreference tasks.
 
 |version| |licence| |py-versions|
 
-|issues| |docs|
+|issues| |build| |docs| |coverage|
 
 
 It aims for **fast** and **flexible** coreference resolution and
@@ -41,7 +41,7 @@ References
 This project extends the work described in:
 
 * Ben Hachey, Joel Nothman and Will Radford (2014),
-  `*Cheap and easy entity evaluation* <https://aclweb.org/anthology/P/P14/P14-2076>`_.
+  `*Cheap and easy entity evaluation* <http://acl2014.org/acl2014/P14-2/pdf/P14-2076.pdf>`_.
   In Proceedings of ACL.
 
 It was used as the official scorer for Entity (Discovery and) Linking in 2014--:

@@ -55,7 +55,7 @@ correct.
 ``strong_typed_mention_match`` additionally requires the correct entity
 type. This is equivalent to the CoNLL NER evaluation (`Tjong Kim Sang &
 De Meulder,
-2003 <http://www.cnts.ua.ac.be/conll2003/pdf/14247tjo.pdf>`__).
+2003 <https://www.clips.uantwerpen.be/conll2003/pdf/14247tjo.pdf>`__).
 
 ``strong_linked_mention_match`` is the same as ``strong_mention_match``
 but only considers non-nil mentions that are linked to KB identifier.
@@ -64,7 +64,7 @@ Measures sensitive to partial overlap between the system and gold
 mentions, using the `LoReHLT
 metric <https://www.nist.gov/sites/default/files/documents/itl/iad/mig/LoReHLT16EvalPlan_v1-01.pdf>`__
 can be constructed with aggregates such as ``overlap-sumsum``. See the
-`Cheatsheet <Cheatsheet>`__.
+:ref:`detailed_measures`.
 
 Linking evaluation
 ------------------
@@ -145,5 +145,5 @@ ACL.
 
 Tjong Kim Sang & De Meulder (2003). `Introduction to the CoNLL-2003
 shared task: Language-independent named entity
-recognition <http://www.cnts.ua.ac.be/conll2003/pdf/14247tjo.pdf>`__. In
+recognition <https://www.clips.uantwerpen.be/conll2003/pdf/14247tjo.pdf>`__. In
 CoNLL.
