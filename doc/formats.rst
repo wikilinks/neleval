@@ -6,7 +6,36 @@ File formats
 ``neleval`` annotations format
 ==============================
 
-TODO
+Annotations provided as input to most ``neleval`` tools (e.g.
+:ref:`command_evaluate`) consists of a tab-delimited file.
+Each line corresponds to an entity mention, and has the following
+columns:
+
+document ID : str
+    Should not contain whitespace.
+
+mention start offset : int
+    The units are arbitrary unless overlap aggregators are used (see
+    :ref:`measure_aggregator`).
+
+mention end offset : int
+    This should be inclusive of the last unit.
+    Thus if offsets are character counts, a mention with text "Go" may have
+    start offset 3 and end offset 4 (unlike Python slice notation).
+
+entity ID : str
+    Should not contain whitespace.
+    Should start with ``NIL`` for an arbitrary (cluster) identifier, or another
+    string for a KB identifier.
+
+score : float
+    ..
+
+type : str
+    An entity type label
+
+If there is more than one candidate, more (entity ID, score, type) column
+triples may be added, separated by tabs.
 
 TAC data
 ========
@@ -21,7 +50,7 @@ definition <http://nlp.cs.rpi.edu/kbp/2014/task.html>`__.
 .. _format_tac14:
 
 TAC 2014
-========
+........
 
 In 2014, systems must provide two files: (1) an ``xml`` file containing
 entity mentions and (2) a ``tab`` file containing linking and nil
@@ -78,7 +107,7 @@ measures only consider one response per mention (the one with the
 highest score).
 
 TAC 2009-2013
-=============
+.............
 
 Before 2014, the mention ``xml`` was provided and systems only need to
 output a tab-separated link ID file containing ``query_id``,
