@@ -43,6 +43,7 @@ extensions = [
     'sphinxcontrib.programoutput',
     'sphinx.ext.ifconfig',
     'sphinx.ext.viewcode',
+    'sphinx.ext.mathjax',
     'sphinx_issues',
 ]
 
