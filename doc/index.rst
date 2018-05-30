@@ -85,5 +85,5 @@ Changelog
      :alt: Documentation Status
      :target: https://neleval.readthedocs.io/en/latest/?badge=latest
 
-.. |licence| image:: https://img.shields.io/badge/Licence-BSD-blue.svg
-     :target: https://opensource.org/licenses/BSD-3-Clause
+.. |licence| image:: https://img.shields.io/badge/Licence-Apache%202.0-blue.svg
+     :target: https://opensource.org/licenses/Apache-2.0
