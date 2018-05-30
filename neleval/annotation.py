@@ -266,7 +266,7 @@ class Measure(object):
                                       'aggregate="sets"')
         self.weighting = weighting
 
-    def get_weighted(self, weighting):
+    def with_weighting(self, weighting):
         return Measure(self.key, self.filter, self.agg, weighting)
 
     def __str__(self):

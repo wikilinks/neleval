@@ -8,7 +8,7 @@ import itertools
 from collections import OrderedDict, defaultdict
 
 from .configs import (DEFAULT_MEASURE_SET, parse_measures,
-                      MEASURE_HELP, get_measure)
+                      MEASURE_HELP, get_measure, load_weighting)
 from .document import Document, Reader
 from .utils import log, utf8_open, json_dumps
 
@@ -26,21 +26,6 @@ METRICS = [
     'recall',
     'fscore',
 ]
-
-
-class TypeWeighting:
-    def __init__(self, path):
-        self.values = {}
-        with open(path) as f:
-            for l in f:
-                gold, sys, weight = l.split('\t')
-                weight = float(weight)
-                self.values[gold, sys] = weight
-
-    def __call__(self, gold_type, sys_type):
-        if gold_type == sys_type:
-            return 1
-        return self.values.get((gold_type, sys_type), 0)
 
 
 class Evaluate(object):
@@ -71,10 +56,7 @@ class Evaluate(object):
         self.doc_pairs = list(self.iter_pairs(self.system, self.gold))
         self.group_by = group_by
         self.overall = overall
-        weighting = {}
-        if type_weights is not None:
-            weighting['type'] = TypeWeighting(type_weights)
-        self.weighting = weighting or None
+        self.weighting = load_weighting(type_weights=type_weights)
 
     @classmethod
     def iter_pairs(self, system, gold):
@@ -184,14 +166,14 @@ class Evaluate(object):
         return p
 
     @classmethod
-    def count_all(cls, doc_pairs, measures):
+    def count_all(cls, doc_pairs, measures, weighting=None):
         for m in measures:
-            yield (m,) + cls.count(m, doc_pairs)
+            yield (m,) + cls.count(m, doc_pairs, weighting=weighting)
 
     @classmethod
-    def count(cls, measure, doc_pairs):
+    def count(cls, measure, doc_pairs, weighting=None):
         per_doc = []
-        measure = get_measure(measure)
+        measure = get_measure(measure, weighting=weighting)
         for sdoc, gdoc in doc_pairs:
             per_doc.append(Matrix(*measure.contingency(sdoc.annotations,
                                                        gdoc.annotations)))
