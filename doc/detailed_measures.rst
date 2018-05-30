@@ -50,6 +50,20 @@ This describes measures as listed by :ref:`command_list_measures`.
 | *pairwise*                              | span             | NA           | pairwise        |
 +-----------------------------------------+------------------+--------------+-----------------+
 
+Custom measures
+===============
+
+A custom measure can be specified on the command-line as:
+
+``<aggregator>:<filter>:<key>``
+
+such as
+
+
+``sets:None:span+kbid`` for *strong_all_match*
+
+.. _grouped_measures:
+
 Grouped measures
 ================
 
@@ -60,6 +74,8 @@ per-doc/type and overall (micro- and macro-averaged) performance. *Note
 that micro-average does not equate to whole-corpus aggregation for
 coreference aggregates, but represents clustering performance
 disregarding cross-document coreference.*
+
+.. _measure_key:
 
 Key
 ===
