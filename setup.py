@@ -26,7 +26,7 @@ setup(name='neleval',
       version=VERSION,
       download_url='https://github.com/wikilinks/neleval/tree/v' + VERSION,
 
-      description='Evaluation utilities for named entity linking and (cross-document) coreference resolution',
+      description='Command-line evaluation tools for named entity linking and (cross-document) coreference resolution',
       author='Joel Nothman, Ben Hachey, Will Radford',
       author_email='joel.nothman+neleval@gmail.com',
       packages=['neleval'],
@@ -36,11 +36,15 @@ setup(name='neleval',
           'Intended Audience :: Science/Research',
           'License :: OSI Approved :: Apache Software License',
           'Programming Language :: Python :: 2.7',
+          'Programming Language :: Python :: 3',
+          'Programming Language :: Python :: 3.4',
+          'Programming Language :: Python :: 3.5',
+          'Programming Language :: Python :: 3.6',
           'Topic :: Scientific/Engineering',
       ],
       licence='Apache 2.0',
 
-      long_description=read_markdown('README.md'),
+      long_description=open('README.rst').read(),
 
       entry_points={
           'console_scripts': [
