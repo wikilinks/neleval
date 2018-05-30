@@ -71,7 +71,6 @@ Changelog
 
 .. |build| image:: https://travis-ci.org/wikilinks/neleval.svg?branch=master
     :alt: Travis CI build status
-    :scale: 100%
     :target: https://travis-ci.org/wikilinks/neleval
 
 .. |issues| image:: https://img.shields.io/github/issues/wikilinks/neleval.svg
@@ -84,7 +83,6 @@ Changelog
 
 .. |docs| image:: https://readthedocs.org/projects/neleval/badge/?version=latest
      :alt: Documentation Status
-     :scale: 100%
      :target: https://neleval.readthedocs.io/en/latest/?badge=latest
 
 .. |licence| image:: https://img.shields.io/badge/Licence-BSD-blue.svg
