@@ -12,3 +12,4 @@ measures.
     basic_measures
     coref_evaluation
     detailed_measures
+    approximate

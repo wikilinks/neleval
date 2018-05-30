@@ -213,3 +213,10 @@ After filtering, evaluation is run as before:
         -g gold.WB.tsv \          # filtered gold standard annotation
         system.WB.tsv \           # filtered system output
         > system.WB.evaluation
+
+Evaluate each document or entity type
+-------------------------------------
+
+To get a score for each document, or each entity type, as well as the
+macro-averaged score across documents, use ``--group-by`` in
+:ref:`command_evaluate`. See :ref:`grouped_measures`.
