@@ -153,6 +153,9 @@ def _expand(measures):
 
 
 def parse_measures(in_measures, incl_clustering=True, allow_unknown=False):
+    """Expand measure lists and validate, but do not map strings to Measures
+
+    """
     # flatten nested sequences and expand group names
     measures = _expand(in_measures)
     # remove duplicates while maintaining order
@@ -185,12 +188,14 @@ def parse_measures(in_measures, incl_clustering=True, allow_unknown=False):
     return measures
 
 
-def get_measure(name):
+def get_measure(name, weighting=None):
     if isinstance(name, Measure):
-        return name
-    if name.count(':') == 2:
-        return Measure.from_string(name)
-    return MEASURES[name]
+        measure = name
+    elif name.count(':') == 2:
+        measure = Measure.from_string(name)
+    else:
+        measure = MEASURES[name]
+    return measure.with_weighting(weighting)
 
 
 def get_measure_choices():
@@ -266,3 +271,26 @@ class ListMeasures(object):
                        metavar='NAME', help=MEASURE_HELP)
         p.set_defaults(cls=cls)
         return p
+
+
+class TypeWeighting:
+    def __init__(self, path):
+        self.values = {}
+        with open(path) as f:
+            for l in f:
+                gold, sys, weight = l.split('\t')
+                weight = float(weight)
+                self.values[gold, sys] = weight
+
+    def __call__(self, gold_type, sys_type):
+        return self.values.get((gold_type, sys_type),
+                               int(gold_type == sys_type))
+
+
+def load_weighting(type_weights=None):
+    """type_weights is a path
+    """
+    weighting = {}
+    if type_weights is not None:
+        weighting['type'] = TypeWeighting(type_weights)
+    return weighting or None

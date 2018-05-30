@@ -1,4 +1,5 @@
 from collections import defaultdict
+import json
 
 from .document import Reader
 from .utils import utf8_open
@@ -99,5 +100,56 @@ class SelectAlternatives(object):
                        help='Path to gold standard annotations')
         p.add_argument('system', metavar='FILE',
                        help='Path to system annotations')
+        p.set_defaults(cls=cls)
+        return p
+
+
+class WeightsForHierarchy(object):
+    """Translate a hierarchy of types into a sparse matrix of type-pair weights
+
+    Input is a JSON object mapping parents to children in the hierarchy.
+    Output is a three-column TSV with:
+
+        * gold type
+        * system type
+        * weight
+
+    The weights are assigned such that where the system type is an ancestor of
+    the gold type with d edges between them, it will score (decay ** d).
+    """
+
+    def __init__(self, hierarchy_json, decay=0.5):
+        self.hierarchy_json = hierarchy_json
+        self.decay = decay
+        if decay > 1.0 or decay < 0:
+            raise ValueError('Decay must be greater than 0 and at most 1')
+
+    def __call__(self):
+        if self.hierarchy_json.startswith('{'):
+            hierarchy = json.loads(self.hierarchy_json)
+        else:
+            with open(self.hierarchy_json) as f:
+                hierarchy = json.load(f)
+
+        out = []
+        for parent, children in hierarchy.items():
+            self._descend(out, hierarchy, parent, children, self.decay)
+        # XXX: returning this all as a string rather than writing to a stream
+        #      is yuck!
+        return '\n'.join('%s\t%s\t%f' % tup for tup in out)
+
+    def _descend(self, out, hierarchy, gold, children, weight):
+        for child in children:
+            out.append((gold, child, weight))
+            self._descend(out, hierarchy, gold, hierarchy.get(child, ()),
+                          weight * self.decay)
+
+    @classmethod
+    def add_arguments(cls, p):
+        p.add_argument('-d', '--decay', default=0.5, type=float,
+                       help='Decay value for systems selecting an ancestor '
+                       'of the gold type')
+        p.add_argument('hierarchy_json', metavar='FILE',
+                       help='Path to hierarchy JSON')
         p.set_defaults(cls=cls)
         return p

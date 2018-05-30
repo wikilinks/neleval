@@ -236,11 +236,12 @@ class Candidate(object):
 
 
 class Measure(object):
-    def __init__(self, key, filter=None, agg='sets'):
+    def __init__(self, key, filter=None, agg='sets', weighting=None):
         """
         key : list of fields for mention comparison
         filter : a function or attribute name to select evaluated annotations
-        agg : [work in progress]
+        agg : sets or clustering measure
+        weighting : mapping field -> (func(gold_val, pred_val) -> float)
         """
         if not isinstance(key, Sequence):
             raise TypeError('key should be a list or tuple')
@@ -257,20 +258,29 @@ class Measure(object):
                           '`{0}\' and will be removed in a future '
                           'release.'.format(agg),
                           DeprecationWarning)
+
         self.agg = agg
+
+        if agg != 'sets' and weighting:
+            raise NotImplementedError('weighting is only implemented for '
+                                      'aggregate="sets"')
+        self.weighting = weighting
+
+    def with_weighting(self, weighting):
+        return Measure(self.key, self.filter, self.agg, weighting)
 
     def __str__(self):
         return '{}:{}:{}'.format(getattr(self, 'display_agg', self.agg),
                                  self.filter, '+'.join(self.key))
 
     @classmethod
-    def from_string(cls, s):
+    def from_string(cls, s, weighting=None):
         if s.count(':') != 2:
             raise ValueError('Expected 2 colons in {!r}'.format(s))
         a, f, k = s.split(':')
         if f in ('', 'None'):
             f = None
-        return cls(k.split('+'), f, a)
+        return cls(k.split('+'), f, a, weighting=weighting)
 
     def __repr__(self):
         return ('{0.__class__.__name__}('
@@ -324,12 +334,48 @@ class Measure(object):
         if self.is_clustering:
             raise ValueError('count_matches is inappropriate '
                              'for {}'.format(self.agg))
-        gold_index = self.build_index(gold)
-        pred_index = self.build_index(system)
-        tp = len(keys(gold_index) & keys(pred_index))
-        fn = len(gold_index) - tp
-        fp = len(pred_index) - tp
+        if not self.weighting:
+            gold_index = self.build_index(gold)
+            pred_index = self.build_index(system)
+            tp = len(keys(gold_index) & keys(pred_index))
+
+            fn = len(gold_index) - tp
+            fp = len(pred_index) - tp
+        else:
+            key = [f for f in self.key
+                   if f not in self.weighting]
+            weighting_fields = [f for f in self.key
+                                if f in self.weighting]
+            gold_index = self.build_index(gold, key_fields=key, multi=True)
+            pred_index = self.build_index(system, key_fields=key, multi=True)
+            if (
+                    any(len(v) > 1 for v in gold_index.values()) or
+                    any(len(v) > 1 for v in pred_index.values())
+            ):
+                raise NotImplementedError('No weighting support where '
+                                          'annotations may have duplicate key')
+            tp = 0.
+            for k, (gold_ann,) in gold_index.items():
+                try:
+                    pred_ann, = pred_index[k]
+                except KeyError:
+                    continue
+                tp += self.calc_match_weight(gold_ann, pred_ann,
+                                             weighting_fields)
+
+            fn = sum(self.calc_match_weight(gold_ann, gold_ann, weighting_fields)
+                     for gold_ann, in gold_index.values()) - tp
+            fp = sum(self.calc_match_weight(pred_ann, pred_ann, weighting_fields)
+                     for pred_ann, in pred_index.values()) - tp
         return tp, fp, fn
+
+    def calc_match_weight(self, gold_ann, pred_ann, weighting_fields):
+        w = 1
+        for field in weighting_fields:
+            w *= self.weighting[field](getattr(gold_ann, field),
+                                       getattr(pred_ann, field))
+        return w
+
 
     def get_matches(self, system, gold):
         """ Assesses the match between sets of annotations
@@ -342,6 +388,9 @@ class Measure(object):
         if self.is_clustering:
             raise ValueError('get_matches is inappropriate '
                              'for {}'.format(self.agg))
+        if self.weighting:
+            raise NotImplementedError('get_matches not implemented with '
+                                      'weighting')
         gold_index = self.build_index(gold)
         pred_index = self.build_index(system)
         gold_keys = keys(gold_index)

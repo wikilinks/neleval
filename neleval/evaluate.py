@@ -8,7 +8,7 @@ import itertools
 from collections import OrderedDict, defaultdict
 
 from .configs import (DEFAULT_MEASURE_SET, parse_measures,
-                      MEASURE_HELP, get_measure)
+                      MEASURE_HELP, get_measure, load_weighting)
 from .document import Document, Reader
 from .utils import log, utf8_open, json_dumps
 
@@ -33,7 +33,8 @@ class Evaluate(object):
 
     def __init__(self, system, gold=None,
                  measures=DEFAULT_MEASURE_SET,
-                 fmt='none', group_by=None, overall=False):
+                 fmt='none', group_by=None, overall=False,
+                 type_weights=None):
         """
         system - system output
         gold - gold standard
@@ -55,6 +56,7 @@ class Evaluate(object):
         self.doc_pairs = list(self.iter_pairs(self.system, self.gold))
         self.group_by = group_by
         self.overall = overall
+        self.weighting = load_weighting(type_weights=type_weights)
 
     @classmethod
     def iter_pairs(self, system, gold):
@@ -106,7 +108,7 @@ class Evaluate(object):
             measure_mats = []
             for group in itertools.product(*group_vals):
                 # XXX should we only be accounting for groups that are non-empty in gold? non empty in either sys or gold?
-                mat = Matrix(*get_measure(measure).
+                mat = Matrix(*get_measure(measure, weighting=self.weighting).
                              contingency(system_grouped[group],
                                          gold_grouped[group])
                              )
@@ -157,18 +159,21 @@ class Evaluate(object):
                        const='type', help='Alias for -b type')
         p.add_argument('--overall', default=False, action='store_true',
                        help='With --group-by, report only overall, not per-group results')
+        p.add_argument('--type-weights', metavar='FILE', default=None,
+                       help='File mapping gold and sys types to a weight, '
+                       'such as produced by weights-for-hierarchy')
         p.set_defaults(cls=cls)
         return p
 
     @classmethod
-    def count_all(cls, doc_pairs, measures):
+    def count_all(cls, doc_pairs, measures, weighting=None):
         for m in measures:
-            yield (m,) + cls.count(m, doc_pairs)
+            yield (m,) + cls.count(m, doc_pairs, weighting=weighting)
 
     @classmethod
-    def count(cls, measure, doc_pairs):
+    def count(cls, measure, doc_pairs, weighting=None):
         per_doc = []
-        measure = get_measure(measure)
+        measure = get_measure(measure, weighting=weighting)
         for sdoc, gdoc in doc_pairs:
             per_doc.append(Matrix(*measure.contingency(sdoc.annotations,
                                                        gdoc.annotations)))

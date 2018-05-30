@@ -16,7 +16,8 @@ except ImportError:
 
 #from data import measures, Reader
 from .document import Reader
-from .configs import DEFAULT_MEASURE, parse_measures, MEASURE_HELP
+from .configs import (DEFAULT_MEASURE, parse_measures, MEASURE_HELP,
+                      load_weighting)
 from .evaluate import Evaluate, Matrix
 from .utils import utf8_open
 
@@ -107,7 +108,7 @@ class Significance(object):
 
     def __init__(self, systems, gold, trials=N_TRIALS, method='permute',
                  n_jobs=1, metrics=['precision', 'recall', 'fscore'],
-                 fmt='none', measures=DEFAULT_MEASURE):
+                 fmt='none', measures=DEFAULT_MEASURE, type_weights=None):
         if len(systems) < 2:
             raise ValueError('Require at least two systems to compare')
         if method not in self.METHODS:
@@ -120,9 +121,11 @@ class Significance(object):
         self.method = method
         self.trials = trials
         self.n_jobs = n_jobs
-        self.measures = parse_measures(measures or DEFAULT_MEASURE, incl_clustering=False)
+        self.measures = parse_measures(measures or DEFAULT_MEASURE,
+                                       incl_clustering=False)
         self.metrics = metrics
         self.fmt = self.FMTS[fmt] if not callable(fmt) else fmt
+        self.weighting = load_weighting(type_weights=type_weights)
 
     def __call__(self):
         all_counts = defaultdict(dict)
@@ -132,7 +135,7 @@ class Significance(object):
             #system = sorted(Reader(utf8_open(path)))
             system = list(Reader(utf8_open(path)))
             doc_pairs = list(Evaluate.iter_pairs(system, gold))
-            for measure, per_doc, overall in Evaluate.count_all(doc_pairs, self.measures):
+            for measure, per_doc, overall in Evaluate.count_all(doc_pairs, self.measures, weighting=self.weighting):
                 all_counts[measure][path] = (per_doc, overall)
 
         results = [{'sys1': sys1, 'sys2': sys2,
@@ -178,6 +181,9 @@ class Significance(object):
         p.add_argument('-f', '--fmt', default='tab', choices=cls.FMTS.keys())
         p.add_argument('-m', '--measure', dest='measures', action='append',
                        metavar='NAME', help=MEASURE_HELP)
+        p.add_argument('--type-weights', metavar='FILE', default=None,
+                       help='File mapping gold and sys types to a weight, '
+                       'such as produced by weights-for-hierarchy')
         p.add_argument('--metrics', default='precision recall fscore'.split(),
                        type=lambda x: x.split(','), help='Test significance for which metrics (default: precision,recall,fscore)')
         p.set_defaults(cls=cls)
@@ -247,7 +253,7 @@ class Confidence(object):
     """
     def __init__(self, system, gold, trials=N_TRIALS, percentiles=(90, 95, 99),
                  n_jobs=1, metrics=['precision', 'recall', 'fscore'],
-                 measures=DEFAULT_MEASURE, fmt='none'):
+                 measures=DEFAULT_MEASURE, fmt='none', type_weights=None):
         # Check whether import worked, generate a more useful error.
         if Parallel is None:
             raise ImportError('Package: "joblib" not available, please '
@@ -261,6 +267,7 @@ class Confidence(object):
         self.metrics = metrics
         self.percentiles = percentiles
         self.fmt = self.FMTS[fmt] if not callable(fmt) else fmt
+        self.weighting = load_weighting(type_weights=type_weights)
 
     def calibrate_trials(self, trials=[100, 250, 500, 1000, 2500, 5000, 10000],
                          max_trials=20000):
@@ -304,7 +311,7 @@ class Confidence(object):
         system = list(Reader(utf8_open(self.system)))
         doc_pairs = list(Evaluate.iter_pairs(system, gold))
         counts = {}
-        for measure, per_doc, overall in Evaluate.count_all(doc_pairs, self.measures):
+        for measure, per_doc, overall in Evaluate.count_all(doc_pairs, self.measures, weighting=self.weighting):
             counts[measure] = (per_doc, overall)
         return counts
 
@@ -392,6 +399,9 @@ class Confidence(object):
                        help='Calculate CIs for which metrics (default: precision,recall,fscore)')
         p.add_argument('-m', '--measure', dest='measures', action='append',
                        metavar='NAME', help=MEASURE_HELP)
+        p.add_argument('--type-weights', metavar='FILE', default=None,
+                       help='File mapping gold and sys types to a weight, '
+                       'such as produced by weights-for-hierarchy')
         p.add_argument('-f', '--fmt', default='tab', choices=cls.FMTS.keys())
         p.set_defaults(cls=cls)
         return p
