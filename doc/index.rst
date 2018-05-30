@@ -30,10 +30,10 @@ Documentation
 
     install
     usage
-    scripts
     measures
     formats
     cli
+    scripts
 
 References
 ..........
