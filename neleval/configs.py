@@ -283,9 +283,8 @@ class TypeWeighting:
                 self.values[gold, sys] = weight
 
     def __call__(self, gold_type, sys_type):
-        if gold_type == sys_type:
-            return 1
-        return self.values.get((gold_type, sys_type), 0)
+        return self.values.get((gold_type, sys_type),
+                               int(gold_type == sys_type))
 
 
 def load_weighting(type_weights=None):

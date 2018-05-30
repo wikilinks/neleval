@@ -339,9 +339,13 @@ class Measure(object):
             pred_index = self.build_index(system)
             tp = len(keys(gold_index) & keys(pred_index))
 
+            fn = len(gold_index) - tp
+            fp = len(pred_index) - tp
         else:
             key = [f for f in self.key
                    if f not in self.weighting]
+            weighting_fields = [f for f in self.key
+                                if f in self.weighting]
             gold_index = self.build_index(gold, key_fields=key, multi=True)
             pred_index = self.build_index(system, key_fields=key, multi=True)
             if (
@@ -356,15 +360,22 @@ class Measure(object):
                     pred_ann, = pred_index[k]
                 except KeyError:
                     continue
-                w = 1
-                for field in self.weighting:
-                    w *= self.weighting[field](getattr(gold_ann, field),
-                                               getattr(pred_ann, field))
-                tp += w
+                tp += self.calc_match_weight(gold_ann, pred_ann,
+                                             weighting_fields)
 
-        fn = len(gold_index) - tp
-        fp = len(pred_index) - tp
+            fn = sum(self.calc_match_weight(gold_ann, gold_ann, weighting_fields)
+                     for gold_ann, in gold_index.values()) - tp
+            fp = sum(self.calc_match_weight(pred_ann, pred_ann, weighting_fields)
+                     for pred_ann, in pred_index.values()) - tp
         return tp, fp, fn
+
+    def calc_match_weight(self, gold_ann, pred_ann, weighting_fields):
+        w = 1
+        for field in weighting_fields:
+            w *= self.weighting[field](getattr(gold_ann, field),
+                                       getattr(pred_ann, field))
+        return w
+
 
     def get_matches(self, system, gold):
         """ Assesses the match between sets of annotations
