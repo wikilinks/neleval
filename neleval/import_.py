@@ -25,7 +25,7 @@ def _coref_to_annotations(clusters, docid, with_kb=False, cross_doc=False):
 
 
 class PrepareConllCoref(object):
-    "Import format from CoNLL coreference for evaluation"
+    "Import format from CoNLL 2011-2 coreference shared task for evaluation"
     def __init__(self, system, with_kb=False, cross_doc=False):
         self.system = system
         self.with_kb = with_kb
