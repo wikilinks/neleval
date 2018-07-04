@@ -82,7 +82,8 @@ columns:
 * weight
 
 For types not in this weight file, exact matches between gold type and system
-type score 1, and otherwise score is 0.
+type score 1, and otherwise score is 0. If multiple gold/system entries exist,
+the maximum weight is used.
 
 The following example scores 0.123 where the gold type is ``type1`` and the
 system type is ``type2``.

@@ -280,7 +280,9 @@ class TypeWeighting:
             for l in f:
                 gold, sys, weight = l.split('\t')
                 weight = float(weight)
-                self.values[gold, sys] = weight
+                self.values[gold, sys] = max(weight,
+                                             self.values.get((gold, sys),
+                                                             weight))
 
     def __call__(self, gold_type, sys_type):
         return self.values.get((gold_type, sys_type),
