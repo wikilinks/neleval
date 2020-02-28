@@ -20,7 +20,7 @@ def read_markdown(filename):
     return pypandoc.convert(path, 'rst')
 
 
-VERSION = '3.1.0'
+VERSION = '3.1.1'
 
 setup(name='neleval',
       version=VERSION,

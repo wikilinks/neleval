@@ -69,8 +69,8 @@ copyright = u'2014-2018 Joel Nothman, Ben Hachey, Will Radford'
 #
 # The short X.Y version.
 
-version = '3.0.3-dev'
-release = '3.0.3-dev'
+version = '3.1.1'
+release = '3.1.1'
 
 # version = neleval.__version__
 # The full version, including alpha/beta/rc tags.
